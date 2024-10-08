@@ -3,6 +3,9 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const User = require('../models/userModel'); // Assuming you have a User model
 require('dotenv').config()
+const twilio = require('twilio');
+
+
 
 // Function to hash the password
 const hashPassword = async (password) => {
@@ -13,6 +16,26 @@ const hashPassword = async (password) => {
 // Function to generate JWT
 const generateToken = (userId) => {
     return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
+};
+
+const verifyToken = (req, res, next) => {
+    // Get token from header
+    const token = req.headers['authorization'];
+
+    if (!token) {
+        return res.status(401).json({ message: 'Access denied. No token provided.' });
+    }
+
+    try {
+        // Verify token
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Attach the decoded user id to the request object for use in other routes
+        req.userId = decoded.id;
+        next(); // Proceed to the next middleware or route handler
+    } catch (error) {
+        return res.status(401).json({ message: 'Invalid token.' });
+    }
 };
 
 // Signup with email and return JWT in response
@@ -55,11 +78,11 @@ const signupWithEmail = async (req, res) => {
 
         // Send response with JWT token
         return res.status(201).json({
-          data:{
-            message: 'Registration successful.',
-            token: token,
-            userId: user._id,
-          }
+            data: {
+                message: 'Registration successful.',
+                token: token,
+                userId: user._id,
+            }
         });
     } catch (err) {
         res.status(500).json({ message: err.message });
@@ -99,5 +122,47 @@ const loginWithEmail = async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 };
-module.exports = { signupWithEmail,loginWithEmail };
+
+const addName = async (req, res) => {
+    const { name } = req.body
+    try {
+        const user = new User({ name })
+        await user.save()
+
+        return res.status(201).json({ message: 'Name stored successfully', user });
+    } catch (error) {
+        return res.status(500).json({ message: 'Error saving name', error });
+    }
+}
+
+const accountSid = process.env.TWILIO_ACCOUNT_SID;  // Twilio Account SID
+const authToken = process.env.TWILIO_AUTH_TOKEN;    // Twilio Auth Token
+const serviceSid = process.env.TWILIO_SERVICE_SID;  // Twilio Verify Service SID
+
+const client = twilio(accountSid, authToken);
+
+const sendOTP = (req, res) => {
+    const { phoneNumber } = req.body;
+
+    client.verify.v2.services(serviceSid)
+        .verifications.create({ to: `+${phoneNumber}`, channel: 'sms' })
+        .then(verification => res.status(200).json({ message: 'OTP sent', verificationSid: verification.sid }))
+        .catch(error => res.status(500).json({ error: error.message }));
+}
+
+const verifyOTP = (req, res) => {
+    const { phoneNumber, otp } = req.body;
+
+    client.verify.v2.services(serviceSid)
+        .verificationChecks.create({ to: `+${phoneNumber}`, code: otp })
+        .then(verification_check => {
+            if (verification_check.status === 'approved') {
+                res.status(200).json({ message: 'OTP verified successfully' });
+            } else {
+                res.status(400).json({ message: 'Invalid OTP' });
+            }
+        })
+        .catch(error => res.status(500).json({ error: error.message }));
+}
+module.exports = { signupWithEmail, loginWithEmail, addName, verifyToken, sendOTP, verifyOTP };
 

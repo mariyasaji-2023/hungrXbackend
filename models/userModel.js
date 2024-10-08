@@ -21,7 +21,22 @@ const userSchema = new mongoose.Schema({
     isVerified: {
         type: Boolean,
         default: false, // User is not verified until they enter correct OTP
+    }, name: {
+        type: String,
+        required: true, // User's name
     },
+    gender: {
+        type: String,
+        required: true, // User's gender (male/female)
+    },
+    height: {
+        type: Number,
+        required: true, // User's height in cm or desired unit
+    },
+    weight: {
+        type: Number,
+        required: true, // User's weight in kg or desired unit
+    }
 });
 
 const User = mongoose.model('User', userSchema);
