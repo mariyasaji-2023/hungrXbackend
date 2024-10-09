@@ -123,17 +123,17 @@ const loginWithEmail = async (req, res) => {
     }
 };
 
-const addName = async (req, res) => {
-    const { name } = req.body
-    try {
-        const user = new User({ name })
-        await user.save()
+// const addName = async (req, res) => {
+//     const { name } = req.body
+//     try {
+//         const user = new User({ name })
+//         await user.save()
 
-        return res.status(201).json({ message: 'Name stored successfully', user });
-    } catch (error) {
-        return res.status(500).json({ message: 'Error saving name', error });
-    }
-}
+//         return res.status(201).json({ message: 'Name stored successfully', user });
+//     } catch (error) {
+//         return res.status(500).json({ message: 'Error saving name', error });
+//     }
+// }
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;  // Twilio Account SID
 const authToken = process.env.TWILIO_AUTH_TOKEN;    // Twilio Auth Token
@@ -144,6 +144,11 @@ const client = twilio(accountSid, authToken);
 
 const sendOTP = async (req, res) => {
     const { mobile } = req.body;
+
+    if (!accountSid || !authToken || !serviceSid) {
+        console.error("Twilio credentials are missing. Ensure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_SERVICE_SID are set.");
+        process.exit(1); // Stop execution if Twilio credentials are not set
+    }
 
     if (!mobile) {
         return res.status(400).json({ error: "Mobile number is required" });
@@ -202,5 +207,5 @@ const verifyOTP = async (req, res) => {
     }
 };
 
-module.exports = { signupWithEmail, loginWithEmail, addName, verifyToken, sendOTP, verifyOTP };
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP };
 
