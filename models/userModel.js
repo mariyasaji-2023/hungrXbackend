@@ -23,19 +23,19 @@ const userSchema = new mongoose.Schema({
         default: false, // User is not verified until they enter correct OTP
     }, name: {
         type: String,
-        required: true, // User's name
+        // required: true, // User's name
     },
     gender: {
         type: String,
-        required: true, // User's gender (male/female)
+        // required: true, // User's gender (male/female)
     },
     height: {
         type: Number,
-        required: true, // User's height in cm or desired unit
+        // required: true, // User's height in cm or desired unit
     },
     weight: {
         type: Number,
-        required: true, // User's weight in kg or desired unit
+        // required: true, // User's weight in kg or desired unit
     }
 });
 

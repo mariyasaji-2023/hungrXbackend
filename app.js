@@ -7,7 +7,7 @@ const admin = require('firebase-admin');
 admin.initializeApp({
     credential: admin.credential.cert(require('./config/hungerx-36500-firebase-adminsdk-8cm6x-95bae7312e.json')),
   });
-  
+
 const app = express();
 
 // Connect to the database
