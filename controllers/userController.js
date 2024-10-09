@@ -123,17 +123,6 @@ const loginWithEmail = async (req, res) => {
     }
 };
 
-// const addName = async (req, res) => {
-//     const { name } = req.body
-//     try {
-//         const user = new User({ name })
-//         await user.save()
-
-//         return res.status(201).json({ message: 'Name stored successfully', user });
-//     } catch (error) {
-//         return res.status(500).json({ message: 'Error saving name', error });
-//     }
-// }
 
 const accountSid = process.env.TWILIO_ACCOUNT_SID;  // Twilio Account SID
 const authToken = process.env.TWILIO_AUTH_TOKEN;    // Twilio Auth Token
