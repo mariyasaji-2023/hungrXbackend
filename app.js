@@ -5,8 +5,8 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 
 admin.initializeApp({
-    credential: admin.credential.cert(require('./config/hungerx-36500-firebase-adminsdk-8cm6x-95bae7312e.json')),
-  });
+    credential: admin.credential.cert(require('./config/hungrx-ffe5b-firebase-adminsdk-kd7ww-b9476d29c1.json')),
+  })
 
 const app = express();
 

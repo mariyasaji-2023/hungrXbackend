@@ -36,6 +36,10 @@ const userSchema = new mongoose.Schema({
     weight: {
         type: Number,
         // required: true, // User's weight in kg or desired unit
+    },
+    uid:{
+        type:String,
+        unique: true
     }
 });
 

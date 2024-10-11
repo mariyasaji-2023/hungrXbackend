@@ -6,6 +6,7 @@ router.post('/signup/email', userController.signupWithEmail);
 router.post('/login/email',userController.loginWithEmail)
 router.post('/sendOTP',userController.sendOTP)
 router.post('/verifyOTP',userController.verifyOTP)
+router.post('/signup/google',userController.loginWithGoogle)
 
 
 module.exports = router;

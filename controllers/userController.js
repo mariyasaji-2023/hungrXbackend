@@ -196,5 +196,43 @@ const verifyOTP = async (req, res) => {
     }
 };
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP };
+
+const loginWithGoogle = async (req, res) => {
+    const { idToken } = req.body;
+
+    if (!idToken) {
+        return res.status(400).json({ error: 'ID token is required' });
+    }
+
+    try {
+        // Verify the ID token using Firebase Admin SDK
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        const uid = decodedToken.uid;
+        const email = decodedToken.email;
+
+        // Check if the user exists in your MongoDB database
+        let user = await User.findOne({ uid: uid });
+
+        if (!user) {
+            // User does not exist, create a new user with only email
+            user = new User({
+                uid: uid,
+                email: email,  // Only storing user email
+            });
+
+            await user.save(); // Save the new user to the database
+
+            return res.status(201).json({ message: 'User created successfully', user });
+        }
+
+        // User exists, return their details
+        res.status(200).json({ message: 'User already exists', user });
+        
+    } catch (error) {
+        console.error('Error verifying ID token:', error);
+        res.status(401).json({ error: 'Authentication failed' });
+    }
+}
+
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP,loginWithGoogle };
 
