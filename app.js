@@ -3,11 +3,12 @@ const connectDB = require('./config/db'); // Import the DB connection
 const userRoutes = require('./routes/userRoutes');
 const cors = require('cors');
 const admin = require('firebase-admin');
-const serviceAccount = require('./config/hungrx-ffe5b-firebase-adminsdk-kd7ww-b9476d29c1.json');
+const serviceAccount = require('./config/hungrx-ffe5b-firebase-adminsdk-kd7ww-70001c77d2[1].json');
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
+console.log(serviceAccount,"//////////////////");  // This will help verify the JSON is correctly loaded
 
 const app = express();
 
