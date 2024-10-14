@@ -198,34 +198,42 @@ const verifyOTP = async (req, res) => {
 };
 
 
-const loginWithGoogle =  async (req, res) => {
-    const { idToken } = req.body; // Ensure ID token is sent in request body
+const loginWithGoogle = async (req, res) => {
+    const { idToken } = req.body;
   
     if (!idToken) {
+      console.log('Request received without ID token');
       return res.status(400).json({ error: 'ID token is required' });
     }
   
+    console.log('Received ID token:', idToken.substring(0, 20) + '...');
+  
     try {
-      const decodedToken = await admin.auth().verifyIdToken(idToken); // Token verification
-      const uid = decodedToken.uid;
-      const email = decodedToken.email;
+      console.log('Attempting to verify ID token');
+      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      console.log('Token verified successfully');
+      console.log('Decoded Token:', JSON.stringify(decodedToken, null, 2));
   
-      console.log("Decoded Token:", decodedToken); // Check token details
+      // Rest of your logic...
+    } catch (error) {
+      console.error('Error during token verification:');
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      console.error('Full error:', error);
   
-      let user = await User.findOne({ uid });
-  
-      if (!user) {
-        user = new User({ uid, email });
-        await user.save();
-        return res.status(201).json({ message: 'User created successfully', user });
+      // Specific error handling
+      if (error.code === 'auth/id-token-expired') {
+        return res.status(401).json({ error: 'ID token has expired', details: error.message });
+      }
+      if (error.code === 'auth/argument-error') {
+        return res.status(400).json({ error: 'Invalid ID token format', details: error.message });
+      }
+      if (error.code === 'auth/invalid-id-token') {
+        return res.status(401).json({ error: 'Invalid ID token', details: error.message });
       }
   
-      res.status(200).json({ message: 'User already exists', user });
-    } catch (error) {
-      console.error('Error verifying ID token:', error);
-      res.status(401).json({ error: 'Authentication failed' });
+      res.status(500).json({ error: 'Authentication failed', details: error.message });
     }
   };
-
 module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP,loginWithGoogle };
 
