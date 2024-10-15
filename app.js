@@ -3,18 +3,20 @@ const connectDB = require('./config/db'); // Import the DB connection
 const userRoutes = require('./routes/userRoutes');
 const cors = require('cors');
 const admin = require('firebase-admin');
-const serviceAccount = require('./config/hungrx-ffe5b-firebase-adminsdk-kd7ww-8eed40dfff.json');
+const serviceAccount = require('./config/hungrx-ffe5b-firebase-adminsdk-kd7ww-5c05ccc5a4.json');
 
 admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
-  databaseURL: `https://${serviceAccount.project_id}.firebaseio.com`
+  credential: admin.credential.cert({
+    projectId: process.env.FIREBASE_PROJECT_ID,
+    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+    clientEmail: process.env.FIREBASE_CLIENT_EMAIL
+  })
 });
 
 console.log('Initialized Firebase Admin SDK for project:', admin.app().options.projectId);
-   console.log('Project ID:', serviceAccount.project_id);
-   console.log('Client Email:', serviceAccount.client_email);
-console.log(serviceAccount,"//////////////////");  // This will help verify the JSON is correctly loaded
-
+console.log('Project ID:', serviceAccount.project_id);
+console.log('Client Email:', serviceAccount.client_email);
+console.log(serviceAccount, "//////////////////");  // This will help verify the JSON is correctly loaded
 const app = express();
 
 // Connect to the database
@@ -35,6 +37,6 @@ app.use('/users', userRoutes);
 // Start server
 const PORT = process.env.PORT || 3000; // Default to port 3000 if process.env.PORT is not set
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });
 
