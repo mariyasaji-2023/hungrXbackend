@@ -15,10 +15,10 @@ admin.initializeApp({
 console.log('Initialized Firebase Admin SDK for project:', admin.app().options.projectId);
 
 
-console.log('Initialized Firebase Admin SDK for project:', admin.app().options.projectId);
-console.log('Project ID:', serviceAccount.project_id);
-console.log('Client Email:', serviceAccount.client_email);
-console.log(serviceAccount, "//////////////////");  // This will help verify the JSON is correctly loaded
+// console.log('Initialized Firebase Admin SDK for project:', admin.app().options.projectId);
+// console.log('Project ID:', serviceAccount.project_id);
+// console.log('Client Email:', serviceAccount.client_email);
+// console.log(serviceAccount, "//////////////////");  // This will help verify the JSON is correctly loaded
 const app = express();
 
 // Connect to the database
