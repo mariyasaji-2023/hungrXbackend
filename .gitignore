@@ -1,5 +1,4 @@
 node_modules/
 .env
 package-lock.json
-# config/hungrx-ffe5b-firebase-adminsdk-kd7ww-5c05ccc5a4.json
 config/hungrx-ffe5b-firebase-adminsdk-kd7ww-5c05ccc5a4.json
