@@ -4,9 +4,7 @@ const bcrypt = require('bcrypt');
 const User = require('../models/userModel'); // Assuming you have a User model
 require('dotenv').config()
 const twilio = require('twilio');
-const admin = require('firebase-admin');
-
-
+const googleAuthService = require('../services/googleAuthService');
 
 // Function to hash the password
 const hashPassword = async (password) => {
@@ -198,42 +196,56 @@ const verifyOTP = async (req, res) => {
 };
 
 
-const loginWithGoogle = async (req, res) => {
-    const { idToken } = req.body;
+
+
+// const loginWithGoogle = async (req, res) => {
+//     const { email, name, googleId } = req.body;
   
-    if (!idToken) {
-      console.log('Request received without ID token');
-      return res.status(400).json({ error: 'ID token is required' });
-    }
+//     try {
+//       let user = await User.findOne({ email });
   
-    console.log('Received ID token:', idToken.substring(0, 20) + '...');
+//       if (!user) {
+//         // User does not exist, create a new user
+//         user = new User({ email, name, googleId });
+//         await user.save();
+//       }
   
+//       // User exists or is created, send success response
+//       res.status(200).send({ message: 'Success', user });
+//     } catch (error) {
+//       console.error(error);
+//       res.status(500).send({ message: 'Error saving user' });
+//     }
+//   }
+
+ const loginWithGoogle = async (req, res) => {
+    const { token } = req.body;
     try {
-      console.log('Attempting to verify ID token');
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
-      console.log('Token verified successfully');
-      console.log('Decoded Token:', JSON.stringify(decodedToken, null, 2));
+      const payload = await googleAuthService.verifyGoogleToken(token);
+      let user = await User.findOne({ googleId: payload.sub });
   
-      // Rest of your logic...
+      if (!user) {
+        user = new User({
+          googleId: payload.sub,
+          email: payload.email,
+          name: payload.name,
+          picture: payload.picture,
+        });
+        await user.save();
+      }
+  
+      const jwtToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+      res.json({ token: jwtToken, user });
     } catch (error) {
-      console.error('Error during token verification:');
-      console.error('Error code:', error.code);
-      console.error('Error message:', error.message);
-      console.error('Full error:', error);
-  
-      // Specific error handling
-      if (error.code === 'auth/id-token-expired') {
-        return res.status(401).json({ error: 'ID token has expired', details: error.message });
-      }
-      if (error.code === 'auth/argument-error') {
-        return res.status(400).json({ error: 'Invalid ID token format', details: error.message });
-      }
-      if (error.code === 'auth/invalid-id-token') {
-        return res.status(401).json({ error: 'Invalid ID token', details: error.message });
-      }
-  
-      res.status(500).json({ error: 'Authentication failed', details: error.message });
+      console.error('Error in Google login:', error);
+      res.status(401).json({ error: 'Invalid token' });
     }
   };
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP,loginWithGoogle };
+
+  const loginWithGoogleGet = (req, res) => {
+    res.json({ message: 'Access granted to protected resource', userId: req.userId });
+  };
+  
+
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP,loginWithGoogle,loginWithGoogleGet };
 

@@ -2,23 +2,23 @@ const express = require('express');
 const connectDB = require('./config/db'); // Import the DB connection
 const userRoutes = require('./routes/userRoutes');
 const cors = require('cors');
-const admin = require('firebase-admin');
+// const admin = require('firebase-admin');
 
-admin.initializeApp({
-  credential: admin.credential.cert({
-    projectId: process.env.FIREBASE_PROJECT_ID,
-    privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
-    clientEmail: process.env.FIREBASE_CLIENT_EMAIL
-  })
-});
-
-console.log('Initialized Firebase Admin SDK for project:', admin.app().options.projectId);
-
+// admin.initializeApp({
+//   credential: admin.credential.cert({
+//     projectId: process.env.FIREBASE_PROJECT_ID,
+//     privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+//     clientEmail: process.env.FIREBASE_CLIENT_EMAIL
+//   }),
+//   projectId: process.env.FIREBASE_PROJECT_ID // Explicitly set it here
+// });
 
 // console.log('Initialized Firebase Admin SDK for project:', admin.app().options.projectId);
-// console.log('Project ID:', serviceAccount.project_id);
-// console.log('Client Email:', serviceAccount.client_email);
-// console.log(serviceAccount, "//////////////////");  // This will help verify the JSON is correctly loaded
+
+// console.log('Project ID:', process.env.FIREBASE_PROJECT_ID);
+// console.log('Client Email:', process.env.FIREBASE_CLIENT_EMAIL);
+// console.log('Private Key Exists:', !!process.env.FIREBASE_PRIVATE_KEY); // Should print 'true'
+
 const app = express();
 
 // Connect to the database

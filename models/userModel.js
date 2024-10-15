@@ -37,10 +37,16 @@ const userSchema = new mongoose.Schema({
         type: Number,
         // required: true, // User's weight in kg or desired unit
     },
-    uid:{
-        type:String,
+    uid: {
+        type: String,
         unique: true
-    }
+    },
+    name: String,
+    
+    googleId: {
+        type: String,
+        unique: true
+    },  picture: String
 });
 
 const User = mongoose.model('User', userSchema);
