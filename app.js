@@ -3,7 +3,7 @@ const connectDB = require('./config/db'); // Import the DB connection
 const userRoutes = require('./routes/userRoutes');
 const cors = require('cors');
 const admin = require('firebase-admin');
-const serviceAccount = require('./config/hungrx-ffe5b-firebase-adminsdk-kd7ww-5c05ccc5a4.json');
+const serviceAccount = require('config/hungrx-ffe5b-firebase-adminsdk-kd7ww-5c05ccc5a4.json');
 
 admin.initializeApp({
   credential: admin.credential.cert({
