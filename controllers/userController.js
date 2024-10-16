@@ -4,7 +4,6 @@ const bcrypt = require('bcrypt');
 const User = require('../models/userModel'); // Assuming you have a User model
 require('dotenv').config()
 const twilio = require('twilio');
-const googleAuthService = require('../services/googleAuthService');
 
 // Function to hash the password
 const hashPassword = async (password) => {
@@ -198,54 +197,33 @@ const verifyOTP = async (req, res) => {
 
 
 
-// const loginWithGoogle = async (req, res) => {
-//     const { email, name, googleId } = req.body;
-  
-//     try {
-//       let user = await User.findOne({ email });
-  
-//       if (!user) {
-//         // User does not exist, create a new user
-//         user = new User({ email, name, googleId });
-//         await user.save();
-//       }
-  
-//       // User exists or is created, send success response
-//       res.status(200).send({ message: 'Success', user });
-//     } catch (error) {
-//       console.error(error);
-//       res.status(500).send({ message: 'Error saving user' });
-//     }
-//   }
+const loginWithGoogle = async (req, res) => {
+    const { googleId, email, name } = req.body
 
- const loginWithGoogle = async (req, res) => {
-    const { token } = req.body;
     try {
-      const payload = await googleAuthService.verifyGoogleToken(token);
-      let user = await User.findOne({ googleId: payload.sub });
-  
-      if (!user) {
-        user = new User({
-          googleId: payload.sub,
-          email: payload.email,
-          name: payload.name,
-          picture: payload.picture,
+        let user = await User.findOne({ googleId })
+
+        if (!user) {
+            user = new User({ googleId, email, name })
+            await user.save()
+        }
+        const jwtToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
+            expiresIn: '1h',
+        })
+        res.status(200).json({
+            message: 'Login/Signup successful',
+            token: jwtToken,
+            user: {
+                id: user._id,
+                email: user.email,
+                name: user.name,
+            },
         });
-        await user.save();
-      }
-  
-      const jwtToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-      res.json({ token: jwtToken, user });
     } catch (error) {
-      console.error('Error in Google login:', error);
-      res.status(401).json({ error: 'Invalid token' });
+        console.error('Error in Google login/signup:', error);
+        res.status(500).json({ error: 'Internal server error' });
     }
-  };
+}
 
-  const loginWithGoogleGet = (req, res) => {
-    res.json({ message: 'Access granted to protected resource', userId: req.userId });
-  };
-  
-
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP,loginWithGoogle,loginWithGoogleGet };
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, loginWithGoogleGet };
 
