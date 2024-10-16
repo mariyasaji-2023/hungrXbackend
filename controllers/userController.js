@@ -198,20 +198,30 @@ const verifyOTP = async (req, res) => {
 
 
 const loginWithGoogle = async (req, res) => {
-    const { googleId, email, name } = req.body
+    const { googleId, email, name } = req.body;
 
     try {
-        let user = await User.findOne({ googleId })
+        let user = await User.findOne({ googleId });
 
+        let message;
         if (!user) {
-            user = new User({ googleId, email, name })
-            await user.save()
+            // New user, sign them up
+            user = new User({ googleId, email, name });
+            await user.save();
+            message = 'Signup successful';
+        } else {
+            // Existing user, log them in
+            message = 'Login successful';
         }
+
+        // Generate JWT token
         const jwtToken = jwt.sign({ userId: user._id }, process.env.JWT_SECRET, {
             expiresIn: '1h',
-        })
+        });
+
+        // Send response
         res.status(200).json({
-            message: 'Login/Signup successful',
+            message,
             token: jwtToken,
             user: {
                 id: user._id,
@@ -223,7 +233,8 @@ const loginWithGoogle = async (req, res) => {
         console.error('Error in Google login/signup:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
-}
+};
+
 
 module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle };
 
