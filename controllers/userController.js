@@ -234,7 +234,40 @@ const loginWithGoogle = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+const addName = async (req, res) => {
+    const { email, mobile, name } = req.body;
+
+    console.log('Request Body:', req.body); // Log request body
+
+    try {
+        const user1 = await User.findOne({ email });
+        const user2 = await User.findOne({ mobile });
+
+        if (!user1 && !user2) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        if (user1) {
+            user1.name = name;
+            await user1.save();
+            console.log('Updated User:', user1); // Log the updated user
+        }
+
+        if (user2) {
+            user2.name = name;
+            await user2.save();
+            console.log('Updated User:', user2); // Log the updated user
+        }
+        
+        res.status(200).json({data:{
+             message: 'Name has been added successfully'
+        }});
+    } catch (error) {
+        console.error('Error updating name:', error); // Log the error
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
 
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle };
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle,addName };
 

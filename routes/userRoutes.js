@@ -7,7 +7,7 @@ router.post('/login/email',userController.loginWithEmail)
 router.post('/sendOTP',userController.sendOTP)
 router.post('/verifyOTP',userController.verifyOTP)
 router.post('/signup/google',userController.loginWithGoogle)
-
+router.put('/addName',userController.addName)
 
 
 module.exports = router;
