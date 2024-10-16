@@ -225,5 +225,5 @@ const loginWithGoogle = async (req, res) => {
     }
 }
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, loginWithGoogleGet };
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle };
 
