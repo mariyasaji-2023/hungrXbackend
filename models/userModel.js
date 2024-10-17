@@ -21,32 +21,46 @@ const userSchema = new mongoose.Schema({
     isVerified: {
         type: Boolean,
         default: false, // User is not verified until they enter correct OTP
-    }, name: {
+    }, 
+    name: {
         type: String,
-        // required: true, // User's name
     },
     gender: {
         type: String,
-        // required: true, // User's gender (male/female)
+        enum: ['male', 'female']
     },
     height: {
-        type: Number,
-        // required: true, // User's height in cm or desired unit
+        type: String,
     },
     weight: {
-        type: Number,
-        // required: true, // User's weight in kg or desired unit
+        type: String,
     },
     uid: {
         type: String,
         unique: true
     },
-    name: String,
-    
     googleId: {
         type: String,
         unique: true
     },
+    mealsPerDay: {
+        type: Number,
+        enum: [1, 2, 3, 4]
+    },
+    goal: {
+        type: String,
+        enum: ['lose weight', 'maintain weight', 'gain weight']
+    },
+    targetWeight: {
+        type: String
+    },
+    weightGainRate: {
+        type: String,
+        enum: ['mild', 'moderate', 'fast', 'very fast']
+    }, activityLevel: {
+        type: String,
+        enum: ['sedentary', 'lightly active', 'moderately active', 'very active', 'extra active']
+    }
 });
 
 const User = mongoose.model('User', userSchema);

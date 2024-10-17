@@ -18,7 +18,7 @@ const generateToken = (userId) => {
 
 const verifyToken = (req, res, next) => {
     // Get token from header
-    const token = req.headers['authorization'];
+    const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
         return res.status(401).json({ message: 'Access denied. No token provided.' });
@@ -29,7 +29,8 @@ const verifyToken = (req, res, next) => {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         // Attach the decoded user id to the request object for use in other routes
-        req.userId = decoded.id;
+        // req.userId = decoded.id;
+        req.user = decoded
         next(); // Proceed to the next middleware or route handler
     } catch (error) {
         return res.status(401).json({ message: 'Invalid token.' });
@@ -235,7 +236,19 @@ const loginWithGoogle = async (req, res) => {
     }
 };
 const addName = async (req, res) => {
-    const { email, mobile, name } = req.body;
+    const { 
+        email, 
+        mobile, 
+        name, 
+        gender, 
+        height, 
+        weight, 
+        mealsPerDay, 
+        goal, 
+        targetWeight, 
+        weightGainRate, 
+        activityLevel 
+    } = req.body;
 
     console.log('Request Body:', req.body); // Log request body
 
@@ -246,24 +259,38 @@ const addName = async (req, res) => {
         if (!user1 && !user2) {
             return res.status(404).json({ error: 'User not found' });
         }
-        
-        if (user1) {
-            user1.name = name;
-            await user1.save();
-            console.log('Updated User:', user1); // Log the updated user
-        }
 
-        if (user2) {
-            user2.name = name;
-            await user2.save();
-            console.log('Updated User:', user2); // Log the updated user
-        }
-        
-        res.status(200).json({data:{
-             message: 'Name has been added successfully'
-        }});
+        // Helper function to update user details
+        const updateUserDetails = async (user) => {
+            if (name) user.name = name;
+            if (gender) user.gender = gender;
+            if (height) user.height = height;
+            if (weight) user.weight = weight;
+            if (mealsPerDay) user.mealsPerDay = mealsPerDay;
+
+            // Update goal, targetWeight, weightGainRate, and activityLevel if provided
+            if (goal) user.goal = goal;
+            if (goal && targetWeight) user.targetWeight = targetWeight;
+            if (weightGainRate) user.weightGainRate = weightGainRate;
+            if (activityLevel) user.activityLevel = activityLevel;
+
+            await user.save();
+            console.log('Updated User:', user); // Log updated user details
+        };
+
+        // Update user1 if it exists
+        if (user1) await updateUserDetails(user1);
+
+        // Update user2 if it exists
+        if (user2) await updateUserDetails(user2);
+
+        res.status(200).json({
+            data: {
+                message: 'User details have been updated successfully',
+            },
+        });
     } catch (error) {
-        console.error('Error updating name:', error); // Log the error
+        console.error('Error updating user details:', error); // Log the error
         res.status(500).json({ error: 'Internal server error' });
     }
 };
