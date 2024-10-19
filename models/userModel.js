@@ -21,19 +21,28 @@ const userSchema = new mongoose.Schema({
     isVerified: {
         type: Boolean,
         default: false, // User is not verified until they enter correct OTP
-    }, 
+    },
     name: {
         type: String,
+        required:true
     },
     gender: {
         type: String,
-        enum: ['male', 'female']
+        enum: ['male', 'female'],
+        required:true
     },
     height: {
         type: String,
+        required:true
+    },
+    isMetric: {
+        type: Boolean,
+        default: false,
+        required:true
     },
     weight: {
         type: String,
+        required:true
     },
     uid: {
         type: String,
@@ -49,17 +58,21 @@ const userSchema = new mongoose.Schema({
     },
     goal: {
         type: String,
-        enum: ['lose weight', 'maintain weight', 'gain weight']
+        enum: ['lose weight', 'maintain weight', 'gain weight'],
+        required:true
     },
     targetWeight: {
-        type: String
+        type: String,
+        required:true
     },
     weightGainRate: {
         type: String,
-        enum: ['mild', 'moderate', 'fast', 'very fast']
+        enum: ['mild', 'moderate', 'fast', 'very fast'],
+        required:true
     }, activityLevel: {
         type: String,
-        enum: ['sedentary', 'lightly active', 'moderately active', 'very active', 'extra active']
+        enum: ['sedentary', 'lightly active', 'moderately active', 'very active', 'extra active'],
+        required:true
     }
 });
 

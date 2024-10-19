@@ -186,7 +186,11 @@ const verifyOTP = async (req, res) => {
                 await user.save();
             }
 
-            res.status(200).json({ message: 'OTP verified successfully. User has been created/updated.', user });
+            res.status(200).json({
+                message: 'OTP verified successfully. User has been created/updated.',
+                userId: user._id, // Returning userId here
+                user,
+            });
         } else {
             res.status(400).json({ message: 'Invalid OTP' });
         }
@@ -235,22 +239,25 @@ const loginWithGoogle = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
+
 const addName = async (req, res) => {
-    const { 
-        email, 
-        mobile, 
-        name, 
-        gender, 
-        height, 
-        weight, 
-        mealsPerDay, 
-        goal, 
-        targetWeight, 
-        weightGainRate, 
-        activityLevel 
+    const {
+        email,
+        mobile,
+        name,
+        gender,
+        height,
+        isMetric,
+        weight,
+        mealsPerDay,
+        goal,
+        targetWeight,
+        weightGainRate,
+        activityLevel
     } = req.body;
 
-    console.log('Request Body:', req.body); // Log request body
+    console.log('Request Body:', req.body); // Log the request
 
     try {
         const user1 = await User.findOne({ email });
@@ -260,41 +267,38 @@ const addName = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Helper function to update user details
         const updateUserDetails = async (user) => {
             if (name) user.name = name;
             if (gender) user.gender = gender;
-            if (height) user.height = height;
+
+            // Store height along with its unit type
+            if (height) {
+                user.height = height;
+                user.heightUnit = isMetric ? 'cm' : 'feet/inches';
+            }
+
             if (weight) user.weight = weight;
             if (mealsPerDay) user.mealsPerDay = mealsPerDay;
-
-            // Update goal, targetWeight, weightGainRate, and activityLevel if provided
             if (goal) user.goal = goal;
             if (goal && targetWeight) user.targetWeight = targetWeight;
             if (weightGainRate) user.weightGainRate = weightGainRate;
             if (activityLevel) user.activityLevel = activityLevel;
 
             await user.save();
-            console.log('Updated User:', user); // Log updated user details
+            console.log('Updated User:', user); // Log updated user
         };
 
-        // Update user1 if it exists
         if (user1) await updateUserDetails(user1);
-
-        // Update user2 if it exists
         if (user2) await updateUserDetails(user2);
 
         res.status(200).json({
-            data: {
-                message: 'User details have been updated successfully',
-            },
+            data: { message: 'User details have been updated successfully' },
         });
     } catch (error) {
-        console.error('Error updating user details:', error); // Log the error
+        console.error('Error updating user details:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
 
-
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle,addName };
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName };
 
