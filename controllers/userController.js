@@ -243,8 +243,7 @@ const loginWithGoogle = async (req, res) => {
 
 const addName = async (req, res) => {
     const {
-        email,
-        mobile,
+        userId,
         name,
         gender,
         height,
@@ -260,10 +259,10 @@ const addName = async (req, res) => {
     console.log('Request Body:', req.body); // Log the request
 
     try {
-        const user1 = await User.findOne({ email });
-        const user2 = await User.findOne({ mobile });
+        const user = await User.findOne({ userId });
 
-        if (!user1 && !user2) {
+
+        if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
@@ -288,8 +287,7 @@ const addName = async (req, res) => {
             console.log('Updated User:', user); // Log updated user
         };
 
-        if (user1) await updateUserDetails(user1);
-        if (user2) await updateUserDetails(user2);
+        if (user) await updateUserDetails(user);
 
         res.status(200).json({
             data: { message: 'User details have been updated successfully' },
@@ -299,6 +297,7 @@ const addName = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
 
 module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName };
 
