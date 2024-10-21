@@ -259,8 +259,11 @@ const addName = async (req, res) => {
     console.log('Request Body:', req.body); // Log the request
 
     try {
-        const user = await User.findOne({ userId });
-
+        const user = await User.findOne({ _id: userId });
+        console.log(userId,"iiiiiiiiiiiiiiiiiiiiiiiiiiii");
+        
+            console.log(user,"uuuuuuuuuuuuuuuuuuuuuuuu");
+            
 
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
