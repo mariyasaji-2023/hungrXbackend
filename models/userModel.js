@@ -66,8 +66,8 @@ const userSchema = new mongoose.Schema({
         // required:true
     },
     weightGainRate: {
-        type: String,
-        enum: ['mild', 'moderate', 'fast', 'very fast'],
+        type: Number,
+        enum: [0.25,0.50,0.75,1],
         // required:true
     }, activityLevel: {
         type: String,
