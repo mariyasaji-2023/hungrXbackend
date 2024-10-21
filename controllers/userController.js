@@ -240,15 +240,15 @@ const loginWithGoogle = async (req, res) => {
     }
 };
 
-
 const addName = async (req, res) => {
     const {
         userId,
         name,
         gender,
-        height,
-        isMetric,
-        weight,
+        heightInFeet,   // Height in feet
+        heightInInches, // Height in inches
+        isMetric,       // Flag to determine metric or imperial
+        weight,         // Weight entered by user
         mealsPerDay,
         goal,
         targetWeight,
@@ -260,11 +260,6 @@ const addName = async (req, res) => {
 
     try {
         const user = await User.findOne({ _id: userId });
-        console.log(userId,"iiiiiiiiiiiiiiiiiiiiiiiiiiii");
-        
-            console.log(user,"uuuuuuuuuuuuuuuuuuuuuuuu");
-            
-
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
@@ -273,13 +268,25 @@ const addName = async (req, res) => {
             if (name) user.name = name;
             if (gender) user.gender = gender;
 
-            // Store height along with its unit type
-            if (height) {
-                user.height = height;
-                user.heightUnit = isMetric ? 'cm' : 'feet/inches';
+            // Store height with the appropriate unit
+            if (isMetric && heightInFeet == null && heightInInches == null) {
+                user.heightInCm = req.body.heightInCm;
+            } else if (heightInFeet != null && heightInInches != null) {
+                user.heightInFeet = heightInFeet;
+                user.heightInInches = heightInInches;
             }
 
-            if (weight) user.weight = weight;
+            user.isMetric = isMetric;
+
+            // Store weight in both units
+            if (weight) {
+                if (isMetric) {
+                    user.weightInKg = weight;
+                } else {
+                    user.weightInLbs = weight;
+                }
+            }
+
             if (mealsPerDay) user.mealsPerDay = mealsPerDay;
             if (goal) user.goal = goal;
             if (goal && targetWeight) user.targetWeight = targetWeight;
@@ -290,7 +297,7 @@ const addName = async (req, res) => {
             console.log('Updated User:', user); // Log updated user
         };
 
-        if (user) await updateUserDetails(user);
+        await updateUserDetails(user);
 
         res.status(200).json({
             data: { message: 'User details have been updated successfully' },

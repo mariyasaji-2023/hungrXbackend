@@ -31,18 +31,24 @@ const userSchema = new mongoose.Schema({
         enum: ['male', 'female'],
         // required:true
     },
-    height: {
-        type: Number,
-        // required:true
+    heightInFeet: {
+        type: Number
+    },
+    heightInInches: {
+        type: Number
+    },
+    heightInCm: {
+        type: Number
     },
     isMetric: {
         type: Boolean,
-        default: false,
-        // required:true
+        default: false
     },
-    weight: {
-        type: Number,
-        // required:true
+    weightInKg: {
+        type: Number
+    },
+    weightInLbs: {
+        type: Number
     },
     uid: {
         type: String,
@@ -67,7 +73,7 @@ const userSchema = new mongoose.Schema({
     },
     weightGainRate: {
         type: Number,
-        enum: [0.25,0.50,0.75,1],
+        enum: [0.25, 0.50, 0.75, 1],
         // required:true
     }, activityLevel: {
         type: String,
