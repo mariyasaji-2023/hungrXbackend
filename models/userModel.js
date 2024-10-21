@@ -32,7 +32,7 @@ const userSchema = new mongoose.Schema({
         // required:true
     },
     height: {
-        type: String,
+        type: Number,
         // required:true
     },
     isMetric: {
@@ -41,7 +41,7 @@ const userSchema = new mongoose.Schema({
         // required:true
     },
     weight: {
-        type: String,
+        type: Number,
         // required:true
     },
     uid: {
