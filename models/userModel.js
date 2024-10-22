@@ -75,10 +75,14 @@ const userSchema = new mongoose.Schema({
         type: Number,
         enum: [0.25, 0.50, 0.75, 1],
         // required:true
-    }, activityLevel: {
+    },
+     activityLevel: {
         type: String,
         enum: ['sedentary', 'lightly active', 'moderately active', 'very active', 'extra active'],
         // required:true
+    },
+    age:{
+        type:Number
     }
 });
 

@@ -8,6 +8,7 @@ router.post('/sendOTP',userController.sendOTP)
 router.post('/verifyOTP',userController.verifyOTP)
 router.post('/signup/google',userController.loginWithGoogle)
 router.put('/addName',userController.addName)
+router.post('/calculate-metrics',userController.calculateUserMetrics);
 
 
 module.exports = router;
