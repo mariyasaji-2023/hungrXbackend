@@ -315,88 +315,72 @@ const calculateUserMetrics = async (req, res) => {
     const { userId } = req.body;
 
     try {
-        // Fetch the user by userId
-        const user = await User.findById({ _id: userId });
+        const user = await User.findById({ _id: userId }); // Directly use the ID.
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Destructure user data
         const {
             weightInKg,
             weightInLbs,
             heightInCm,
-            heightInFeet,
-            heightInInches,
+            heightInFeet = 0,
+            heightInInches = 0,
             isMetric,
             gender,
             age,
             activityLevel,
             goal,
             targetWeight,
-            weightGainRate = 0.5, // Default to 0.5 kg per week
+            weightGainRate = 0.5,
         } = user;
 
-        // Validate required fields to avoid NaN
         if (!age || !gender || (!weightInKg && !weightInLbs)) {
             return res.status(400).json({ error: 'Missing essential user details' });
         }
 
-        let weight, height;
+        // Calculate weight and height based on unit system
+        let weight = isMetric ? weightInKg : weightInLbs * 0.453592;
+        let height = isMetric
+            ? heightInCm / 100
+            : ((heightInFeet * 12) + heightInInches) * 0.0254;
 
-        // Handle weight and height based on the unit system
-        if (isMetric) {
-            weight = weightInKg;
-            height = heightInCm / 100; // Convert cm to meters
-        } else {
-            weight = weightInLbs * 0.453592; // Convert lbs to kg
-            height = ((heightInFeet * 12) + heightInInches) * 0.0254; // Convert feet+inches to meters
+        if (!weight || !height) {
+            return res.status(400).json({ error: 'Invalid height or weight' });
         }
 
-        // BMR Calculation (Mifflin-St Jeor Equation)
-        const BMR =
-            gender === 'male'
-                ? 10 * weight + 6.25 * (height * 100) - 5 * age + 5
-                : 10 * weight + 6.25 * (height * 100) - 5 * age - 161;
+        // BMR Calculation
+        const BMR = gender === 'male'
+            ? 10 * weight + 6.25 * (height * 100) - 5 * age + 5
+            : 10 * weight + 6.25 * (height * 100) - 5 * age - 161;
 
-        // TDEE Calculation (BMR x Activity Level Multiplier)
+        // TDEE Calculation
         const activityMultiplier = {
-            sedentary: 1.2,
-            lightlyActive: 1.375,
-            moderatelyActive: 1.55,
-            veryActive: 1.725,
-            extraActive: 1.9,
+            'sedentary': 1.2,
+            'lightly active': 1.375,
+            'moderately active': 1.55,
+            'very active': 1.725,
+            'extra active': 1.9,
         };
         const TDEE = BMR * (activityMultiplier[activityLevel] || 1.2);
 
         // BMI Calculation
         const BMI = weight / (height ** 2);
 
-        // Daily Calorie Goal Calculation
-        let dailyCalorieGoal;
-        if (goal === 'gain weight') {
-            dailyCalorieGoal = TDEE + 500;
-        } else if (goal === 'lose weight') {
-            dailyCalorieGoal = TDEE - 500;
-        } else {
-            dailyCalorieGoal = TDEE; // Maintain weight
-        }
+        // Daily Calorie Goal
+        let dailyCalorieGoal = TDEE;
+        if (goal === 'gain weight') dailyCalorieGoal += 500;
+        else if (goal === 'lose weight') dailyCalorieGoal -= 500;
 
-        // Calculate total calories to reach the target weight
-        const totalWeightChange = targetWeight ? Math.abs(targetWeight - weight) : 0; // Weight change in kg
-        const caloriesToReachGoal = totalWeightChange * 7700; // 1 kg = 7700 calories
+        const totalWeightChange = targetWeight ? Math.abs(targetWeight - weight) : 0;
+        const caloriesToReachGoal = totalWeightChange * 7700;
 
-        // Calculate weekly calorie change based on the weight gain/loss rate
-        const weeklyCaloricChange = weightGainRate * 7700; // Weekly change in calories
+        const weeklyCaloricChange = weightGainRate * 7700;
+        const daysToReachGoal = totalWeightChange > 0
+            ? Math.ceil((caloriesToReachGoal / weeklyCaloricChange) * 7)
+            : 0;
 
-        // Calculate the number of weeks and days to reach the goal
-        let daysToReachGoal = 0;
-        if (totalWeightChange > 0 && weeklyCaloricChange > 0) {
-            const weeksToReachGoal = caloriesToReachGoal / weeklyCaloricChange;
-            daysToReachGoal = Math.ceil(weeksToReachGoal * 7); // Convert weeks to days
-        }
-
-        // Save the calculated values back to MongoDB
+        // Update user metrics and save to DB
         user.BMI = BMI.toFixed(2);
         user.BMR = BMR.toFixed(2);
         user.TDEE = TDEE.toFixed(2);
@@ -404,24 +388,21 @@ const calculateUserMetrics = async (req, res) => {
         user.caloriesToReachGoal = caloriesToReachGoal.toFixed(2);
         user.daysToReachGoal = daysToReachGoal;
 
-        await user.save(); // Save the updated user data to MongoDB
+        await user.save();
 
-        // Send the response with calculated metrics
         res.status(200).json({
             data: {
                 height: isMetric
                     ? `${(height * 100).toFixed(2)} cm`
                     : `${heightInFeet} ft ${heightInInches} in`,
-                weight: isMetric
-                    ? `${weightInKg} kg`
-                    : `${weightInLbs} lbs`,
+                weight: isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`,
                 BMI: BMI.toFixed(2),
                 BMR: BMR.toFixed(2),
                 TDEE: TDEE.toFixed(2),
                 dailyCalorieGoal: dailyCalorieGoal.toFixed(2),
                 caloriesToReachGoal: caloriesToReachGoal.toFixed(2),
                 goalPace: `${weightGainRate} kg per week`,
-                daysToReachGoal: daysToReachGoal, // Days to reach the goal
+                daysToReachGoal,
             },
         });
     } catch (error) {
@@ -429,5 +410,7 @@ const calculateUserMetrics = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
+
 module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName ,calculateUserMetrics};
 

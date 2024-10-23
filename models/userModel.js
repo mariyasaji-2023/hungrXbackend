@@ -76,14 +76,38 @@ const userSchema = new mongoose.Schema({
         enum: [0.25, 0.50, 0.75, 1],
         // required:true
     },
-     activityLevel: {
+    activityLevel: {
         type: String,
         enum: ['sedentary', 'lightly active', 'moderately active', 'very active', 'extra active'],
         // required:true
     },
-    age:{
-        type:Number
-    }
+    age: {
+        type: Number
+    },
+    BMI: {
+        type: String,
+        required: false
+    },
+    BMR: {
+        type: String,
+        required: false
+    },
+    TDEE: {
+        type: String,
+        required: false
+    },
+    dailyCalorieGoal: {
+        type: String,
+        required: false
+    },
+    caloriesToReachGoal: {
+        type: String,
+        required: false
+    },
+    daysToReachGoal: {
+        type: Number,
+        required: false
+    },
 });
 
 const User = mongoose.model('User', userSchema);
