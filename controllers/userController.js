@@ -265,21 +265,20 @@ const addName = async (req, res) => {
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
-
         const updateUserDetails = async (user) => {
             if (name) user.name = name;
             if (gender) user.gender = gender;
-
-            // Store height with the appropriate unit
-            if (isMetric && heightInFeet == null && heightInInches == null) {
-                user.heightInCm = req.body.heightInCm;
-            } else if (heightInFeet != null && heightInInches != null) {
+        
+            // Simplify height logic
+            if (isMetric) {
+                user.heightInCm = heightInCm;
+            } else {
                 user.heightInFeet = heightInFeet;
                 user.heightInInches = heightInInches;
             }
-
+        
             user.isMetric = isMetric;
-
+        
             // Store weight in both units
             if (weight) {
                 if (isMetric) {
@@ -288,17 +287,18 @@ const addName = async (req, res) => {
                     user.weightInLbs = weight;
                 }
             }
-            if (age) user.age = age; 
-
+        
+            if (age) user.age = age;
             if (mealsPerDay) user.mealsPerDay = mealsPerDay;
             if (goal) user.goal = goal;
             if (goal && targetWeight) user.targetWeight = targetWeight;
             if (weightGainRate) user.weightGainRate = weightGainRate;
             if (activityLevel) user.activityLevel = activityLevel;
-
+        
             await user.save();
             console.log('Updated User:', user); // Log updated user
         };
+        ;
 
         await updateUserDetails(user);
 
