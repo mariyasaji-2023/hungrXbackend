@@ -246,7 +246,8 @@ const addName = async (req, res) => {
         name,
         gender,
         heightInFeet,   // Height in feet
-        heightInInches, // Height in inches
+        heightInInches,
+        heightInCm,  // Height in inches
         isMetric,       // Flag to determine metric or imperial
         weight,         // Weight entered by user
         mealsPerDay,
