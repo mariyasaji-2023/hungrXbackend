@@ -43,7 +43,11 @@ const signupWithEmail = async (req, res) => {
 
     // Check if passwords match
     if (password !== reenterPassword) {
-        return res.status(400).json({ message: 'Passwords do not match' });
+        return res.status(400).json({
+            data: {
+                message: 'Passwords do not match'
+            }
+        });
     }
 
     try {
@@ -51,7 +55,11 @@ const signupWithEmail = async (req, res) => {
         let user = await User.findOne({ email });
 
         if (user && user.isVerified) {
-            return res.status(400).json({ message: 'Email already exists' });
+            return res.status(400).json({
+                data: {
+                    message: 'Email already exists'
+                }
+            });
         }
 
         // Hash the password
@@ -96,14 +104,22 @@ const loginWithEmail = async (req, res) => {
         const user = await User.findOne({ email });
 
         if (!user) {
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(404).json({
+                data: {
+                    message: 'User not found'
+                }
+            });
         }
 
         // Compare the provided password with the hashed password in the database
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
-            return res.status(400).json({ message: 'Invalid password' });
+            return res.status(400).json({
+                data: {
+                    message: 'Invalid password'
+                }
+            });
         }
 
         // Generate JWT token
@@ -118,7 +134,11 @@ const loginWithEmail = async (req, res) => {
             },
         });
     } catch (err) {
-        res.status(500).json({ message: err.message });
+        res.status(500).json({
+            data: {
+                message: err.message
+            }
+        });
     }
 };
 
@@ -139,7 +159,11 @@ const sendOTP = async (req, res) => {
     }
 
     if (!mobile) {
-        return res.status(400).json({ error: "Mobile number is required" });
+        return res.status(400).json({
+            data: {
+                error: "Mobile number is required"
+            }
+        });
     }
 
     try {
@@ -147,12 +171,24 @@ const sendOTP = async (req, res) => {
         client.verify.v2.services(serviceSid)
             .verifications.create({ to: `+${mobile}`, channel: 'sms' })
             .then(verification => {
-                res.status(200).json({ message: 'OTP sent', verificationSid: verification.sid });
+                res.status(200).json({
+                    data: {
+                        message: 'OTP sent', verificationSid: verification.sid
+                    }
+                });
             })
-            .catch(error => res.status(500).json({ error: error.message }));
+            .catch(error => res.status(500).json({
+                data: {
+                    error: error.message
+                }
+            }));
 
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            data: {
+                error: error.message
+            }
+        });
     }
 };
 
@@ -256,19 +292,23 @@ const addName = async (req, res) => {
         weightGainRate,
         activityLevel,
         age
-        } = req.body;
+    } = req.body;
 
     console.log('Request Body:', req.body); // Log the request
 
     try {
         const user = await User.findOne({ _id: userId });
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({
+                error: {
+                    data: 'User not found'
+                }
+            });
         }
         const updateUserDetails = async (user) => {
             if (name) user.name = name;
             if (gender) user.gender = gender;
-        
+
             // Simplify height logic
             if (isMetric) {
                 user.heightInCm = heightInCm;
@@ -276,9 +316,9 @@ const addName = async (req, res) => {
                 user.heightInFeet = heightInFeet;
                 user.heightInInches = heightInInches;
             }
-        
+
             user.isMetric = isMetric;
-        
+
             // Store weight in both units
             if (weight) {
                 if (isMetric) {
@@ -287,14 +327,14 @@ const addName = async (req, res) => {
                     user.weightInLbs = weight;
                 }
             }
-        
+
             if (age) user.age = age;
             if (mealsPerDay) user.mealsPerDay = mealsPerDay;
             if (goal) user.goal = goal;
             if (goal && targetWeight) user.targetWeight = targetWeight;
             if (weightGainRate) user.weightGainRate = weightGainRate;
             if (activityLevel) user.activityLevel = activityLevel;
-        
+
             await user.save();
             console.log('Updated User:', user); // Log updated user
         };
@@ -408,10 +448,53 @@ const calculateUserMetrics = async (req, res) => {
         });
     } catch (error) {
         console.error('Error calculating user metrics:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            data: {
+                error: 'Internal server error'
+            }
+        });
     }
 };
 
+const home = async (req, res) => {
+    const { userId } = req.body;
+    try {
+        const user = await User.findOne({ _id: userId });
+        if (!user) {
+            return res.status(404).json({
+                data: {
+                    error: 'User not found'
+                }
+            });
+        }
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName ,calculateUserMetrics};
+        const { caloriesToReachGoal, dailyCalorieGoal, daysToReachGoal } = user;
+console.log(caloriesToReachGoal, dailyCalorieGoal, daysToReachGoal,"//////////////////////////");
+
+        if (!caloriesToReachGoal || !dailyCalorieGoal || !daysToReachGoal) {
+            return res.status(400).json({
+                data: {
+                    error: 'Missing essential user details'
+                }
+            });
+        }
+
+        // Send the user's data if all details are present
+        return res.status(200).json({
+            data: {
+                caloriesToReachGoal,
+                dailyCalorieGoal,
+                daysToReachGoal
+            }
+        });
+    } catch (error) {
+        return res.status(500).json({
+            data: {
+                error: 'Server error'
+            }
+        });
+    }
+};
+
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics,home };
 
