@@ -458,6 +458,7 @@ const calculateUserMetrics = async (req, res) => {
 
 const home = async (req, res) => {
     const { userId } = req.body;
+
     try {
         const user = await User.findOne({ _id: userId });
         if (!user) {
@@ -468,9 +469,23 @@ const home = async (req, res) => {
             });
         }
 
-        const { caloriesToReachGoal, dailyCalorieGoal, daysToReachGoal } = user;
-console.log(caloriesToReachGoal, dailyCalorieGoal, daysToReachGoal,"//////////////////////////");
+        const { 
+            name, 
+            goal, 
+            caloriesToReachGoal, 
+            dailyCalorieGoal, 
+            daysToReachGoal, 
+            isMetric, 
+            weightInKg, 
+            weightInLbs 
+        } = user;
 
+        console.log(
+            caloriesToReachGoal, dailyCalorieGoal, daysToReachGoal, 
+            weightInKg, weightInLbs, "//////////////////////////"
+        );
+
+        // Ensure essential data is present
         if (!caloriesToReachGoal || !dailyCalorieGoal || !daysToReachGoal) {
             return res.status(400).json({
                 data: {
@@ -479,15 +494,28 @@ console.log(caloriesToReachGoal, dailyCalorieGoal, daysToReachGoal,"////////////
             });
         }
 
-        // Send the user's data if all details are present
+        // Prepare a heading based on the user's goal
+        const goalHeading = goal ? `${goal}` : 'Calorie Goal';
+
+        // Determine which weight to display based on the isMetric flag
+        const weight = isMetric 
+            ? `${weightInKg} kg` 
+            : `${weightInLbs} lbs`;
+
+        // Send response with username, goal heading, and weight details
         return res.status(200).json({
             data: {
+                username: name,
+                goalHeading,
+                weight,
                 caloriesToReachGoal,
                 dailyCalorieGoal,
-                daysToReachGoal
+                daysToReachGoal,
             }
         });
+
     } catch (error) {
+        console.error('Error fetching user details:', error);
         return res.status(500).json({
             data: {
                 error: 'Server error'
@@ -495,6 +523,5 @@ console.log(caloriesToReachGoal, dailyCalorieGoal, daysToReachGoal,"////////////
         });
     }
 };
-
 module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics,home };
 
