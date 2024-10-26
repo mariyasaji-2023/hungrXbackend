@@ -312,7 +312,7 @@ const addName = async (req, res) => {
             // if (req.file) {
             //     user.profilePhoto = `uploads/${req.file.filename}`;
             // }
-            if(profilePhoto)user.profilePhoto = profilePhoto
+            if (profilePhoto) user.profilePhoto = profilePhoto;
             // Simplify height logic
             if (isMetric) {
                 user.heightInCm = heightInCm;
