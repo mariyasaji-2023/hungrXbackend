@@ -2,6 +2,7 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const User = require('../models/userModel'); // Assuming you have a User model
+const UserActivity = require('../models/trackUserModel')
 require('dotenv').config()
 const twilio = require('twilio');
 // Function to hash the password
@@ -529,5 +530,39 @@ const home = async (req, res) => {
     }
 };
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics,home };
+const trackUser =  async (req, res) => {
+    const { userId } = req.body; // Get the userId from the request
+
+    try {
+        // Get the current date at midnight (start of the day)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Set time to 00:00:00
+
+        // Check if there's already a record for the user for today
+        const existingActivity = await UserActivity.findOne({
+            userId ,
+            date: today,
+        });
+        
+        if (existingActivity) {
+            // If activity exists, skip saving and respond accordingly
+            return res.status(200).json({
+                message: 'Activity already tracked for today',
+            });
+        }
+
+        // If no record exists for today, create a new one
+        const activity = new UserActivity({ userId, date: today });
+        await activity.save();
+
+        res.status(201).json({
+            message: 'Activity tracked successfully for today',
+        });
+    } catch (error) {
+        console.error('Error tracking activity:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+}
+
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics,home ,trackUser};
 
