@@ -4,7 +4,6 @@ const bcrypt = require('bcrypt');
 const User = require('../models/userModel'); // Assuming you have a User model
 require('dotenv').config()
 const twilio = require('twilio');
-
 // Function to hash the password
 const hashPassword = async (password) => {
     const saltRounds = 10;
@@ -285,13 +284,15 @@ const addName = async (req, res) => {
         heightInInches,
         heightInCm,  // Height in inches
         isMetric,       // Flag to determine metric or imperial
-        weight,         // Weight entered by user
+        weightInKg,
+        weightInLbs,
         mealsPerDay,
         goal,
         targetWeight,
         weightGainRate,
         activityLevel,
-        age
+        age,
+        profilePhoto
     } = req.body;
 
     console.log('Request Body:', req.body); // Log the request
@@ -308,7 +309,10 @@ const addName = async (req, res) => {
         const updateUserDetails = async (user) => {
             if (name) user.name = name;
             if (gender) user.gender = gender;
-
+            // if (req.file) {
+            //     user.profilePhoto = `uploads/${req.file.filename}`;
+            // }
+            if(profilePhoto)user.profilePhoto = profilePhoto
             // Simplify height logic
             if (isMetric) {
                 user.heightInCm = heightInCm;
@@ -320,12 +324,10 @@ const addName = async (req, res) => {
             user.isMetric = isMetric;
 
             // Store weight in both units
-            if (weight) {
-                if (isMetric) {
-                    user.weightInKg = weight;
-                } else {
-                    user.weightInLbs = weight;
-                }
+            if (weightInKg) {
+                user.weightInKg = weightInKg;
+            } else if (weightInLbs) {
+                user.weightInLbs = weightInLbs;
             }
 
             if (age) user.age = age;
@@ -477,12 +479,13 @@ const home = async (req, res) => {
             daysToReachGoal, 
             isMetric, 
             weightInKg, 
-            weightInLbs 
+            weightInLbs ,
+            profilePhoto
         } = user;
 
         console.log(
             caloriesToReachGoal, dailyCalorieGoal, daysToReachGoal, 
-            weightInKg, weightInLbs, "//////////////////////////"
+            weightInKg, weightInLbs,profilePhoto, "//////////////////////////"
         );
 
         // Ensure essential data is present
@@ -511,6 +514,7 @@ const home = async (req, res) => {
                 caloriesToReachGoal,
                 dailyCalorieGoal,
                 daysToReachGoal,
+                profilePhoto
             }
         });
 
@@ -523,5 +527,6 @@ const home = async (req, res) => {
         });
     }
 };
+
 module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics,home };
 
