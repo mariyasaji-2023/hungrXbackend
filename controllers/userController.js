@@ -514,7 +514,8 @@ const home = async (req, res) => {
                 caloriesToReachGoal,
                 dailyCalorieGoal,
                 daysToReachGoal,
-                profilePhoto
+                profilePhoto,
+                remaining:dailyCalorieGoal
             }
         });
 
