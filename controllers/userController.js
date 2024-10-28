@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const User = require('../models/userModel'); // Assuming you have a User model
 const UserActivity = require('../models/trackUserModel')
+const Weight = require('../models/userWeightModel')
 require('dotenv').config()
 const twilio = require('twilio');
 // Function to hash the password
@@ -665,6 +666,56 @@ const trackUser = async (req, res) => {
     }
 };
 
+const updateWeight = async (req, res) => {
+    const { userId, newWeight } = req.body;
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics, home, trackUser };
+    try {
+        // Find the user by ID
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User not found'
+            });
+        }
+
+        // Store the weight in the appropriate field based on the isMetric flag
+        if (user.isMetric) {
+            user.weightInKg = newWeight;
+        } else {
+            user.weightInLbs = newWeight;
+        }
+
+        // Save the updated user information
+        await user.save();
+
+        // Create a new weight entry with timestamp
+        const weightEntry = new Weight({
+            userId: user._id,
+            weight: newWeight,
+            timestamp: new Date() // Add the current timestamp
+        });
+        await weightEntry.save();
+
+        res.status(200).json({
+            status: true,
+            message: 'Weight updated successfully',
+            data: {
+                userId: user._id,
+                weight: newWeight,
+                isMetric: user.isMetric,
+                timestamp: weightEntry.timestamp.toISOString().split('T')[0].split('-').reverse().join('-') // Format date as DD-MM-YYYY
+            }
+        });
+    } catch (error) {
+        console.error('Error updating weight:', error);
+        res.status(500).json({
+            status: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics, home, trackUser , updateWeight };
 

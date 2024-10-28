@@ -12,6 +12,7 @@ router.put('/addName', upload.single('profilePhoto'), userController.addName);
 router.post('/calculate-metrics',userController.calculateUserMetrics);
 router.post('/home', userController.home);
 router.post('/trackuser',userController.trackUser)
+router.post('/updateWeight',userController.updateWeight)
 
 
 module.exports = router;
