@@ -589,6 +589,7 @@ const home = async (req, res) => {
 };
 
 
+
 const trackUser = async (req, res) => {
     const { userId } = req.body; // Get the userId from the request
 
@@ -597,47 +598,60 @@ const trackUser = async (req, res) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Set time to 00:00:00
 
-        // Format the date as MM/DD/YYYY
-        const formattedDate = `${(today.getMonth() + 1).toString().padStart(2, '0')}/${
-            today.getDate().toString().padStart(2, '0')
-        }/${today.getFullYear()}`;
-
-        // Check if there's already a record for the user for today
+        // Check if there's already a record for today using Date comparison
         const existingActivity = await UserActivity.findOne({
             userId,
-            date: formattedDate, // Use formatted date for comparison
+            date: today,
         });
 
-        if (existingActivity) {
-            // If activity exists, skip saving and respond accordingly
-            return res.status(200).json({
-                status: false,
-                data: {
-                    message: 'Activity already tracked for today',
-                    date: formattedDate, // Return formatted date
-                }
-            });
+        if (!existingActivity) {
+            // Save today's activity if it doesn't already exist
+            const activity = new UserActivity({ userId, date: today });
+            await activity.save();
         }
 
-        // If no record exists for today, create a new one
-        const activity = new UserActivity({ userId, date: formattedDate });
-        await activity.save();
+        // Retrieve all activities for the user, sorted by date
+        const activities = await UserActivity.find({ userId }).sort({ date: 1 });
 
-        res.status(201).json({
-            Status: true,
-            Message: 'Activity tracked successfully for today',
-            Data: {
+        // Convert all dates to DD-MM-YYYY format
+        const formattedDates = activities.map(activity => {
+            const dateObj = activity.date;
+            return `${dateObj.getDate().toString().padStart(2, '0')}-` +
+                   `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}-` +
+                   `${dateObj.getFullYear()}`;
+        });
+
+        // Get the first activity date (starting date)
+        const startingDate = activities[0].date;
+
+        // Retrieve the user's goal days from the User model
+        const user = await User.findById(userId);
+        const goalDays = user.daysToReachGoal || 0; // Default to 0 if not set
+
+        // Calculate the expected end date by adding goalDays to the startingDate
+        const expectedEndDate = new Date(startingDate);
+        expectedEndDate.setDate(expectedEndDate.getDate() + goalDays);
+
+        // Format the expected end date as DD-MM-YYYY
+        const formattedEndDate = `${expectedEndDate.getDate().toString().padStart(2, '0')}-` +
+                                 `${(expectedEndDate.getMonth() + 1).toString().padStart(2, '0')}-` +
+                                 `${expectedEndDate.getFullYear()}`;
+
+        res.status(200).json({
+            status: true,
+            message: 'Activity tracked and retrieved successfully',
+            data: {
                 userId,
-                date: formattedDate, // Return formatted date
-            }
+                startingDate: formattedDates[0], // First date tracked
+                expectedEndDate: formattedEndDate, // Expected end date
+                dates: formattedDates, // List of all activity dates
+            },
         });
     } catch (error) {
         console.error('Error tracking activity:', error);
         res.status(500).json({
-            Status: false,
-            data: {
-                Message: 'Internal server error'
-            }
+            status: false,
+            message: 'Internal server error',
         });
     }
 };
