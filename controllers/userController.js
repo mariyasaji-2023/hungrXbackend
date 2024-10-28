@@ -160,8 +160,9 @@ const sendOTP = async (req, res) => {
 
     if (!mobile) {
         return res.status(400).json({
+            status: false,
             data: {
-                error: "Mobile number is required"
+                message: "Mobile number is required"
             }
         });
     }
@@ -185,8 +186,9 @@ const sendOTP = async (req, res) => {
 
     } catch (error) {
         res.status(500).json({
+            status: false,
             data: {
-                error: error.message
+                message: error.message
             }
         });
     }
@@ -197,7 +199,12 @@ const verifyOTP = async (req, res) => {
     const { mobile, otp } = req.body;
 
     if (!mobile || !otp) {
-        return res.status(400).json({ error: "Mobile number and OTP are required" });
+        return res.status(400).json({
+            status: false,
+            data: {
+                message: "Mobile number and OTP are required"
+            }
+        });
     }
 
     try {
@@ -223,15 +230,28 @@ const verifyOTP = async (req, res) => {
             }
 
             res.status(200).json({
-                message: 'OTP verified successfully. User has been created/updated.',
-                userId: user._id, // Returning userId here
-                user,
+                status: true,
+                data: {
+                    message: 'OTP verified successfully. User has been created/updated.',
+                    userId: user._id, // Returning userId here
+                    user,
+                }
             });
         } else {
-            res.status(400).json({ message: 'Invalid OTP' });
+            res.status(400).json({
+                status: false,
+                data: {
+                    message: 'Invalid OTP'
+                }
+            });
         }
     } catch (error) {
-        res.status(500).json({ error: error.message });
+        res.status(500).json({
+            status: false,
+            data: {
+                message: error.message
+            }
+        });
     }
 };
 
@@ -262,17 +282,25 @@ const loginWithGoogle = async (req, res) => {
 
         // Send response
         res.status(200).json({
-            message,
-            token: jwtToken,
-            user: {
-                id: user._id,
-                email: user.email,
-                name: user.name,
-            },
+            status: true,
+            data: {
+                message,
+                token: jwtToken,
+                user: {
+                    id: user._id,
+                    email: user.email,
+                    name: user.name,
+                },
+            }
         });
     } catch (error) {
         console.error('Error in Google login/signup:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            status: false,
+            data: {
+                message: 'Internal server error'
+            }
+        });
     }
 };
 
@@ -302,7 +330,8 @@ const addName = async (req, res) => {
         const user = await User.findOne({ _id: userId });
         if (!user) {
             return res.status(404).json({
-                error: {
+                status: false,
+                message: {
                     data: 'User not found'
                 }
             });
@@ -346,11 +375,19 @@ const addName = async (req, res) => {
         await updateUserDetails(user);
 
         res.status(200).json({
-            data: { message: 'User details have been updated successfully' },
+            status: true,
+            data: {
+                message: 'User details have been updated successfully'
+            },
         });
     } catch (error) {
         console.error('Error updating user details:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            status: false,
+            data: {
+                message: 'Internal server error'
+            }
+        });
     }
 };
 
@@ -361,7 +398,12 @@ const calculateUserMetrics = async (req, res) => {
     try {
         const user = await User.findById({ _id: userId }); // Directly use the ID.
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({
+                status: false,
+                data: {
+                    message: 'User not found'
+                }
+            });
         }
 
         const {
@@ -380,7 +422,12 @@ const calculateUserMetrics = async (req, res) => {
         } = user;
 
         if (!age || !gender || (!weightInKg && !weightInLbs)) {
-            return res.status(400).json({ error: 'Missing essential user details' });
+            return res.status(400).json({
+                status: false,
+                data: {
+                    meassage: 'Missing essential user details'
+                }
+            });
         }
 
         // Calculate weight and height based on unit system
@@ -390,7 +437,12 @@ const calculateUserMetrics = async (req, res) => {
             : ((heightInFeet * 12) + heightInInches) * 0.0254;
 
         if (!weight || !height) {
-            return res.status(400).json({ error: 'Invalid height or weight' });
+            return res.status(400).json({
+                status: false,
+                data: {
+                    message: 'Invalid height or weight'
+                }
+            });
         }
 
         // BMR Calculation
@@ -435,6 +487,7 @@ const calculateUserMetrics = async (req, res) => {
         await user.save();
 
         res.status(200).json({
+            status: true,
             data: {
                 height: isMetric
                     ? `${(height * 100).toFixed(2)} cm`
@@ -452,8 +505,9 @@ const calculateUserMetrics = async (req, res) => {
     } catch (error) {
         console.error('Error calculating user metrics:', error);
         res.status(500).json({
+            status: false,
             data: {
-                error: 'Internal server error'
+                message: 'Internal server error'
             }
         });
     }
@@ -466,34 +520,36 @@ const home = async (req, res) => {
         const user = await User.findOne({ _id: userId });
         if (!user) {
             return res.status(404).json({
+                status: false,
                 data: {
                     error: 'User not found'
                 }
             });
         }
 
-        const { 
-            name, 
-            goal, 
-            caloriesToReachGoal, 
-            dailyCalorieGoal, 
-            daysToReachGoal, 
-            isMetric, 
-            weightInKg, 
-            weightInLbs ,
+        const {
+            name,
+            goal,
+            caloriesToReachGoal,
+            dailyCalorieGoal,
+            daysToReachGoal,
+            isMetric,
+            weightInKg,
+            weightInLbs,
             profilePhoto
         } = user;
 
         console.log(
-            caloriesToReachGoal, dailyCalorieGoal, daysToReachGoal, 
-            weightInKg, weightInLbs,profilePhoto, "//////////////////////////"
+            caloriesToReachGoal, dailyCalorieGoal, daysToReachGoal,
+            weightInKg, weightInLbs, profilePhoto, "//////////////////////////"
         );
 
         // Ensure essential data is present
         if (!caloriesToReachGoal || !dailyCalorieGoal || !daysToReachGoal) {
             return res.status(400).json({
+                status: false,
                 data: {
-                    error: 'Missing essential user details'
+                    message: 'Missing essential user details'
                 }
             });
         }
@@ -502,12 +558,13 @@ const home = async (req, res) => {
         const goalHeading = goal ? `${goal}` : 'Calorie Goal';
 
         // Determine which weight to display based on the isMetric flag
-        const weight = isMetric 
-            ? `${weightInKg} kg` 
+        const weight = isMetric
+            ? `${weightInKg} kg`
             : `${weightInLbs} lbs`;
 
         // Send response with username, goal heading, and weight details
         return res.status(200).json({
+            status: true,
             data: {
                 username: name,
                 goalHeading,
@@ -516,21 +573,23 @@ const home = async (req, res) => {
                 dailyCalorieGoal,
                 daysToReachGoal,
                 profilePhoto,
-                remaining:dailyCalorieGoal
+                remaining: dailyCalorieGoal
             }
         });
 
     } catch (error) {
         console.error('Error fetching user details:', error);
         return res.status(500).json({
+            status: false,
             data: {
-                error: 'Server error'
+                message: 'Server error'
             }
         });
     }
 };
 
-const trackUser =  async (req, res) => {
+
+const trackUser = async (req, res) => {
     const { userId } = req.body; // Get the userId from the request
 
     try {
@@ -538,31 +597,51 @@ const trackUser =  async (req, res) => {
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Set time to 00:00:00
 
+        // Format the date as MM/DD/YYYY
+        const formattedDate = `${(today.getMonth() + 1).toString().padStart(2, '0')}/${
+            today.getDate().toString().padStart(2, '0')
+        }/${today.getFullYear()}`;
+
         // Check if there's already a record for the user for today
         const existingActivity = await UserActivity.findOne({
-            userId ,
-            date: today,
+            userId,
+            date: formattedDate, // Use formatted date for comparison
         });
-        
+
         if (existingActivity) {
             // If activity exists, skip saving and respond accordingly
             return res.status(200).json({
-                message: 'Activity already tracked for today',
+                status: false,
+                data: {
+                    message: 'Activity already tracked for today',
+                    date: formattedDate, // Return formatted date
+                }
             });
         }
 
         // If no record exists for today, create a new one
-        const activity = new UserActivity({ userId, date: today });
+        const activity = new UserActivity({ userId, date: formattedDate });
         await activity.save();
 
         res.status(201).json({
-            message: 'Activity tracked successfully for today',
+            Status: true,
+            Message: 'Activity tracked successfully for today',
+            Data: {
+                userId,
+                date: formattedDate, // Return formatted date
+            }
         });
     } catch (error) {
         console.error('Error tracking activity:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({
+            Status: false,
+            data: {
+                Message: 'Internal server error'
+            }
+        });
     }
-}
+};
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics,home ,trackUser};
+
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics, home, trackUser };
 
