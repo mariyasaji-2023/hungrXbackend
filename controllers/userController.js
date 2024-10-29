@@ -619,8 +619,8 @@ const trackUser = async (req, res) => {
         const formattedDates = activities.map(activity => {
             const dateObj = activity.date;
             return `${dateObj.getDate().toString().padStart(2, '0')}-` +
-                   `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}-` +
-                   `${dateObj.getFullYear()}`;
+                `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}-` +
+                `${dateObj.getFullYear()}`;
         });
 
         // Calculate the total streak (unique dates)
@@ -639,8 +639,8 @@ const trackUser = async (req, res) => {
 
         // Format the expected end date as DD-MM-YYYY
         const formattedEndDate = `${expectedEndDate.getDate().toString().padStart(2, '0')}-` +
-                                 `${(expectedEndDate.getMonth() + 1).toString().padStart(2, '0')}-` +
-                                 `${expectedEndDate.getFullYear()}`;
+            `${(expectedEndDate.getMonth() + 1).toString().padStart(2, '0')}-` +
+            `${expectedEndDate.getFullYear()}`;
 
         // Calculate days left (goalDays - totalStreak)
         const daysLeft = Math.max(goalDays - totalStreak, 0); // Ensure it's not negative
@@ -717,5 +717,65 @@ const updateWeight = async (req, res) => {
 };
 
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics, home, trackUser , updateWeight };
+
+const getWeightHistory = async (req, res) => {
+    const { userId } = req.body;
+
+    try {
+        // Fetch user details to get isMetric flag and current weight
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User not found',
+            });
+        }
+     console.log(user,"uuuuuuuuuuuuuuuuuuuuuu");
+     
+        // Determine the current weight based on isMetric flag
+        const currentWeight = user.isMetric ? user.weightInKg : user.weightInLbs;
+        console.log(currentWeight,"cccccccccccccccccccccccccccc");
+        
+
+        // Fetch the user's weight history from the Weight collection
+        const weightHistory = await Weight.find({ userId }).sort({ timestamp: -1 });
+
+        if (!weightHistory.length) {
+            return res.status(404).json({
+                status: false,
+                message: 'No weight records found',
+            });
+        }
+
+        // Prepare the history including the current weight from the user schema
+        const history = [
+            {
+                weight: currentWeight,
+                date: "Current Weight", // Latest weight from the user schema
+            },
+            ...weightHistory.map((entry) => ({
+                weight: entry.weight,
+                date: entry.timestamp.toISOString().split('T')[0].split('-').reverse().join('-'), // Format as DD-MM-YYYY
+            })),
+        ];
+
+        // Construct the response
+        res.status(200).json({
+            status: true,
+            message: 'Weight history retrieved successfully',
+            currentWeight, // Current weight from user schema
+            history,
+        });
+    } catch (error) {
+        console.error('Error fetching weight history:', error);
+        res.status(500).json({
+            status: false,
+            message: 'Internal server error',
+        });
+    }
+};
+
+
+
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory };
 
