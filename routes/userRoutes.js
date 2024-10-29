@@ -14,7 +14,7 @@ router.post('/calculate-metrics',userController.calculateUserMetrics);
 router.post('/home', userController.home);
 router.post('/trackuser',userController.trackUser)
 router.post('/updateWeight',userController.updateWeight)
-router.get('/getWeightHistory',userController.getWeightHistory)
+router.post('/getWeightHistory',userController.getWeightHistory)
 router.post('/feedback',feedbackController.submitFeedback)
 
 
