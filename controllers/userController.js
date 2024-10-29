@@ -763,6 +763,7 @@ const getWeightHistory = async (req, res) => {
         res.status(200).json({
             status: true,
             message: 'Weight history retrieved successfully',
+            isMetric: user.isMetric,
             currentWeight, // Current weight from user schema
             history,
         });
