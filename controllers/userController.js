@@ -749,10 +749,10 @@ const getWeightHistory = async (req, res) => {
 
         // Prepare the history including the current weight from the user schema
         const history = [
-            {
-                weight: currentWeight,
-                date: "Current Weight", // Latest weight from the user schema
-            },
+            // {
+            //     weight: currentWeight,
+            //     date: "Current Weight", // Latest weight from the user schema
+            // },
             ...weightHistory.map((entry) => ({
                 weight: entry.weight,
                 date: entry.timestamp.toISOString().split('T')[0].split('-').reverse().join('-'), // Format as DD-MM-YYYY
@@ -776,7 +776,35 @@ const getWeightHistory = async (req, res) => {
     }
 };
 
+const checkUser = async (req,res)=>{
+    const {userId} = req.body
+    try {
+        const user = await User.findById(userId);
+        if (user && user.name) {
+            return res.status(200).json({
+              status: true,
+              data: {
+                message: 'User exists',
+              },
+            })
+        } else {
+            return res.status(404).json({
+              status: false,
+              data: {
+                message: 'User not found',
+              },
+            });
+          }
+    } catch (error) {
+        console.error('Error checking user:', error);
+        return res.status(500).json({
+          status: false,
+          data: {
+            message: 'Internal Server Error',
+          },
+        });
+    }
+}
 
-
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory };
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory ,checkUser };
 

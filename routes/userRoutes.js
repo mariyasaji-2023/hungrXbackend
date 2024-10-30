@@ -16,6 +16,7 @@ router.post('/trackuser',userController.trackUser)
 router.post('/updateWeight',userController.updateWeight)
 router.post('/getWeightHistory',userController.getWeightHistory)
 router.post('/feedback',feedbackController.submitFeedback)
+router.post('/checkUser',userController.checkUser)
 
 
 module.exports = router;
