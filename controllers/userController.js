@@ -209,6 +209,9 @@ const verifyOTP = async (req, res) => {
     }
 
     try {
+        console.log('Service SID:', serviceSid);
+        console.log('Mobile:', mobile);
+        console.log('OTP:', otp);
         // Verify OTP via Twilio
         const verification_check = await client.verify.v2.services(serviceSid)
             .verificationChecks.create({ to: `+${mobile}`, code: otp });
@@ -730,12 +733,12 @@ const getWeightHistory = async (req, res) => {
                 message: 'User not found',
             });
         }
-     console.log(user,"uuuuuuuuuuuuuuuuuuuuuu");
-     
+        console.log(user, "uuuuuuuuuuuuuuuuuuuuuu");
+
         // Determine the current weight based on isMetric flag
         const currentWeight = user.isMetric ? user.weightInKg : user.weightInLbs;
-        console.log(currentWeight,"cccccccccccccccccccccccccccc");
-        
+        console.log(currentWeight, "cccccccccccccccccccccccccccc");
+
 
         // Fetch the user's weight history from the Weight collection
         const weightHistory = await Weight.find({ userId }).sort({ timestamp: -1 });
@@ -776,35 +779,35 @@ const getWeightHistory = async (req, res) => {
     }
 };
 
-const checkUser = async (req,res)=>{
-    const {userId} = req.body
+const checkUser = async (req, res) => {
+    const { userId } = req.body
     try {
         const user = await User.findById(userId);
         if (user && user.age) {
             return res.status(200).json({
-              status: true,
-              data: {
-                message: 'User details exists',
-              },
+                status: true,
+                data: {
+                    message: 'User details exists',
+                },
             })
         } else {
             return res.status(404).json({
-              status: false,
-              data: {
-                message: 'Please add details',
-              },
+                status: false,
+                data: {
+                    message: 'Please add details',
+                },
             });
-          }
+        }
     } catch (error) {
         console.error('Error checking user:', error);
         return res.status(500).json({
-          status: false,
-          data: {
-            message: 'Internal Server Error',
-          },
+            status: false,
+            data: {
+                message: 'Internal Server Error',
+            },
         });
     }
 }
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory ,checkUser };
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory, checkUser };
 

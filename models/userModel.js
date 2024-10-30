@@ -50,10 +50,10 @@ const userSchema = new mongoose.Schema({
     weightInLbs: {
         type: Number
     },
-    uid: {
-        type: String,
-        unique: true
-    },
+    // uid: {
+    //     type: String,
+    //     unique: false
+    // },
     googleId: {
         type: String,
         unique: true
