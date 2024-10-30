@@ -780,18 +780,18 @@ const checkUser = async (req,res)=>{
     const {userId} = req.body
     try {
         const user = await User.findById(userId);
-        if (user && user.name) {
+        if (user && user.age) {
             return res.status(200).json({
               status: true,
               data: {
-                message: 'User exists',
+                message: 'User details exists',
               },
             })
         } else {
             return res.status(404).json({
               status: false,
               data: {
-                message: 'User not found',
+                message: 'Please add details',
               },
             });
           }
