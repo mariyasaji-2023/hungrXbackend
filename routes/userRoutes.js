@@ -3,6 +3,7 @@ const router = express.Router();
 const upload = require('../middileware/multer')
 const userController = require('../controllers/userController');
 const feedbackController = require('../controllers/feedbackController')
+const searchController = require('../controllers/searchController')
 
 router.post('/signup/email', userController.signupWithEmail);
 router.post('/login/email',userController.loginWithEmail)
@@ -17,6 +18,6 @@ router.post('/updateWeight',userController.updateWeight)
 router.post('/getWeightHistory',userController.getWeightHistory)
 router.post('/feedback',feedbackController.submitFeedback)
 router.post('/checkUser',userController.checkUser)
-
+router.post('/searchDishesForUser',searchController.searchDishesForUser)
 
 module.exports = router;
