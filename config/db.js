@@ -5,7 +5,7 @@ let dbInstance;
 
 const connectDB = async () => {
     try {
-        const connection = await mongoose.connect('mongodb+srv://hungrx001:Os4GO3Iajie9lvGr@hungrx.8wv0t.mongodb.net/hungerX', {
+        const connection = await mongoose.connect('mongodb+srv://hungrx001:b19cQlcRApahiWUD@cluster0.ynchc4e.mongodb.net/hungerX', {
            
         });
         dbInstance = connection.connection.db;

@@ -4,6 +4,8 @@ const upload = require('../middileware/multer')
 const userController = require('../controllers/userController');
 const feedbackController = require('../controllers/feedbackController')
 const searchController = require('../controllers/searchController')
+const restaurantController = require('../controllers/restaurantController')
+const waterController = require('../controllers/waterController')
 
 router.post('/signup/email', userController.signupWithEmail);
 router.post('/login/email',userController.loginWithEmail)
@@ -19,5 +21,8 @@ router.post('/getWeightHistory',userController.getWeightHistory)
 router.post('/feedback',feedbackController.submitFeedback)
 router.post('/checkUser',userController.checkUser)
 router.post('/searchDishesForUser',searchController.searchDishesForUser)
+router.post('/eatPage',restaurantController.getEatPage)
+router.post('/initialize',waterController.initializeWaterTracking)
+
 
 module.exports = router;
