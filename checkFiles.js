@@ -1,45 +1,31 @@
-const User = require("../models/userModel")
+const { MongoClient } = require("mongodb");
 
-const getEatPage = async(req,res)=>{
-    const {userId} = req.body
-    try {
-        const user = await User.findOne({_id:userId})
-        if(!user){
-            return res.staus(404).json({
-                status:false,
-                data:{
-                    error:'User not found'
-                }
-            })
-        }
-        const {name,dailyCalorieGoal}= user
+async function searchName() {
+  const client = new MongoClient("mongodb+srv://hungrx001:b19cQlcRApahiWUD@cluster0.ynchc4e.mongodb.net/hungerX");
+  const name = "coffee whitener";
 
-        console.log(name,dailyCalorieGoal);
-        
-        if(!name || !dailyCalorieGoal ){
-            return res.status(400).json({
-                status:false,
-                data:{
-                    message: 'Missing essential user details'
-                }
-            })
-        }
+  try {
+    await client.connect();
+    const grocery = client.db("hungerX").collection("grocery");
 
-        return res.status(200).json({
-            status:true,
-            data:{
-                username:name,
-                dailyCalorieGoal
-            }
-        })
-    } catch (error) {
-        console.error('Error fetching user details:', error);
-        return res.status(500).json({
-            status: false,
-            data: {
-                message: 'Server error'
-            }
-        });
-    }
+    const results = await grocery.aggregate([
+      { $match: { name: name } }, // Match name in the first collection
+      {
+        $unionWith: {
+          coll: "restaurants", // Name of the second collection
+          pipeline: [{ $match: { name: name } }], // Match name in the second collection
+        },
+      },
+    ]).toArray();
+
+    console.log(results);
+  } catch (error) {
+    console.error("Error:", error);
+  } finally {
+    await client.close();
+  }
 }
-module.exports={getEatPage}
+
+searchName();
+
+
