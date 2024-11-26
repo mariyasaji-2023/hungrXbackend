@@ -64,7 +64,7 @@ const userSchema = new mongoose.Schema({
     },
     goal: {
         type: String,
-        enum: ['Calories to burn', 'Maintain', 'Calories to gain'],
+        enum: ['lose weight', 'maintain weight', 'gain weight'],
         // required:true
     },
     targetWeight: {
