@@ -49,6 +49,7 @@ const getEatPage = async (req, res) => {
     }
 }
 
+
 const eatScreenSearchName = async (req, res) => {
     const { name } = req.body;
     
@@ -73,6 +74,9 @@ const eatScreenSearchName = async (req, res) => {
                         }
                     ]
                 }
+            },
+            {
+                $limit: 15 // Limit results to 15 documents
             }
         ]).toArray();
 
