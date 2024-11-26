@@ -83,14 +83,16 @@ const eatScreenSearchName = async (req, res) => {
             });
         }
 
-        // Transform the results to include type information
+        // Transform the results to include type and isRestaurant information
         const transformedResults = results.map(item => {
             // Check if it's a restaurant (has menus array) or grocery item
             const type = item.menus ? 'restaurant' : 'grocery';
+            const isRestaurant = type === 'restaurant';
             
-            if (type === 'restaurant') {
+            if (isRestaurant) {
                 return {
                     type,
+                    isRestaurant,
                     _id: item._id,
                     id: item.id,
                     name: item.name,
@@ -102,6 +104,7 @@ const eatScreenSearchName = async (req, res) => {
             } else {
                 return {
                     type,
+                    isRestaurant,
                     _id: item._id,
                     id: item.id,
                     name: item.name,
