@@ -171,12 +171,27 @@ const searchGroceries = async (req, res) => {
         await client.connect();
         const grocery = client.db("hungerX").collection("grocery");
 
-        const results = await grocery
+        // First, try to find exact matches (case insensitive)
+        const exactMatches = await grocery
             .find({
-                name: { $regex: name, $options: 'i' } // Case insensitive search
+                name: new RegExp(`^${name}$`, 'i') // Matches exactly the search term
             })
-            .limit(15)
             .toArray();
+
+        // Then, find partial matches, excluding exact matches
+        const partialMatches = await grocery
+            .find({
+                name: { 
+                    $regex: name,
+                    $options: 'i',
+                    $not: new RegExp(`^${name}$`, 'i') // Excludes exact matches
+                }
+            })
+            .limit(15 - exactMatches.length) // Adjust limit to account for exact matches
+            .toArray();
+
+        // Combine exact and partial matches
+        const results = [...exactMatches, ...partialMatches];
 
         if (!results || results.length === 0) {
             return res.status(404).json({
@@ -216,4 +231,5 @@ const searchGroceries = async (req, res) => {
         await client.close();
     }
 };
+
 module.exports = { getEatPage, eatScreenSearchName, getMeal ,searchGroceries}
