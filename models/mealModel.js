@@ -1,8 +1,7 @@
-//
-const mongoose = require('mongoose')
+const mongoose  = require ('mongoose')
 
 const userSchema = new mongoose.Schema({
-    meal :{
+    meal:{
         type:String,
         enum :['Breakfast','Lunch','Dinner','Snacks']
     }

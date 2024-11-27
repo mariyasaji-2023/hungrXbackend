@@ -1,5 +1,6 @@
 const userModel = require('../models/userModel')
 const profileModel = require('../models/profileModel')
+const mealModel = require('../models/mealModel')
 
 const { MongoClient } = require("mongodb");
 const client = new MongoClient("mongodb+srv://hungrx001:b19cQlcRApahiWUD@cluster0.ynchc4e.mongodb.net/hungerX");
@@ -9,7 +10,7 @@ const getEatPage = async (req, res) => {
     try {
         const user = await userModel.findOne({ _id: userId })
 
-         if (!user) {
+        if (!user) {
             return res.status(404).json({
                 status: false,
                 message: 'user is not exist'
@@ -19,14 +20,14 @@ const getEatPage = async (req, res) => {
 
         try {
             const profile = await profileModel.findOne({})
-             profilePhoto = user.gender == 'female'?profile.female:profile.male
+            profilePhoto = user.gender == 'female' ? profile.female : profile.male
         } catch (error) {
-            console.log('Error fetching profile photo:',error);
-            
+            console.log('Error fetching profile photo:', error);
+
         }
 
         const { name, dailyCalorieGoal } = user
-        if (!name || !dailyCalorieGoal ) {
+        if (!name || !dailyCalorieGoal) {
             return res.status(404).json({
                 status: false,
                 message: 'missing essantial user details'
@@ -52,25 +53,25 @@ const getEatPage = async (req, res) => {
 
 const eatScreenSearchName = async (req, res) => {
     const { name } = req.body;
-    
+
     try {
         await client.connect();
         const grocery = client.db("hungerX").collection("grocery");
 
         const results = await grocery.aggregate([
-            { 
-                $match: { 
+            {
+                $match: {
                     name: { $regex: name, $options: 'i' } // Case insensitive search
-                } 
+                }
             },
             {
                 $unionWith: {
                     coll: "restaurants",
                     pipeline: [
-                        { 
-                            $match: { 
-                                name: { $regex: name, $options: 'i' } 
-                            } 
+                        {
+                            $match: {
+                                name: { $regex: name, $options: 'i' }
+                            }
                         }
                     ]
                 }
@@ -92,7 +93,7 @@ const eatScreenSearchName = async (req, res) => {
             // Check if it's a restaurant (has menus array) or grocery item
             const type = item.menus ? 'restaurant' : 'grocery';
             const isRestaurant = type === 'restaurant';
-            
+
             if (isRestaurant) {
                 return {
                     type,
@@ -142,4 +143,24 @@ const eatScreenSearchName = async (req, res) => {
     }
 };
 
-module.exports = { getEatPage,eatScreenSearchName }
+const getMeal = async (req, res) => {
+    try {
+
+        const meals = await mealModel.find({})
+        console.log(meals);
+
+        res.status(200).json({
+            status: true,
+            message: 'Meals fetched successfully',
+            data: meals
+        })
+    } catch (error) {
+        console.log(error);
+
+        res.status(500).json({
+            status: false,
+            message: 'Failed to fetch meals. Please try again later.'
+        })
+    }
+}
+module.exports = { getEatPage, eatScreenSearchName, getMeal }
