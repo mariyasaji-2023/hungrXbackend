@@ -25,6 +25,7 @@ router.post('/eatPage',restaurantController.getEatPage)
 router.post('/initialize',waterController.initializeWaterTracking)
 router.post('/eatScreenSearch',restaurantController.eatScreenSearchName)
 router.get('/getMeals',restaurantController.getMeal)
+router.post('/searchGrocery',restaurantController.searchGroceries)
 
 
 module.exports = router;

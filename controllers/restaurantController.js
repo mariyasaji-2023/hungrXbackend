@@ -163,4 +163,57 @@ const getMeal = async (req, res) => {
         })
     }
 }
-module.exports = { getEatPage, eatScreenSearchName, getMeal }
+
+const searchGroceries = async (req, res) => {
+    const { name } = req.body;
+
+    try {
+        await client.connect();
+        const grocery = client.db("hungerX").collection("grocery");
+
+        const results = await grocery
+            .find({
+                name: { $regex: name, $options: 'i' } // Case insensitive search
+            })
+            .limit(15)
+            .toArray();
+
+        if (!results || results.length === 0) {
+            return res.status(404).json({
+                status: false,
+                message: 'No matching grocery items found'
+            });
+        }
+
+        const transformedResults = results.map(item => ({
+            _id: item._id,
+            id: item.id,
+            name: item.name,
+            calorieBurnNote: item.calorieBurnNote,
+            category: item.category,
+            image: item.image,
+            nutritionFacts: item.nutritionFacts,
+            servingInfo: item.servingInfo,
+            source: item.source,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt
+        }));
+
+        return res.status(200).json({
+            status: true,
+            count: results.length,
+            data: transformedResults
+        });
+
+    } catch (error) {
+        console.error("Error:", error);
+        return res.status(500).json({
+            status: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    } finally {
+        await client.close();
+    }
+};
+module.exports = { getEatPage, eatScreenSearchName, getMeal ,searchGroceries}
