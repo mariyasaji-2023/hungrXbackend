@@ -166,32 +166,86 @@ const getMeal = async (req, res) => {
 
 const searchGroceries = async (req, res) => {
     const { name } = req.body;
+    
+    if (!name || name.trim().length === 0) {
+        return res.status(400).json({
+            status: false,
+            message: 'Search term is required'
+        });
+    }
 
     try {
         await client.connect();
         const grocery = client.db("hungerX").collection("grocery");
 
-        // First, try to find exact matches (case insensitive)
-        const exactMatches = await grocery
-            .find({
-                name: new RegExp(`^${name}$`, 'i') // Matches exactly the search term
-            })
-            .toArray();
+        // Clean and prepare search term
+        const searchTerm = name.trim().toLowerCase();
+        
+        // Create patterns for matching
+        const flexiblePattern = searchTerm
+            .split('')
+            .map(char => `${char}+`)
+            .join('.*?');
 
-        // Then, find partial matches, excluding exact matches
-        const partialMatches = await grocery
-            .find({
-                name: { 
-                    $regex: name,
-                    $options: 'i',
-                    $not: new RegExp(`^${name}$`, 'i') // Excludes exact matches
+        const results = await grocery.aggregate([
+            {
+                $match: {
+                    $or: [
+                        // Simple word matches first
+                        { name: new RegExp(`\\b${searchTerm}\\b`, 'i') },  // Exact word match
+                        { name: new RegExp(`\\b${flexiblePattern}\\b`, 'i') },  // Flexible word match
+                        { name: new RegExp(searchTerm, 'i') }  // Contains the term anywhere
+                    ]
                 }
-            })
-            .limit(15 - exactMatches.length) // Adjust limit to account for exact matches
-            .toArray();
-
-        // Combine exact and partial matches
-        const results = [...exactMatches, ...partialMatches];
+            },
+            { 
+                $addFields: {
+                    score: {
+                        $add: [
+                            // Exact single word match gets highest score
+                            { 
+                                $cond: [
+                                    { $regexMatch: { input: "$name", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
+                                    1000,
+                                    0
+                                ]
+                            },
+                            // Bonus points for shorter names (prioritizes "egg" over "egg and cheese...")
+                            {
+                                $multiply: [
+                                    { $subtract: [50, { $strLenCP: "$name" }] },
+                                    2
+                                ]
+                            },
+                            // Flexible word match
+                            {
+                                $cond: [
+                                    { $regexMatch: { input: "$name", regex: new RegExp(`\\b${flexiblePattern}\\b`, 'i') } },
+                                    500,
+                                    0
+                                ]
+                            },
+                            // Contains the term
+                            {
+                                $cond: [
+                                    { $regexMatch: { input: "$name", regex: new RegExp(searchTerm, 'i') } },
+                                    100,
+                                    0
+                                ]
+                            }
+                        ]
+                    },
+                    matchLength: { $strLenCP: "$name" }  // Add name length for better sorting
+                }
+            },
+            { 
+                $sort: {
+                    score: -1,
+                    matchLength: 1  // Secondary sort by name length (shorter names first)
+                }
+            },
+            { $limit: 15 }
+        ]).toArray();
 
         if (!results || results.length === 0) {
             return res.status(404).json({
@@ -211,7 +265,8 @@ const searchGroceries = async (req, res) => {
             servingInfo: item.servingInfo,
             source: item.source,
             createdAt: item.createdAt,
-            updatedAt: item.updatedAt
+            updatedAt: item.updatedAt,
+            searchScore: item.score
         }));
 
         return res.status(200).json({
