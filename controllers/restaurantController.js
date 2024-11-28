@@ -1,4 +1,5 @@
 const userModel = require('../models/userModel')
+const mongoose = require('mongoose');
 const profileModel = require('../models/profileModel')
 const mealModel = require('../models/mealModel')
 
@@ -175,8 +176,8 @@ const searchGroceries = async (req, res) => {
     }
 
     try {
-        await client.connect();
-        const grocery = client.db("hungerX").collection("grocery");
+        // Use the existing mongoose connection instead of creating a new one
+        const grocery = mongoose.connection.db.collection("grocery");
 
         // Clean and prepare search term
         const searchTerm = name.trim().toLowerCase();
@@ -288,9 +289,7 @@ const searchGroceries = async (req, res) => {
             message: 'Internal server error',
             error: error.message
         });
-    } finally {
-        await client.close();
     }
+    // Removed the finally block that was closing the connection
 };
-
 module.exports = { getEatPage, eatScreenSearchName, getMeal ,searchGroceries}
