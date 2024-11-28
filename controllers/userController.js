@@ -592,72 +592,59 @@ const home = async (req, res) => {
     }
 };
 
-
-
-
 const trackUser = async (req, res) => {
-    const { userId } = req.body; // Get the userId from the request
+    const { userId } = req.body;
 
     try {
-        // Get the current date at midnight (start of the day)
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Set time to 00:00:00
+        today.setHours(0, 0, 0, 0);
 
-        // Check if there's already a record for today
         const existingActivity = await UserActivity.findOne({
             userId,
             date: today,
         });
 
         if (!existingActivity) {
-            // Save today's activity if it doesn't already exist
             const activity = new UserActivity({ userId, date: today });
             await activity.save();
         }
 
-        // Retrieve all activities for the user, sorted by date
+        // Retrieve all activities
         const activities = await UserActivity.find({ userId }).sort({ date: 1 });
 
-        // Format all activity dates to DD-MM-YYYY
-        const formattedDates = activities.map(activity => {
+        // Format dates and get unique dates only
+        const uniqueDates = [...new Set(activities.map(activity => {
             const dateObj = activity.date;
             return `${dateObj.getDate().toString().padStart(2, '0')}-` +
                 `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}-` +
                 `${dateObj.getFullYear()}`;
-        });
+        }))];
 
-        // Calculate the total streak (unique dates)
-        const totalStreak = activities.length;
-
-        // Get the first activity date (starting date)
+        // Use unique dates length for streak calculation
+        const totalStreak = uniqueDates.length;
         const startingDate = activities[0].date;
-
-        // Retrieve user's goal days from the User model
         const user = await User.findById(userId);
-        const goalDays = user.daysToReachGoal || 0; // Default to 0 if not set
+        const goalDays = user.daysToReachGoal || 0;
 
-        // Calculate the expected end date
         const expectedEndDate = new Date(startingDate);
         expectedEndDate.setDate(expectedEndDate.getDate() + goalDays);
 
-        // Format the expected end date as DD-MM-YYYY
         const formattedEndDate = `${expectedEndDate.getDate().toString().padStart(2, '0')}-` +
             `${(expectedEndDate.getMonth() + 1).toString().padStart(2, '0')}-` +
             `${expectedEndDate.getFullYear()}`;
 
-        // Calculate days left (goalDays - totalStreak)
-        const daysLeft = Math.max(goalDays - totalStreak, 0); // Ensure it's not negative
+        const daysLeft = Math.max(goalDays - totalStreak, 0);
 
         res.status(200).json({
             status: true,
             message: 'Activity tracked and retrieved successfully',
             data: {
                 userId,
-                startingDate: formattedDates[0], // First date tracked
-                expectedEndDate: formattedEndDate, // Expected end date
-                totalStreak, // Number of unique activity days
-                daysLeft, // Days left to reach the goal
-                dates: formattedDates, // List of all activity dates
+                startingDate: uniqueDates[0],
+                expectedEndDate: formattedEndDate,
+                totalStreak,
+                daysLeft,
+                dates: uniqueDates,
             },
         });
     } catch (error) {
