@@ -191,10 +191,9 @@ const searchGroceries = async (req, res) => {
             {
                 $match: {
                     $or: [
-                        // Simple word matches first
-                        { name: new RegExp(`\\b${searchTerm}\\b`, 'i') },  // Exact word match
-                        { name: new RegExp(`\\b${flexiblePattern}\\b`, 'i') },  // Flexible word match
-                        { name: new RegExp(searchTerm, 'i') }  // Contains the term anywhere
+                        { name: new RegExp(`\\b${searchTerm}\\b`, 'i') },
+                        { name: new RegExp(`\\b${flexiblePattern}\\b`, 'i') },
+                        { name: new RegExp(searchTerm, 'i') }
                     ]
                 }
             },
@@ -202,7 +201,6 @@ const searchGroceries = async (req, res) => {
                 $addFields: {
                     score: {
                         $add: [
-                            // Exact single word match gets highest score
                             { 
                                 $cond: [
                                     { $regexMatch: { input: "$name", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
@@ -210,14 +208,12 @@ const searchGroceries = async (req, res) => {
                                     0
                                 ]
                             },
-                            // Bonus points for shorter names (prioritizes "egg" over "egg and cheese...")
                             {
                                 $multiply: [
                                     { $subtract: [50, { $strLenCP: "$name" }] },
                                     2
                                 ]
                             },
-                            // Flexible word match
                             {
                                 $cond: [
                                     { $regexMatch: { input: "$name", regex: new RegExp(`\\b${flexiblePattern}\\b`, 'i') } },
@@ -225,7 +221,6 @@ const searchGroceries = async (req, res) => {
                                     0
                                 ]
                             },
-                            // Contains the term
                             {
                                 $cond: [
                                     { $regexMatch: { input: "$name", regex: new RegExp(searchTerm, 'i') } },
@@ -234,14 +229,25 @@ const searchGroceries = async (req, res) => {
                                 ]
                             }
                         ]
-                    },
-                    matchLength: { $strLenCP: "$name" }  // Add name length for better sorting
+                    }
                 }
+            },
+            {
+                // Group by name to get unique items
+                $group: {
+                    _id: "$name",
+                    // Take the first occurrence of each field
+                    item: { $first: "$$ROOT" }
+                }
+            },
+            {
+                // Restore the original document structure
+                $replaceRoot: { newRoot: "$item" }
             },
             { 
                 $sort: {
                     score: -1,
-                    matchLength: 1  // Secondary sort by name length (shorter names first)
+                    name: 1
                 }
             },
             { $limit: 15 }
