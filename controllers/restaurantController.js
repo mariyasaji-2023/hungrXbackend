@@ -4,6 +4,7 @@ const profileModel = require('../models/profileModel')
 const mealModel = require('../models/mealModel')
 
 const { MongoClient } = require("mongodb");
+const { ObjectId } = require('mongodb'); 
 const client = new MongoClient("mongodb+srv://hungrx001:b19cQlcRApahiWUD@cluster0.ynchc4e.mongodb.net/hungerX");
 
 const getEatPage = async (req, res) => {
@@ -176,13 +177,9 @@ const searchGroceries = async (req, res) => {
     }
 
     try {
-        // Use the existing mongoose connection instead of creating a new one
         const grocery = mongoose.connection.db.collection("grocery");
 
-        // Clean and prepare search term
         const searchTerm = name.trim().toLowerCase();
-        
-        // Create patterns for matching
         const flexiblePattern = searchTerm
             .split('')
             .map(char => `${char}+`)
@@ -234,15 +231,12 @@ const searchGroceries = async (req, res) => {
                 }
             },
             {
-                // Group by name to get unique items
                 $group: {
                     _id: "$name",
-                    // Take the first occurrence of each field
                     item: { $first: "$$ROOT" }
                 }
             },
             {
-                // Restore the original document structure
                 $replaceRoot: { newRoot: "$item" }
             },
             { 
@@ -265,6 +259,7 @@ const searchGroceries = async (req, res) => {
             _id: item._id,
             id: item.id,
             name: item.name,
+            brandName: item.brandName || 'Unknown Brand', // Added brandName with fallback
             calorieBurnNote: item.calorieBurnNote,
             category: item.category,
             image: item.image,
@@ -290,6 +285,134 @@ const searchGroceries = async (req, res) => {
             error: error.message
         });
     }
-    // Removed the finally block that was closing the connection
 };
-module.exports = { getEatPage, eatScreenSearchName, getMeal ,searchGroceries}
+
+
+const addToHistory = async (req, res) => {
+    const { userId, productId } = req.body;
+
+    if (!userId || !productId) {
+        return res.status(400).json({
+            status: false,
+            message: 'User ID and Product ID are required'
+        });
+    }
+
+    try {
+        const grocery = mongoose.connection.db.collection("grocery");
+        const history = mongoose.connection.db.collection("history");
+        const users = mongoose.connection.db.collection("users");
+
+        // Validate user exists
+        const user = await users.findOne({ _id: new ObjectId(userId) });
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User not found'
+            });
+        }
+
+        // Find the food item in grocery collection
+        const foodItem = await grocery.findOne({ _id: new ObjectId(productId) });
+        if (!foodItem) {
+            return res.status(404).json({
+                status: false,
+                message: 'Food item not found'
+            });
+        }
+
+        // Get current date and time
+        const now = new Date();
+        const searchDate = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
+        const searchTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+        // Create history entry
+        const historyEntry = {
+            userId: new ObjectId(userId),
+            productId: new ObjectId(productId),
+            foodItem: {
+                id: foodItem.id || foodItem._id,
+                name: foodItem.name,
+                brandName: foodItem.brandName || 'Unknown Brand',
+                image: foodItem.image,
+                nutritionFacts: foodItem.nutritionFacts,
+                servingInfo: foodItem.servingInfo || foodItem.serving_info // handle both formats
+            },
+            searchInfo: {
+                date: searchDate,
+                time: searchTime,
+                timestamp: now
+            },
+            viewedAt: now
+        };
+
+        // Save to history collection
+        const result = await history.insertOne(historyEntry);
+
+        // Update user's food history array if it exists
+        await users.updateOne(
+            { _id: new ObjectId(userId) },
+            { 
+                $push: { 
+                    foodHistory: {
+                        foodId: new ObjectId(productId),
+                        viewedAt: now,
+                        searchDate: searchDate,
+                        searchTime: searchTime
+                    }
+                } 
+            }
+        );
+
+        return res.status(200).json({
+            status: true,
+            message: 'Added to history successfully',
+            data: historyEntry
+        });
+
+    } catch (error) {
+        console.error("Error adding to history:", error);
+        return res.status(500).json({
+            status: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Get user's food history
+const getUserHistory = async (req, res) => {
+    const { userId } = req.params;
+
+    if (!userId) {
+        return res.status(400).json({
+            status: false,
+            message: 'User ID is required'
+        });
+    }
+
+    try {
+        const history = mongoose.connection.db.collection("history");
+
+        // Get user's history with most recent items first
+        const userHistory = await history
+            .find({ userId: new ObjectId(userId) })
+            .sort({ viewedAt: -1 })
+            .toArray();
+
+        return res.status(200).json({
+            status: true,
+            count: userHistory.length,
+            data: userHistory
+        });
+
+    } catch (error) {
+        console.error("Error fetching history:", error);
+        return res.status(500).json({
+            status: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+module.exports = { getEatPage, eatScreenSearchName, getMeal ,searchGroceries,addToHistory,getUserHistory}
