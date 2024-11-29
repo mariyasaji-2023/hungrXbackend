@@ -415,4 +415,82 @@ const getUserHistory = async (req, res) => {
         });
     }
 };
-module.exports = { getEatPage, eatScreenSearchName, getMeal ,searchGroceries,addToHistory,getUserHistory}
+
+const addConsumedFood = async (req, res) => {
+    // const client = new MongoClient(process.env.MONGODB_URI);
+    
+    try {
+        await client.connect();
+        const db = client.db("hungerX");
+        const users = db.collection("users");
+
+        const { 
+            userId,
+            mealType,
+            servingSize,
+            selectedMeal,
+            dishId,
+            totalCalories
+        } = req.body;
+
+        // Get current date in DD/MM/YYYY format
+        const today = new Date();
+        const date = today.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        }).replace(/\//g, '/');
+
+        // Validate meal type against available meal IDs
+        const validMealIds = {
+            'breakfast': '6746a024a45e4d9e5d58ea12',
+            'lunch': '6746a024a45e4d9e5d58ea13',
+            'dinner': '6746a024a45e4d9e5d58ea14',
+            'snacks': '6746a024a45e4d9e5d58ea15'
+        };
+
+        if (!validMealIds[mealType.toLowerCase()]) {
+            return res.status(400).json({ error: 'Invalid meal type' });
+        }
+
+        const dateKey = `consumedFood.dates.${date}`;
+        const mealKey = `${dateKey}.${mealType.toLowerCase()}`;
+
+        const foodEntry = {
+            servingSize: Number(servingSize),
+            selectedMeal: new ObjectId(selectedMeal),
+            dishId: new ObjectId(dishId),
+            totalCalories: Number(totalCalories),
+            timestamp: today
+        };
+
+        // Update the user document
+        const result = await users.updateOne(
+            { _id: new ObjectId(userId) },
+            {
+                $set: {
+                    [mealKey]: foodEntry
+                }
+            },
+            { upsert: true }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'Consumed food added successfully',
+            date: date
+        });
+
+    } catch (error) {
+        console.error('Error adding consumed food:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    } finally {
+        await client.close();
+    }
+};
+
+module.exports = { getEatPage, eatScreenSearchName, getMeal ,searchGroceries,addToHistory,getUserHistory,addConsumedFood}

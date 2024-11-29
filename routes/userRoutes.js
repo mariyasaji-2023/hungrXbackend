@@ -28,6 +28,7 @@ router.get('/getMeals',restaurantController.getMeal)
 router.post('/searchGrocery',restaurantController.searchGroceries)
 router.post('/addHistory',restaurantController.addToHistory)
 router.post('/getUserhistory',restaurantController.getUserHistory)
+router.post('/addConsumedFood',restaurantController.addConsumedFood)
 
 
 module.exports = router;
