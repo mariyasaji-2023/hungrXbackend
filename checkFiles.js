@@ -1,29 +1,20 @@
-const mongoose = require('mongoose');
-const Meal = require('./models/mealModel'); // Update with the correct path
+const { default: mongoose } = require("mongoose")
 
-// Connect to MongoDB
-mongoose.connect('mongodb+srv://hungrx001:b19cQlcRApahiWUD@cluster0.ynchc4e.mongodb.net/hungerX', {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-})
-    .then(() => console.log('Connected to MongoDB'))
-    .catch((err) => console.error('Error connecting to MongoDB:', err));
+const getUserHistory = async(req,res)=>{
+    const {userId} = req.body
+    try {
+        if(!userId){
+            return res.status(400).json({
+                status : false,
+                data:{
+                    message:'User ID is required'
+                }
+            })
+        }
+        const history = mongoose.connection.db.collection("history")
 
-// Define the meal data
-const meals = [
-    { meal: 'Breakfast' },
-    { meal: 'Lunch' },
-    { meal: 'Dinner' },
-    { meal: 'Snacks' },
-];
 
-// Insert the meals into the collection
-Meal.insertMany(meals)
-    .then((docs) => {
-        console.log('Meals added successfully:', docs);
-        mongoose.connection.close(); // Close the connection after insertion
-    })
-    .catch((err) => {
-        console.error('Error adding meals:', err);
-        mongoose.connection.close(); // Close the connection even if there’s an error
-    });
+    } catch (error) {
+        
+    }
+}

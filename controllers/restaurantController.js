@@ -382,7 +382,7 @@ const addToHistory = async (req, res) => {
 
 // Get user's food history
 const getUserHistory = async (req, res) => {
-    const { userId } = req.params;
+    const { userId } = req.body;
 
     if (!userId) {
         return res.status(400).json({
