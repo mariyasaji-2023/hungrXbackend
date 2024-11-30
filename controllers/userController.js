@@ -540,15 +540,10 @@ const home = async (req, res) => {
             isMetric,
             weightInKg,
             weightInLbs,
-            profilePhoto
+            profilePhoto,
+            consumedFood
         } = user;
 
-        console.log(
-            caloriesToReachGoal, dailyCalorieGoal, daysToReachGoal,
-            weightInKg, weightInLbs, profilePhoto, "//////////////////////////"
-        );
-
-        // Ensure essential data is present
         if (!caloriesToReachGoal || !dailyCalorieGoal || !daysToReachGoal) {
             return res.status(400).json({
                 status: false,
@@ -558,26 +553,39 @@ const home = async (req, res) => {
             });
         }
 
-        // Prepare a heading based on the user's goal
+        // Calculate total calories consumed today
+        const today = new Date().toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        }).replace(/\//g, '/');
+
+        let totalCaloriesConsumed = 0;
+        if (consumedFood?.dates?.[today]) {
+            const todaysFoods = consumedFood.dates[today];
+            totalCaloriesConsumed = Object.values(todaysFoods).reduce((sum, meal) => {
+                return sum + (meal?.totalCalories || 0);
+            }, 0);
+        }
+
+        const remainingCalories = dailyCalorieGoal - totalCaloriesConsumed;
+        const updatedCaloriesToReachGoal = caloriesToReachGoal - totalCaloriesConsumed;
+
         const goalHeading = goal ? `${goal}` : 'Calorie Goal';
+        const weight = isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`;
 
-        // Determine which weight to display based on the isMetric flag
-        const weight = isMetric
-            ? `${weightInKg} kg`
-            : `${weightInLbs} lbs`;
-
-        // Send response with username, goal heading, and weight details
         return res.status(200).json({
             status: true,
             data: {
                 username: name,
                 goalHeading,
                 weight,
-                caloriesToReachGoal,
+                caloriesToReachGoal: updatedCaloriesToReachGoal,
                 dailyCalorieGoal,
                 daysToReachGoal,
                 profilePhoto,
-                remaining: dailyCalorieGoal
+                remaining: remainingCalories,
+                consumed: totalCaloriesConsumed
             }
         });
 
@@ -660,7 +668,7 @@ const updateWeight = async (req, res) => {
     const { userId, newWeight } = req.body;
 
     try {
-        // Find the user by ID
+
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({
@@ -669,7 +677,6 @@ const updateWeight = async (req, res) => {
             });
         }
 
-        // Store the weight in the appropriate field based on the isMetric flag
         if (user.isMetric) {
             user.weightInKg = newWeight;
         } else {
@@ -737,7 +744,6 @@ const getWeightHistory = async (req, res) => {
             });
         }
 
-        // Prepare the history including the current weight from the user schema
         const history = [
             // {
             //     weight: currentWeight,

@@ -4,7 +4,7 @@ const profileModel = require('../models/profileModel')
 const mealModel = require('../models/mealModel')
 
 const { MongoClient } = require("mongodb");
-const { ObjectId } = require('mongodb'); 
+const { ObjectId } = require('mongodb');
 const client = new MongoClient("mongodb+srv://hungrx001:b19cQlcRApahiWUD@cluster0.ynchc4e.mongodb.net/hungerX");
 
 const getEatPage = async (req, res) => {
@@ -168,7 +168,7 @@ const getMeal = async (req, res) => {
 
 const searchGroceries = async (req, res) => {
     const { name } = req.body;
-    
+
     if (!name || name.trim().length === 0) {
         return res.status(400).json({
             status: false,
@@ -195,11 +195,11 @@ const searchGroceries = async (req, res) => {
                     ]
                 }
             },
-            { 
+            {
                 $addFields: {
                     score: {
                         $add: [
-                            { 
+                            {
                                 $cond: [
                                     { $regexMatch: { input: "$name", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
                                     1000,
@@ -239,7 +239,7 @@ const searchGroceries = async (req, res) => {
             {
                 $replaceRoot: { newRoot: "$item" }
             },
-            { 
+            {
                 $sort: {
                     score: -1,
                     name: 1
@@ -352,15 +352,15 @@ const addToHistory = async (req, res) => {
         // Update user's food history array if it exists
         await users.updateOne(
             { _id: new ObjectId(userId) },
-            { 
-                $push: { 
+            {
+                $push: {
                     foodHistory: {
                         foodId: new ObjectId(productId),
                         viewedAt: now,
                         searchDate: searchDate,
                         searchTime: searchTime
                     }
-                } 
+                }
             }
         );
 
@@ -416,15 +416,14 @@ const getUserHistory = async (req, res) => {
     }
 };
 
+
 const addConsumedFood = async (req, res) => {
-    // const client = new MongoClient(process.env.MONGODB_URI);
-    
     try {
         await client.connect();
         const db = client.db("hungerX");
         const users = db.collection("users");
 
-        const { 
+        const {
             userId,
             mealType,
             servingSize,
@@ -441,7 +440,7 @@ const addConsumedFood = async (req, res) => {
             year: 'numeric'
         }).replace(/\//g, '/');
 
-        // Validate meal type against available meal IDs
+        // Validate meal type
         const validMealIds = {
             'breakfast': '6746a024a45e4d9e5d58ea12',
             'lunch': '6746a024a45e4d9e5d58ea13',
@@ -464,27 +463,37 @@ const addConsumedFood = async (req, res) => {
             timestamp: today
         };
 
-        // Update the user document
+        // Update user's consumed food and adjust caloriesToReachGoal
         const result = await users.updateOne(
             { _id: new ObjectId(userId) },
             {
                 $set: {
                     [mealKey]: foodEntry
+                },
+                $inc: {
+                    caloriesToReachGoal: -Number(totalCalories)
                 }
-            },
-            { upsert: true }
+            }
         );
 
         if (result.matchedCount === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
 
+        // Fetch updated user data
+        const updatedUser = await users.findOne({ _id: new ObjectId(userId) });
+        const remainingCalories = updatedUser.dailyCalorieGoal - Number(totalCalories);
+
         res.status(200).json({
             success: true,
             message: 'Consumed food added successfully',
-            date: date
+            date: date,
+            updatedCalories: {
+                remaining: remainingCalories,
+                consumed: Number(totalCalories),
+                caloriesToReachGoal: updatedUser.caloriesToReachGoal
+            }
         });
-
     } catch (error) {
         console.error('Error adding consumed food:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -492,5 +501,4 @@ const addConsumedFood = async (req, res) => {
         await client.close();
     }
 };
-
-module.exports = { getEatPage, eatScreenSearchName, getMeal ,searchGroceries,addToHistory,getUserHistory,addConsumedFood}
+module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood }
