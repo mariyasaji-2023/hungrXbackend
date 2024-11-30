@@ -2,6 +2,7 @@ const userModel = require('../models/userModel')
 const mongoose = require('mongoose');
 const profileModel = require('../models/profileModel')
 const mealModel = require('../models/mealModel')
+const { getDBInstance } = require('../config/db');
 
 const { MongoClient } = require("mongodb");
 const { ObjectId } = require('mongodb');
@@ -63,7 +64,7 @@ const eatScreenSearchName = async (req, res) => {
         const results = await grocery.aggregate([
             {
                 $match: {
-                    name: { $regex: name, $options: 'i' } // Case insensitive search
+                    name: { $regex: name, $options: 'i' } 
                 }
             },
             {
@@ -79,7 +80,7 @@ const eatScreenSearchName = async (req, res) => {
                 }
             },
             {
-                $limit: 15 // Limit results to 15 documents
+                $limit: 15 
             }
         ]).toArray();
 
@@ -90,9 +91,8 @@ const eatScreenSearchName = async (req, res) => {
             });
         }
 
-        // Transform the results to include type and isRestaurant information
+        
         const transformedResults = results.map(item => {
-            // Check if it's a restaurant (has menus array) or grocery item
             const type = item.menus ? 'restaurant' : 'grocery';
             const isRestaurant = type === 'restaurant';
 
@@ -324,7 +324,6 @@ const addToHistory = async (req, res) => {
         const searchDate = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
         const searchTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
-        // Create history entry
         const historyEntry = {
             userId: new ObjectId(userId),
             productId: new ObjectId(productId),
@@ -410,11 +409,9 @@ const getUserHistory = async (req, res) => {
         });
     }
 };
-
 const addConsumedFood = async (req, res) => {
     try {
-        await client.connect();
-        const db = client.db("hungerX");
+        const db = getDBInstance();
         const users = db.collection("users");
 
         const {
@@ -426,7 +423,7 @@ const addConsumedFood = async (req, res) => {
             totalCalories
         } = req.body;
 
-        //  format : DD/MM/YYYY 
+        // format : DD/MM/YYYY 
         const today = new Date();
         const date = today.toLocaleDateString('en-GB', {
             day: '2-digit',
@@ -450,13 +447,13 @@ const addConsumedFood = async (req, res) => {
 
         const foodEntry = {
             servingSize: Number(servingSize),
-            selectedMeal: new ObjectId(selectedMeal),
-            dishId: new ObjectId(dishId),
+            selectedMeal: new mongoose.Types.ObjectId(selectedMeal),
+            dishId: new mongoose.Types.ObjectId(dishId),
             totalCalories: Number(totalCalories),
             timestamp: today
         };
 
-        const currentUser = await users.findOne({ _id: new ObjectId(userId) });
+        const currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         if (!currentUser) {
             return res.status(404).json({ error: 'User not found' });
         }
@@ -465,7 +462,7 @@ const addConsumedFood = async (req, res) => {
         const newCaloriesToReachGoal = currentCalories - Number(totalCalories);
 
         const result = await users.updateOne(
-            { _id: new ObjectId(userId) },
+            { _id: new mongoose.Types.ObjectId(userId) },
             {
                 $set: {
                     [mealKey]: foodEntry,
@@ -478,7 +475,7 @@ const addConsumedFood = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const updatedUser = await users.findOne({ _id: new ObjectId(userId) });
+        const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         const remainingCalories = parseInt(updatedUser.dailyCalorieGoal) - Number(totalCalories);
 
         res.status(200).json({
@@ -494,8 +491,6 @@ const addConsumedFood = async (req, res) => {
     } catch (error) {
         console.error('Error adding consumed food:', error);
         res.status(500).json({ error: 'Internal server error' });
-    } finally {
-        await client.close();
     }
 };
 

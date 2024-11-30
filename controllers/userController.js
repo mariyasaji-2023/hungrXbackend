@@ -1,24 +1,23 @@
 
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
-const User = require('../models/userModel'); // Assuming you have a User model
-const UserActivity = require('../models/trackUserModel')
-const Weight = require('../models/userWeightModel')
-require('dotenv').config()
+const User = require('../models/userModel');
+const UserActivity = require('../models/trackUserModel');
+const Weight = require('../models/userWeightModel');
+require('dotenv').config();
 const twilio = require('twilio');
-// Function to hash the password
+
 const hashPassword = async (password) => {
     const saltRounds = 10;
     return await bcrypt.hash(password, saltRounds);
 };
 
-// Function to generate JWT
 const generateToken = (userId) => {
     return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '1h' });
 };
 
 const verifyToken = (req, res, next) => {
-    // Get token from header
+    
     const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
@@ -26,23 +25,20 @@ const verifyToken = (req, res, next) => {
     }
 
     try {
-        // Verify token
+       
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-        // Attach the decoded user id to the request object for use in other routes
-        // req.userId = decoded.id;
         req.user = decoded
-        next(); // Proceed to the next middleware or route handler
+        next();
     } catch (error) {
         return res.status(401).json({ message: 'Invalid token.' });
     }
 };
 
-// Signup with email and return JWT in response
+
 const signupWithEmail = async (req, res) => {
     const { email, password, reenterPassword } = req.body;
 
-    // Check if passwords match
     if (password !== reenterPassword) {
         return res.status(400).json({
             data: {
@@ -52,7 +48,7 @@ const signupWithEmail = async (req, res) => {
     }
 
     try {
-        // Check if email already exists
+    
         let user = await User.findOne({ email });
 
         if (user && user.isVerified) {
@@ -63,28 +59,25 @@ const signupWithEmail = async (req, res) => {
             });
         }
 
-        // Hash the password
+       
         const hashedPassword = await hashPassword(password);
 
         if (!user) {
-            // Create new user
             user = new User({
                 email,
                 password: hashedPassword,
                 isVerified: false,
             });
         } else {
-            // Update existing user with new password
+          
             user.password = hashedPassword;
             user.isVerified = false;
         }
 
         await user.save();
 
-        // Generate JWT token
         const token = generateToken(user._id);
 
-        // Send response with JWT token
         return res.status(201).json({
             data: {
                 message: 'Registration successful.',
@@ -101,7 +94,7 @@ const loginWithEmail = async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        // Find the user by email
+        
         const user = await User.findOne({ email });
 
         if (!user) {
@@ -112,7 +105,6 @@ const loginWithEmail = async (req, res) => {
             });
         }
 
-        // Compare the provided password with the hashed password in the database
         const isMatch = await bcrypt.compare(password, user.password);
 
         if (!isMatch) {
@@ -123,10 +115,8 @@ const loginWithEmail = async (req, res) => {
             });
         }
 
-        // Generate JWT token
         const token = generateToken(user._id);
 
-        // Send response with JWT token
         return res.status(200).json({
             data: {
                 message: 'Login successful.',
@@ -156,7 +146,7 @@ const sendOTP = async (req, res) => {
 
     if (!accountSid || !authToken || !serviceSid) {
         console.error("Twilio credentials are missing. Ensure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_SERVICE_SID are set.");
-        process.exit(1); // Stop execution if Twilio credentials are not set
+        process.exit(1);
     }
 
     if (!mobile) {
@@ -169,7 +159,7 @@ const sendOTP = async (req, res) => {
     }
 
     try {
-        // Send OTP via Twilio
+
         client.verify.v2.services(serviceSid)
             .verifications.create({ to: `+${mobile}`, channel: 'sms' })
             .then(verification => {
@@ -212,7 +202,6 @@ const verifyOTP = async (req, res) => {
         console.log('Service SID:', serviceSid);
         console.log('Mobile:', mobile);
         console.log('OTP:', otp);
-        // Verify OTP via Twilio
         const verification_check = await client.verify.v2.services(serviceSid)
             .verificationChecks.create({ to: `+${mobile}`, code: otp });
 
@@ -228,8 +217,8 @@ const verifyOTP = async (req, res) => {
                 });
                 await user.save();
             } else {
-                // If user exists, update the verification status
-                user.isVerified = true; // Optionally update any other fields if necessary
+            
+                user.isVerified = true; 
                 await user.save();
             }
 
@@ -237,7 +226,7 @@ const verifyOTP = async (req, res) => {
                 status: true,
                 data: {
                     message: 'OTP verified successfully. User has been created/updated.',
-                    userId: user._id, // Returning userId here
+                    userId: user._id, 
                     user,
                 }
             });
