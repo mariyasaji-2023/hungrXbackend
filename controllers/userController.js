@@ -571,8 +571,19 @@ const home = async (req, res) => {
         const remainingCalories = parseInt(dailyCalorieGoal) - totalCaloriesConsumed;
         const updatedCaloriesToReachGoal = caloriesToReachGoal - totalCaloriesConsumed;
 
-        const goalHeading = goal ? `${goal}` : 'Calorie Goal';
+        // const goalHeading = goal ? `${goal}` : 'Calorie Goal';
         const weight = isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`;
+
+        let goalHeading;
+        if(goal === 'lose weight'){
+            goalHeading = 'Calorie to burn';
+        } else if(goal === 'maintain weight'){
+            goalHeading = "Maintain";
+        } else if(goal === 'gain weight'){
+            goalHeading = 'Calorie to consume';
+        } else {
+            goalHeading = 'Calorie Goal';
+        }
 
         return res.status(200).json({
             status: true,
