@@ -416,7 +416,6 @@ const getUserHistory = async (req, res) => {
     }
 };
 
-
 const addConsumedFood = async (req, res) => {
     try {
         await client.connect();
@@ -482,7 +481,7 @@ const addConsumedFood = async (req, res) => {
 
         // Fetch updated user data
         const updatedUser = await users.findOne({ _id: new ObjectId(userId) });
-        const remainingCalories = updatedUser.dailyCalorieGoal - Number(totalCalories);
+        const remainingCalories = parseInt(updatedUser.dailyCalorieGoal) - Number(totalCalories);
 
         res.status(200).json({
             success: true,

@@ -568,7 +568,7 @@ const home = async (req, res) => {
             }, 0);
         }
 
-        const remainingCalories = dailyCalorieGoal - totalCaloriesConsumed;
+        const remainingCalories = parseInt(dailyCalorieGoal) - totalCaloriesConsumed;
         const updatedCaloriesToReachGoal = caloriesToReachGoal - totalCaloriesConsumed;
 
         const goalHeading = goal ? `${goal}` : 'Calorie Goal';
@@ -581,7 +581,7 @@ const home = async (req, res) => {
                 goalHeading,
                 weight,
                 caloriesToReachGoal: updatedCaloriesToReachGoal,
-                dailyCalorieGoal,
+                dailyCalorieGoal: parseInt(dailyCalorieGoal),
                 daysToReachGoal,
                 profilePhoto,
                 remaining: remainingCalories,
