@@ -30,6 +30,7 @@ router.post('/addHistory',restaurantController.addToHistory)
 router.post('/getUserhistory',restaurantController.getUserHistory)
 router.post('/addConsumedFood',restaurantController.addConsumedFood)
 router.post('/addUnknown',restaurantController.addUnknownFood)
+router.post('/getConsumedFoodByDate',restaurantController.getConsumedFoodByDate)
 
 
 module.exports = router;

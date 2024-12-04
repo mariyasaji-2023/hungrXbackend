@@ -362,6 +362,7 @@ const addToHistory = async (req, res) => {
     }
 };
 
+
 const getUserHistory = async (req, res) => {
     const { userId } = req.body;
 
@@ -495,29 +496,6 @@ const addConsumedFood = async (req, res) => {
 };
 
 
-// const addunknownFood = async(req,res)=>{
-//     const {userId,meal,foodName,calories} = req.body
-//     if(!userId || !meal || !foodName || !calories){
-//         res.status(404).json({
-//             status:false,
-//             message : "Missing essential details"
-//         })
-//     }
-//     try {
-//         const user = await userModel.findOne.findOne({_id:userId})
-//          if(!user){
-//             return res.status(404).json({
-//                 status:false,
-//                 message:'user is not exist'
-//             })
-//          }
-         
-//     } catch (error) {
-        
-//     }
-// }
-
-
 const addUnknownFood = async (req, res) => {
     try {
         const db = getDBInstance();
@@ -609,4 +587,60 @@ const addUnknownFood = async (req, res) => {
     }
 };
 
-module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood ,addUnknownFood}
+const getConsumedFoodByDate = async (req, res) => {
+    try {
+        const db = getDBInstance();
+        const users = db.collection("users");
+        const { userId, date } = req.body; // date format should be DD/MM/YYYY
+
+        const user = await users.findOne({ 
+            _id: new mongoose.Types.ObjectId(userId)
+        });
+
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        const consumedFoodForDate = user.consumedFood?.dates?.[date] || {};
+
+        if (Object.keys(consumedFoodForDate).length === 0) {
+            return res.status(200).json({
+                success: true,
+                message: 'No food entries found for this date',
+                date: date,
+                consumedFood: {}
+            });
+        }
+
+        // Calculate total calories for the day
+        let totalDayCalories = 0;
+        Object.values(consumedFoodForDate).forEach(meal => {
+            totalDayCalories += meal.totalCalories || 0;
+        });
+
+        return res.status(200).json({
+            success: true,
+            message: 'Food entries found',
+            date: date,
+            consumedFood: consumedFoodForDate,
+            dailySummary: {
+                totalCalories: totalDayCalories,
+                dailyGoal: user.dailyCalorieGoal,
+                remaining: user.dailyCalorieGoal - totalDayCalories
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching consumed food:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+
+module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood ,addUnknownFood , getConsumedFoodByDate}
