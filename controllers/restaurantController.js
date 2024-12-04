@@ -525,7 +525,7 @@ const addUnknownFood = async (req, res) => {
 
         const {
             userId,
-            mealType,
+            mealType, // This is now the meal ID
             foodName,
             calories
         } = req.body;
@@ -537,19 +537,28 @@ const addUnknownFood = async (req, res) => {
             year: 'numeric'
         }).replace(/\//g, '/');
 
-        const validMealTypes = ['breakfast', 'lunch', 'dinner', 'snacks'];
-        if (!validMealTypes.includes(mealType.toLowerCase())) {
-            return res.status(400).json({ error: 'Invalid meal type' });
+        // Reverse mapping of meal IDs to types
+        const mealTypeMapping = {
+            '6746a024a45e4d9e5d58ea12': 'breakfast',
+            '6746a024a45e4d9e5d58ea13': 'lunch',
+            '6746a024a45e4d9e5d58ea14': 'dinner',
+            '6746a024a45e4d9e5d58ea15': 'snacks'
+        };
+
+        const mealTypeName = mealTypeMapping[mealType];
+        if (!mealTypeName) {
+            return res.status(400).json({ error: 'Invalid meal type ID' });
         }
 
         const dateKey = `consumedFood.dates.${date}`;
-        const mealKey = `${dateKey}.${mealType.toLowerCase()}`;
+        const mealKey = `${dateKey}.${mealTypeName}`;
 
         const foodEntry = {
             foodName: foodName,
             totalCalories: Number(calories),
             isCustomFood: true,
-            timestamp: today
+            timestamp: today,
+            selectedMeal: new mongoose.Types.ObjectId(mealType)
         };
 
         const currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
@@ -588,7 +597,8 @@ const addUnknownFood = async (req, res) => {
             },
             foodDetails: {
                 name: foodName,
-                mealType: mealType,
+                mealType: mealTypeName,
+                mealId: mealType,
                 calories: Number(calories)
             }
         });
@@ -598,6 +608,5 @@ const addUnknownFood = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
-
 
 module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood ,addUnknownFood}
