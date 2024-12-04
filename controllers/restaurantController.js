@@ -495,7 +495,6 @@ const addConsumedFood = async (req, res) => {
     }
 };
 
-
 const addUnknownFood = async (req, res) => {
     try {
         const db = getDBInstance();
@@ -503,7 +502,7 @@ const addUnknownFood = async (req, res) => {
 
         const {
             userId,
-            mealType, // This is now the meal ID
+            mealType,
             foodName,
             calories
         } = req.body;
@@ -515,7 +514,9 @@ const addUnknownFood = async (req, res) => {
             year: 'numeric'
         }).replace(/\//g, '/');
 
-        // Reverse mapping of meal IDs to types
+        // Generate new ObjectId for unknown food
+        const unknownFoodId = new mongoose.Types.ObjectId();
+
         const mealTypeMapping = {
             '6746a024a45e4d9e5d58ea12': 'breakfast',
             '6746a024a45e4d9e5d58ea13': 'lunch',
@@ -536,7 +537,8 @@ const addUnknownFood = async (req, res) => {
             totalCalories: Number(calories),
             isCustomFood: true,
             timestamp: today,
-            selectedMeal: new mongoose.Types.ObjectId(mealType)
+            selectedMeal: new mongoose.Types.ObjectId(mealType),
+            dishId: unknownFoodId  // Adding generated ID as dishId
         };
 
         const currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
@@ -553,6 +555,26 @@ const addUnknownFood = async (req, res) => {
                 $set: {
                     [mealKey]: foodEntry,
                     caloriesToReachGoal: newCaloriesToReachGoal
+                },
+                $push: {
+                    foodHistory: {
+                        foodId: unknownFoodId,
+                        name: foodName,
+                        nutritionFacts: {
+                            calories: Number(calories)
+                        },
+                        servingInfo: {
+                            size: 1,
+                            unit: "serving"
+                        },
+                        isCustomFood: true,
+                        viewedAt: today,
+                        searchDate: today.toLocaleDateString('en-GB').split('/').join('-'),
+                        searchTime: today.toLocaleTimeString('en-GB', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                        })
+                    }
                 }
             }
         );
@@ -574,6 +596,7 @@ const addUnknownFood = async (req, res) => {
                 caloriesToReachGoal: newCaloriesToReachGoal
             },
             foodDetails: {
+                id: unknownFoodId,
                 name: foodName,
                 mealType: mealTypeName,
                 mealId: mealType,
@@ -591,7 +614,7 @@ const getConsumedFoodByDate = async (req, res) => {
     try {
         const db = getDBInstance();
         const users = db.collection("users");
-        const { userId, date } = req.body; // date format should be DD/MM/YYYY
+        const { userId, date } = req.body;
 
         const user = await users.findOne({ 
             _id: new mongoose.Types.ObjectId(userId)
