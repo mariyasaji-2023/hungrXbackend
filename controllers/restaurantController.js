@@ -287,7 +287,6 @@ const searchGroceries = async (req, res) => {
     }
 };
 
-
 const addToHistory = async (req, res) => {
     const { userId, productId } = req.body;
 
@@ -300,10 +299,8 @@ const addToHistory = async (req, res) => {
 
     try {
         const grocery = mongoose.connection.db.collection("grocery");
-        const history = mongoose.connection.db.collection("history");
         const users = mongoose.connection.db.collection("users");
 
-    
         const user = await users.findOne({ _id: new ObjectId(userId) });
         if (!user) {
             return res.status(404).json({
@@ -325,35 +322,25 @@ const addToHistory = async (req, res) => {
         const searchTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
 
         const historyEntry = {
-            userId: new ObjectId(userId),
-            productId: new ObjectId(productId),
-            foodItem: {
-                id: foodItem.id || foodItem._id,
-                name: foodItem.name,
-                brandName: foodItem.brandName || 'Unknown Brand',
-                image: foodItem.image,
-                nutritionFacts: foodItem.nutritionFacts,
-                servingInfo: foodItem.servingInfo || foodItem.serving_info 
-            },
-            searchInfo: {
-                date: searchDate,
-                time: searchTime,
-                timestamp: now
-            },
-            viewedAt: now
+            foodId: new ObjectId(productId),
+            name: foodItem.name,
+            brandName: foodItem.brandName || 'Unknown Brand',
+            image: foodItem.image,
+            nutritionFacts: foodItem.nutritionFacts,
+            servingInfo: foodItem.servingInfo || foodItem.serving_info,
+            viewedAt: now,
+            searchDate: searchDate,
+            searchTime: searchTime
         };
 
-        const result = await history.insertOne(historyEntry);
-
-        await users.updateOne(
+        // Update user's foodHistory using $push with $slice
+        const result = await users.updateOne(
             { _id: new ObjectId(userId) },
             {
                 $push: {
                     foodHistory: {
-                        foodId: new ObjectId(productId),
-                        viewedAt: now,
-                        searchDate: searchDate,
-                        searchTime: searchTime
+                        $each: [historyEntry],
+                        $slice: -15  // Keep only the last 15 items
                     }
                 }
             }
@@ -375,7 +362,6 @@ const addToHistory = async (req, res) => {
     }
 };
 
-
 const getUserHistory = async (req, res) => {
     const { userId } = req.body;
 
@@ -387,17 +373,29 @@ const getUserHistory = async (req, res) => {
     }
 
     try {
-        const history = mongoose.connection.db.collection("history");
+        const users = mongoose.connection.db.collection("users");
+        
+        const user = await users.findOne(
+            { _id: new ObjectId(userId) },
+            { projection: { foodHistory: 1 } }
+        );
 
-        const userHistory = await history
-            .find({ userId: new ObjectId(userId) })
-            .sort({ viewedAt: -1 })
-            .toArray();
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User not found'
+            });
+        }
+
+        // Sort the foodHistory array by viewedAt in descending order
+        const sortedHistory = user.foodHistory ? 
+            user.foodHistory.sort((a, b) => new Date(b.viewedAt) - new Date(a.viewedAt)) 
+            : [];
 
         return res.status(200).json({
             status: true,
-            count: userHistory.length,
-            data: userHistory
+            count: sortedHistory.length,
+            data: sortedHistory
         });
 
     } catch (error) {
@@ -409,6 +407,8 @@ const getUserHistory = async (req, res) => {
         });
     }
 };
+
+
 const addConsumedFood = async (req, res) => {
     try {
         const db = getDBInstance();
@@ -494,4 +494,110 @@ const addConsumedFood = async (req, res) => {
     }
 };
 
-module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood }
+
+// const addunknownFood = async(req,res)=>{
+//     const {userId,meal,foodName,calories} = req.body
+//     if(!userId || !meal || !foodName || !calories){
+//         res.status(404).json({
+//             status:false,
+//             message : "Missing essential details"
+//         })
+//     }
+//     try {
+//         const user = await userModel.findOne.findOne({_id:userId})
+//          if(!user){
+//             return res.status(404).json({
+//                 status:false,
+//                 message:'user is not exist'
+//             })
+//          }
+         
+//     } catch (error) {
+        
+//     }
+// }
+
+
+const addUnknownFood = async (req, res) => {
+    try {
+        const db = getDBInstance();
+        const users = db.collection("users");
+
+        const {
+            userId,
+            mealType,
+            foodName,
+            calories
+        } = req.body;
+
+        const today = new Date();
+        const date = today.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        }).replace(/\//g, '/');
+
+        const validMealTypes = ['breakfast', 'lunch', 'dinner', 'snacks'];
+        if (!validMealTypes.includes(mealType.toLowerCase())) {
+            return res.status(400).json({ error: 'Invalid meal type' });
+        }
+
+        const dateKey = `consumedFood.dates.${date}`;
+        const mealKey = `${dateKey}.${mealType.toLowerCase()}`;
+
+        const foodEntry = {
+            foodName: foodName,
+            totalCalories: Number(calories),
+            isCustomFood: true,
+            timestamp: today
+        };
+
+        const currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
+        if (!currentUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const currentCalories = parseInt(currentUser.caloriesToReachGoal) || 0;
+        const newCaloriesToReachGoal = currentCalories - Number(calories);
+
+        const result = await users.updateOne(
+            { _id: new mongoose.Types.ObjectId(userId) },
+            {
+                $set: {
+                    [mealKey]: foodEntry,
+                    caloriesToReachGoal: newCaloriesToReachGoal
+                }
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
+        const remainingCalories = parseInt(updatedUser.dailyCalorieGoal) - Number(calories);
+
+        res.status(200).json({
+            success: true,
+            message: 'Unknown food added successfully',
+            date: date,
+            updatedCalories: {
+                remaining: remainingCalories,
+                consumed: Number(calories),
+                caloriesToReachGoal: newCaloriesToReachGoal
+            },
+            foodDetails: {
+                name: foodName,
+                mealType: mealType,
+                calories: Number(calories)
+            }
+        });
+
+    } catch (error) {
+        console.error('Error adding unknown food:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+
+module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood ,addUnknownFood}

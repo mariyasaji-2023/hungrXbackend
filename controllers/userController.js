@@ -542,7 +542,6 @@ const home = async (req, res) => {
             });
         }
 
-        // Calculate total calories consumed today
         const today = new Date().toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
@@ -558,6 +557,8 @@ const home = async (req, res) => {
         }
 
         const remainingCalories = parseInt(dailyCalorieGoal) - totalCaloriesConsumed;
+        console.log(remainingCalories,dailyCalorieGoal,totalCaloriesConsumed);
+        
         const updatedCaloriesToReachGoal = caloriesToReachGoal - totalCaloriesConsumed;
 
         // const goalHeading = goal ? `${goal}` : 'Calorie Goal';
