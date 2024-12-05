@@ -287,126 +287,23 @@ const searchGroceries = async (req, res) => {
     }
 };
 
-const addToHistory = async (req, res) => {
-    const { userId, productId } = req.body;
 
-    if (!userId || !productId) {
-        return res.status(400).json({
-            status: false,
-            message: 'User ID and Product ID are required'
-        });
-    }
+const calculateDayTotalCalories = (consumedFoodForDay) => {
+    let totalCalories = 0;
+    if (!consumedFoodForDay) return totalCalories;
 
-    try {
-        const grocery = mongoose.connection.db.collection("grocery");
-        const users = mongoose.connection.db.collection("users");
-
-        const user = await users.findOne({ _id: new ObjectId(userId) });
-        if (!user) {
-            return res.status(404).json({
-                status: false,
-                message: 'User not found'
-            });
+    // Loop through all meal types
+    ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(mealType => {
+        if (consumedFoodForDay[mealType]?.foods) {
+            // Sum up calories from all foods in this meal
+            totalCalories += consumedFoodForDay[mealType].foods.reduce(
+                (sum, food) => sum + (food.totalCalories || 0), 
+                0
+            );
         }
-
-        const foodItem = await grocery.findOne({ _id: new ObjectId(productId) });
-        if (!foodItem) {
-            return res.status(404).json({
-                status: false,
-                message: 'Food item not found'
-            });
-        }
-
-        const now = new Date();
-        const searchDate = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
-        const searchTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
-        const historyEntry = {
-            foodId: new ObjectId(productId),
-            name: foodItem.name,
-            brandName: foodItem.brandName || 'Unknown Brand',
-            image: foodItem.image,
-            nutritionFacts: foodItem.nutritionFacts,
-            servingInfo: foodItem.servingInfo || foodItem.serving_info,
-            viewedAt: now,
-            searchDate: searchDate,
-            searchTime: searchTime
-        };
-
-        // Update user's foodHistory using $push with $slice
-        const result = await users.updateOne(
-            { _id: new ObjectId(userId) },
-            {
-                $push: {
-                    foodHistory: {
-                        $each: [historyEntry],
-                        $slice: -15  // Keep only the last 15 items
-                    }
-                }
-            }
-        );
-
-        return res.status(200).json({
-            status: true,
-            message: 'Added to history successfully',
-            data: historyEntry
-        });
-
-    } catch (error) {
-        console.error("Error adding to history:", error);
-        return res.status(500).json({
-            status: false,
-            message: 'Internal server error',
-            error: error.message
-        });
-    }
-};
-
-
-const getUserHistory = async (req, res) => {
-    const { userId } = req.body;
-
-    if (!userId) {
-        return res.status(400).json({
-            status: false,
-            message: 'User ID is required'
-        });
-    }
-
-    try {
-        const users = mongoose.connection.db.collection("users");
-        
-        const user = await users.findOne(
-            { _id: new ObjectId(userId) },
-            { projection: { foodHistory: 1 } }
-        );
-
-        if (!user) {
-            return res.status(404).json({
-                status: false,
-                message: 'User not found'
-            });
-        }
-
-        // Sort the foodHistory array by viewedAt in descending order
-        const sortedHistory = user.foodHistory ? 
-            user.foodHistory.sort((a, b) => new Date(b.viewedAt) - new Date(a.viewedAt)) 
-            : [];
-
-        return res.status(200).json({
-            status: true,
-            count: sortedHistory.length,
-            data: sortedHistory
-        });
-
-    } catch (error) {
-        console.error("Error fetching history:", error);
-        return res.status(500).json({
-            status: false,
-            message: 'Internal server error',
-            error: error.message
-        });
-    }
+    });
+    
+    return totalCalories;
 };
 
 const addConsumedFood = async (req, res) => {
@@ -470,9 +367,6 @@ const addConsumedFood = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const currentCalories = parseInt(currentUser.caloriesToReachGoal) || 0;
-        const newCaloriesToReachGoal = currentCalories - Number(totalCalories);
-
         // Initialize the meal structure if it doesn't exist
         const userMealData = currentUser.consumedFood?.dates?.[date]?.[mealType.toLowerCase()];
         if (!userMealData) {
@@ -489,7 +383,13 @@ const addConsumedFood = async (req, res) => {
             );
         }
 
-        // Add only to consumed foods, not to history
+        // Calculate existing calories consumed for the day
+        const currentDayCalories = calculateDayTotalCalories(currentUser.consumedFood?.dates?.[date]);
+        const newTotalCalories = currentDayCalories + Number(totalCalories);
+        const currentCalories = parseInt(currentUser.caloriesToReachGoal) || 0;
+        const newCaloriesToReachGoal = currentCalories - Number(totalCalories);
+
+        // Add only to consumed foods
         const result = await users.updateOne(
             { _id: new mongoose.Types.ObjectId(userId) },
             {
@@ -508,7 +408,7 @@ const addConsumedFood = async (req, res) => {
 
         const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         const updatedMeal = updatedUser.consumedFood.dates[date][mealType.toLowerCase()];
-        const remainingCalories = parseInt(updatedUser.dailyCalorieGoal) - Number(totalCalories);
+        const remainingCalories = parseInt(updatedUser.dailyCalorieGoal) - newTotalCalories;
 
         res.status(200).json({
             success: true,
@@ -524,7 +424,7 @@ const addConsumedFood = async (req, res) => {
             updatedMeal: updatedMeal,
             updatedCalories: {
                 remaining: remainingCalories,
-                consumed: Number(totalCalories),
+                consumed: newTotalCalories,
                 caloriesToReachGoal: newCaloriesToReachGoal
             }
         });
@@ -612,9 +512,6 @@ const addUnknownFood = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        const currentCalories = parseInt(currentUser.caloriesToReachGoal) || 0;
-        const newCaloriesToReachGoal = currentCalories - Number(calories);
-
         // Initialize the meal structure if it doesn't exist
         const userMealData = currentUser.consumedFood?.dates?.[date]?.[mealTypeName];
         if (!userMealData) {
@@ -630,6 +527,12 @@ const addUnknownFood = async (req, res) => {
                 }
             );
         }
+
+        // Calculate existing calories consumed for the day
+        const currentDayCalories = calculateDayTotalCalories(currentUser.consumedFood?.dates?.[date]);
+        const newTotalCalories = currentDayCalories + Number(calories);
+        const currentCalories = parseInt(currentUser.caloriesToReachGoal) || 0;
+        const newCaloriesToReachGoal = currentCalories - Number(calories);
 
         // Only update consumed food
         const result = await users.updateOne(
@@ -650,7 +553,7 @@ const addUnknownFood = async (req, res) => {
 
         const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         const updatedMeal = updatedUser.consumedFood.dates[date][mealTypeName];
-        const remainingCalories = parseInt(updatedUser.dailyCalorieGoal) - Number(calories);
+        const remainingCalories = parseInt(updatedUser.dailyCalorieGoal) - newTotalCalories;
 
         res.status(200).json({
             success: true,
@@ -666,7 +569,7 @@ const addUnknownFood = async (req, res) => {
             updatedMeal: updatedMeal,
             updatedCalories: {
                 remaining: remainingCalories,
-                consumed: Number(calories),
+                consumed: newTotalCalories,
                 caloriesToReachGoal: newCaloriesToReachGoal
             }
         });
@@ -676,6 +579,129 @@ const addUnknownFood = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
+const addToHistory = async (req, res) => {
+    const { userId, productId } = req.body;
+
+    if (!userId || !productId) {
+        return res.status(400).json({
+            status: false,
+            message: 'User ID and Product ID are required'
+        });
+    }
+
+    try {
+        const grocery = mongoose.connection.db.collection("grocery");
+        const users = mongoose.connection.db.collection("users");
+
+        const user = await users.findOne({ _id: new ObjectId(userId) });
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User not found'
+            });
+        }
+
+        const foodItem = await grocery.findOne({ _id: new ObjectId(productId) });
+        if (!foodItem) {
+            return res.status(404).json({
+                status: false,
+                message: 'Food item not found'
+            });
+        }
+
+        const now = new Date();
+        const searchDate = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
+        const searchTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+        const historyEntry = {
+            foodId: new ObjectId(productId),
+            name: foodItem.name,
+            brandName: foodItem.brandName || 'Unknown Brand',
+            image: foodItem.image,
+            nutritionFacts: foodItem.nutritionFacts,
+            servingInfo: foodItem.servingInfo || foodItem.serving_info,
+            viewedAt: now,
+            searchDate: searchDate,
+            searchTime: searchTime
+        };
+
+        // Update user's foodHistory using $push with $slice
+        const result = await users.updateOne(
+            { _id: new ObjectId(userId) },
+            {
+                $push: {
+                    foodHistory: {
+                        $each: [historyEntry],
+                        $slice: -15  // Keep only the last 15 items
+                    }
+                }
+            }
+        );
+
+        return res.status(200).json({
+            status: true,
+            message: 'Added to history successfully',
+            data: historyEntry
+        });
+
+    } catch (error) {
+        console.error("Error adding to history:", error);
+        return res.status(500).json({
+            status: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+const getUserHistory = async (req, res) => {
+    const { userId } = req.body;
+
+    if (!userId) {
+        return res.status(400).json({
+            status: false,
+            message: 'User ID is required'
+        });
+    }
+
+    try {
+        const users = mongoose.connection.db.collection("users");
+        
+        const user = await users.findOne(
+            { _id: new ObjectId(userId) },
+            { projection: { foodHistory: 1 } }
+        );
+
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User not found'
+            });
+        }
+
+        // Sort the foodHistory array by viewedAt in descending order
+        const sortedHistory = user.foodHistory ? 
+            user.foodHistory.sort((a, b) => new Date(b.viewedAt) - new Date(a.viewedAt)) 
+            : [];
+
+        return res.status(200).json({
+            status: true,
+            count: sortedHistory.length,
+            data: sortedHistory
+        });
+
+    } catch (error) {
+        console.error("Error fetching history:", error);
+        return res.status(500).json({
+            status: false,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+
 const getConsumedFoodByDate = async (req, res) => {
     try {
         const db = getDBInstance();
@@ -700,15 +726,29 @@ const getConsumedFoodByDate = async (req, res) => {
                 success: true,
                 message: 'No food entries found for this date',
                 date: date,
-                consumedFood: {}
+                consumedFood: {},
+                dailySummary: {
+                    totalCalories: 0,
+                    dailyGoal: user.dailyCalorieGoal,
+                    remaining: parseFloat(user.dailyCalorieGoal)
+                }
             });
         }
 
         // Calculate total calories for the day
         let totalDayCalories = 0;
         Object.values(consumedFoodForDate).forEach(meal => {
-            totalDayCalories += meal.totalCalories || 0;
+            if (meal.foods && Array.isArray(meal.foods)) {
+                meal.foods.forEach(food => {
+                    totalDayCalories += Number(food.totalCalories) || 0;
+                });
+            }
         });
+
+        // Convert to proper number format and handle potential decimal places
+        const formattedTotalCalories = Number(totalDayCalories.toFixed(2));
+        const dailyGoal = parseFloat(user.dailyCalorieGoal);
+        const remaining = Number((dailyGoal - formattedTotalCalories).toFixed(2));
 
         return res.status(200).json({
             success: true,
@@ -716,9 +756,9 @@ const getConsumedFoodByDate = async (req, res) => {
             date: date,
             consumedFood: consumedFoodForDate,
             dailySummary: {
-                totalCalories: totalDayCalories,
+                totalCalories: formattedTotalCalories,
                 dailyGoal: user.dailyCalorieGoal,
-                remaining: user.dailyCalorieGoal - totalDayCalories
+                remaining: remaining
             }
         });
 
