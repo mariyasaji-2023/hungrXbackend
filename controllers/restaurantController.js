@@ -181,13 +181,19 @@ const searchGroceries = async (req, res) => {
 
         const searchTerm = name.trim().toLowerCase();
         const searchWords = searchTerm.split(/\s+/);
-        
-        const wordPatterns = searchWords.map(word => ({
-            exact: word,
-            flexible: word.split('').map(char => `${char}+`).join('.*?')
-        }));
 
         const results = await grocery.aggregate([
+            {
+                $addFields: {
+                    combinedText: {
+                        $concat: [
+                            { $ifNull: ["$brandName", ""] },
+                            " ",
+                            { $ifNull: ["$name", ""] }
+                        ]
+                    }
+                }
+            },
             {
                 $match: {
                     $or: [
@@ -195,19 +201,19 @@ const searchGroceries = async (req, res) => {
                         { name: new RegExp(`^${searchTerm}$`, 'i') },
                         // Exact brand match
                         { brandName: new RegExp(`^${searchTerm}$`, 'i') },
-                        // Partial or combined matches
+                        // Combined text contains all search words
                         {
                             $and: searchWords.map(word => ({
-                                $or: [
-                                    { brandName: new RegExp(`\\b${word}\\b`, 'i') },
-                                    { name: new RegExp(`\\b${word}\\b`, 'i') }
-                                ]
+                                combinedText: new RegExp(word, 'i')
                             }))
                         },
-                        // Contains product name
-                        { name: new RegExp(`\\b${searchTerm}\\b`, 'i') },
-                        // Contains brand name
-                        { brandName: new RegExp(`\\b${searchTerm}\\b`, 'i') }
+                        // Partial matches
+                        ...searchWords.map(word => ({
+                            $or: [
+                                { name: new RegExp(word, 'i') },
+                                { brandName: new RegExp(word, 'i') }
+                            ]
+                        }))
                     ]
                 }
             },
@@ -216,44 +222,80 @@ const searchGroceries = async (req, res) => {
                     matchCategory: {
                         $switch: {
                             branches: [
-                                // Exact product name match (highest priority)
+                                // Exact match in name (highest priority)
                                 {
-                                    case: { $regexMatch: { input: "$name", regex: new RegExp(`^${searchTerm}$`, 'i') } },
+                                    case: { 
+                                        $regexMatch: { 
+                                            input: "$name", 
+                                            regex: new RegExp(`^${searchTerm}$`, 'i') 
+                                        }
+                                    },
                                     then: 10
                                 },
-                                // Exact brand name match
+                                // Exact match in brand
                                 {
-                                    case: { $regexMatch: { input: "$brandName", regex: new RegExp(`^${searchTerm}$`, 'i') } },
+                                    case: { 
+                                        $regexMatch: { 
+                                            input: "$brandName", 
+                                            regex: new RegExp(`^${searchTerm}$`, 'i') 
+                                        }
+                                    },
                                     then: 9
                                 },
-                                // Partial/combined matches
+                                // All search words match in combined text in order
                                 {
                                     case: {
-                                        $and: searchWords.map(word => ({
-                                            $or: [
-                                                { $regexMatch: { input: "$brandName", regex: new RegExp(`\\b${word}\\b`, 'i') } },
-                                                { $regexMatch: { input: "$name", regex: new RegExp(`\\b${word}\\b`, 'i') } }
-                                            ]
-                                        }))
+                                        $regexMatch: {
+                                            input: "$combinedText",
+                                            regex: new RegExp(searchWords.join('.*?'), 'i')
+                                        }
                                     },
                                     then: 8
                                 },
-                                // Product name contains the word
+                                // All search words match but not in order
                                 {
-                                    case: { $regexMatch: { input: "$name", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
+                                    case: {
+                                        $and: searchWords.map(word => ({
+                                            $regexMatch: {
+                                                input: "$combinedText",
+                                                regex: new RegExp(word, 'i')
+                                            }
+                                        }))
+                                    },
                                     then: 7
                                 },
-                                // Brand name contains the word
+                                // Partial matches
                                 {
-                                    case: { $regexMatch: { input: "$brandName", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
+                                    case: {
+                                        $or: searchWords.map(word => ({
+                                            $or: [
+                                                { $regexMatch: { input: "$name", regex: new RegExp(word, 'i') } },
+                                                { $regexMatch: { input: "$brandName", regex: new RegExp(word, 'i') } }
+                                            ]
+                                        }))
+                                    },
                                     then: 6
                                 }
                             ],
                             default: 1
                         }
                     },
-                    nameScore: {
+                    relevanceScore: {
                         $add: [
+                            // Score for exact matches
+                            {
+                                $cond: [
+                                    {
+                                        $or: [
+                                            { $regexMatch: { input: "$name", regex: new RegExp(`^${searchTerm}$`, 'i') } },
+                                            { $regexMatch: { input: "$brandName", regex: new RegExp(`^${searchTerm}$`, 'i') } }
+                                        ]
+                                    },
+                                    1000,
+                                    0
+                                ]
+                            },
+                            // Score for matching words
                             {
                                 $multiply: [
                                     {
@@ -263,21 +305,14 @@ const searchGroceries = async (req, res) => {
                                                 as: "word",
                                                 cond: { 
                                                     $regexMatch: { 
-                                                        input: "$name", 
-                                                        regex: { $concat: ["\\b", "$$word", "\\b"] },
-                                                        options: "i"
-                                                    } 
+                                                        input: "$combinedText",
+                                                        regex: new RegExp("$$word", 'i')
+                                                    }
                                                 }
                                             }
                                         }
                                     },
-                                    200
-                                ]
-                            },
-                            {
-                                $multiply: [
-                                    { $subtract: [50, { $strLenCP: "$name" }] },
-                                    2
+                                    100
                                 ]
                             }
                         ]
@@ -289,10 +324,7 @@ const searchGroceries = async (req, res) => {
                     _id: {
                         name: "$name",
                         brandName: "$brandName",
-                        calories: "$nutritionFacts.calories",
-                        protein: "$nutritionFacts.protein.value",
-                        totalFat: "$nutritionFacts.totalFat.value",
-                        totalCarbs: "$nutritionFacts.totalCarbohydrates.value"
+                        calories: "$nutritionFacts.calories"
                     },
                     doc: { $first: "$$ROOT" }
                 }
@@ -303,7 +335,7 @@ const searchGroceries = async (req, res) => {
             {
                 $sort: {
                     matchCategory: -1,
-                    nameScore: -1,
+                    relevanceScore: -1,
                     name: 1
                 }
             },
@@ -350,6 +382,7 @@ const searchGroceries = async (req, res) => {
     }
 };
 
+
 const calculateDayTotalCalories = (consumedFoodForDay) => {
     let totalCalories = 0;
     if (!consumedFoodForDay) return totalCalories;
@@ -367,6 +400,7 @@ const calculateDayTotalCalories = (consumedFoodForDay) => {
     
     return totalCalories;
 };
+
 
 const addConsumedFood = async (req, res) => {
     try {
