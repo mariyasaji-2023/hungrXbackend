@@ -166,6 +166,7 @@ const getMeal = async (req, res) => {
     }
 }
 
+
 const searchGroceries = async (req, res) => {
     const { name } = req.body;
 
@@ -181,6 +182,36 @@ const searchGroceries = async (req, res) => {
 
         const searchTerm = name.trim().toLowerCase();
         const searchWords = searchTerm.split(/\s+/);
+        
+        // Enhanced fuzzy search patterns
+        const fuzzySearchPatterns = searchWords.map(word => {
+            const variations = [
+                word,                                        // exact match
+                word.replace(/s$/, ''),                      // remove trailing 's'
+                word.replace(/ed$/, ''),                     // remove 'ed'
+                word + 'ed',                                 // add 'ed'
+                word + 's',                                  // add 's'
+                word.replace(/([aeiou])/g, '[aeiou]'),      // any vowel
+                word.replace(/([a-z])/g, '$1?'),            // optional characters
+                word.replace(/([a-z])/g, '$1?s'),           // optional characters with plural
+                word.replace(/s+/g, 's?'),                  // optional 's'
+                `.*${word}.*`,                              // contains word
+                word.split('').join('.*'),                  // characters in sequence with anything between
+                // Handle common double letter mistakes
+                word.replace(/([a-z])\1/g, '$1'),           // remove doubles
+                word.replace(/([a-z])/g, '$1$1?'),          // optional doubles
+            ];
+            
+            // Add partial matches for longer words
+            if (word.length > 4) {
+                variations.push(
+                    word.substring(0, Math.ceil(word.length * 0.75)), // First 75% of word
+                    word.substring(word.length * 0.25)                // Last 75% of word
+                );
+            }
+
+            return variations.map(v => new RegExp(v, 'i'));
+        }).flat();
 
         const results = await grocery.aggregate([
             {
@@ -197,23 +228,23 @@ const searchGroceries = async (req, res) => {
             {
                 $match: {
                     $or: [
-                        // Exact name match
                         { name: new RegExp(`^${searchTerm}$`, 'i') },
-                        // Exact brand match
                         { brandName: new RegExp(`^${searchTerm}$`, 'i') },
-                        // Combined text contains all search words
+                        ...fuzzySearchPatterns.map(pattern => ({
+                            $or: [
+                                { name: pattern },
+                                { brandName: pattern },
+                                { combinedText: pattern }
+                            ]
+                        })),
                         {
                             $and: searchWords.map(word => ({
                                 combinedText: new RegExp(word, 'i')
                             }))
                         },
-                        // Partial matches
-                        ...searchWords.map(word => ({
-                            $or: [
-                                { name: new RegExp(word, 'i') },
-                                { brandName: new RegExp(word, 'i') }
-                            ]
-                        }))
+                        { 
+                            name: new RegExp(searchTerm.substring(0, Math.max(3, searchTerm.length)), 'i')
+                        }
                     ]
                 }
             },
@@ -222,7 +253,6 @@ const searchGroceries = async (req, res) => {
                     matchCategory: {
                         $switch: {
                             branches: [
-                                // Exact match in name (highest priority)
                                 {
                                     case: { 
                                         $regexMatch: { 
@@ -232,7 +262,6 @@ const searchGroceries = async (req, res) => {
                                     },
                                     then: 10
                                 },
-                                // Exact match in brand
                                 {
                                     case: { 
                                         $regexMatch: { 
@@ -242,7 +271,14 @@ const searchGroceries = async (req, res) => {
                                     },
                                     then: 9
                                 },
-                                // All search words match in combined text in order
+                                {
+                                    case: {
+                                        $or: fuzzySearchPatterns.map(pattern => ({
+                                            $regexMatch: { input: "$name", regex: pattern }
+                                        }))
+                                    },
+                                    then: 8
+                                },
                                 {
                                     case: {
                                         $regexMatch: {
@@ -250,9 +286,8 @@ const searchGroceries = async (req, res) => {
                                             regex: new RegExp(searchWords.join('.*?'), 'i')
                                         }
                                     },
-                                    then: 8
+                                    then: 7
                                 },
-                                // All search words match but not in order
                                 {
                                     case: {
                                         $and: searchWords.map(word => ({
@@ -262,19 +297,16 @@ const searchGroceries = async (req, res) => {
                                             }
                                         }))
                                     },
-                                    then: 7
+                                    then: 6
                                 },
-                                // Partial matches
                                 {
                                     case: {
-                                        $or: searchWords.map(word => ({
-                                            $or: [
-                                                { $regexMatch: { input: "$name", regex: new RegExp(word, 'i') } },
-                                                { $regexMatch: { input: "$brandName", regex: new RegExp(word, 'i') } }
-                                            ]
-                                        }))
+                                        $regexMatch: {
+                                            input: "$name",
+                                            regex: new RegExp(searchTerm.substring(0, Math.max(3, searchTerm.length)), 'i')
+                                        }
                                     },
-                                    then: 6
+                                    then: 5
                                 }
                             ],
                             default: 1
@@ -282,7 +314,6 @@ const searchGroceries = async (req, res) => {
                     },
                     relevanceScore: {
                         $add: [
-                            // Score for exact matches
                             {
                                 $cond: [
                                     {
@@ -295,7 +326,6 @@ const searchGroceries = async (req, res) => {
                                     0
                                 ]
                             },
-                            // Score for matching words
                             {
                                 $multiply: [
                                     {
@@ -313,6 +343,25 @@ const searchGroceries = async (req, res) => {
                                         }
                                     },
                                     100
+                                ]
+                            },
+                            {
+                                $multiply: [
+                                    {
+                                        $size: {
+                                            $filter: {
+                                                input: fuzzySearchPatterns,
+                                                as: "pattern",
+                                                cond: {
+                                                    $or: [
+                                                        { $regexMatch: { input: "$name", regex: "$$pattern" } },
+                                                        { $regexMatch: { input: "$brandName", regex: "$$pattern" } }
+                                                    ]
+                                                }
+                                            }
+                                        }
+                                    },
+                                    50
                                 ]
                             }
                         ]
@@ -339,7 +388,7 @@ const searchGroceries = async (req, res) => {
                     name: 1
                 }
             },
-            { $limit: 15 }
+            { $limit: 200 }
         ]).toArray();
 
         if (!results || results.length === 0) {
@@ -381,7 +430,6 @@ const searchGroceries = async (req, res) => {
         });
     }
 };
-
 
 const calculateDayTotalCalories = (consumedFoodForDay) => {
     let totalCalories = 0;
