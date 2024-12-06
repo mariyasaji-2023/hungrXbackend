@@ -191,8 +191,8 @@ const searchGroceries = async (req, res) => {
                 $match: {
                     $or: [
                         // Brand name matches
-                        { brandName: new RegExp(`^${searchTerm}$`, 'i') },  // Exact full brand match
-                        { brandName: new RegExp(`\\b${searchTerm}\\b`, 'i') },  // Exact word match
+                        { brandName: new RegExp(`^${searchTerm}$`, 'i') },
+                        { brandName: new RegExp(`\\b${searchTerm}\\b`, 'i') },
                         { brandName: new RegExp(`\\b${flexiblePattern}\\b`, 'i') },
                         { brandName: new RegExp(searchTerm, 'i') },
                         // Name matches
@@ -207,17 +207,14 @@ const searchGroceries = async (req, res) => {
                     matchCategory: {
                         $switch: {
                             branches: [
-                                // Strict exact brand match (full name matches exactly)
                                 {
                                     case: { $regexMatch: { input: "$brandName", regex: new RegExp(`^${searchTerm}$`, 'i') } },
                                     then: 5
                                 },
-                                // Exact word brand match (term appears as a complete word)
                                 {
                                     case: { $regexMatch: { input: "$brandName", regex: new RegExp(`^${searchTerm}\\b|\\b${searchTerm}$`, 'i') } },
                                     then: 4
                                 },
-                                // Product name matches
                                 {
                                     case: { 
                                         $or: [
@@ -228,12 +225,10 @@ const searchGroceries = async (req, res) => {
                                     },
                                     then: 3
                                 },
-                                // Flexible brand match
                                 {
                                     case: { $regexMatch: { input: "$brandName", regex: new RegExp(`\\b${flexiblePattern}\\b`, 'i') } },
                                     then: 2
                                 },
-                                // Partial brand match
                                 {
                                     case: { $regexMatch: { input: "$brandName", regex: new RegExp(searchTerm, 'i') } },
                                     then: 1
@@ -275,11 +270,30 @@ const searchGroceries = async (req, res) => {
                     }
                 }
             },
+            // Group by unique combination of fields
+            {
+                $group: {
+                    _id: {
+                        name: "$name",
+                        brandName: "$brandName",
+                        calories: "$nutritionFacts.calories",
+                        protein: "$nutritionFacts.protein.value",
+                        totalFat: "$nutritionFacts.totalFat.value",
+                        totalCarbs: "$nutritionFacts.totalCarbohydrates.value"
+                    },
+                    // Keep the first occurrence of each field
+                    doc: { $first: "$$ROOT" }
+                }
+            },
+            // Restore the original document structure
+            {
+                $replaceRoot: { newRoot: "$doc" }
+            },
             {
                 $sort: {
-                    matchCategory: -1,  // Sort by match category first (5,4,3,2,1,0)
-                    nameScore: -1,      // Then by name relevance score
-                    name: 1             // Then alphabetically
+                    matchCategory: -1,
+                    nameScore: -1,
+                    name: 1
                 }
             },
             { $limit: 15 }
