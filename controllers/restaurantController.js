@@ -189,9 +189,14 @@ const searchGroceries = async (req, res) => {
             {
                 $match: {
                     $or: [
+                        // Name matches
                         { name: new RegExp(`\\b${searchTerm}\\b`, 'i') },
                         { name: new RegExp(`\\b${flexiblePattern}\\b`, 'i') },
-                        { name: new RegExp(searchTerm, 'i') }
+                        { name: new RegExp(searchTerm, 'i') },
+                        // Brand name matches
+                        { brandName: new RegExp(`\\b${searchTerm}\\b`, 'i') },
+                        { brandName: new RegExp(`\\b${flexiblePattern}\\b`, 'i') },
+                        { brandName: new RegExp(searchTerm, 'i') }
                     ]
                 }
             },
@@ -199,6 +204,7 @@ const searchGroceries = async (req, res) => {
                 $addFields: {
                     score: {
                         $add: [
+                            // Exact name match score
                             {
                                 $cond: [
                                     { $regexMatch: { input: "$name", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
@@ -206,12 +212,14 @@ const searchGroceries = async (req, res) => {
                                     0
                                 ]
                             },
+                            // Name length score
                             {
                                 $multiply: [
                                     { $subtract: [50, { $strLenCP: "$name" }] },
                                     2
                                 ]
                             },
+                            // Flexible name match score
                             {
                                 $cond: [
                                     { $regexMatch: { input: "$name", regex: new RegExp(`\\b${flexiblePattern}\\b`, 'i') } },
@@ -219,10 +227,35 @@ const searchGroceries = async (req, res) => {
                                     0
                                 ]
                             },
+                            // Partial name match score
                             {
                                 $cond: [
                                     { $regexMatch: { input: "$name", regex: new RegExp(searchTerm, 'i') } },
                                     100,
+                                    0
+                                ]
+                            },
+                            // Brand exact match score
+                            {
+                                $cond: [
+                                    { $regexMatch: { input: "$brandName", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
+                                    800,
+                                    0
+                                ]
+                            },
+                            // Flexible brand match score
+                            {
+                                $cond: [
+                                    { $regexMatch: { input: "$brandName", regex: new RegExp(`\\b${flexiblePattern}\\b`, 'i') } },
+                                    400,
+                                    0
+                                ]
+                            },
+                            // Partial brand match score
+                            {
+                                $cond: [
+                                    { $regexMatch: { input: "$brandName", regex: new RegExp(searchTerm, 'i') } },
+                                    80,
                                     0
                                 ]
                             }
@@ -286,6 +319,7 @@ const searchGroceries = async (req, res) => {
         });
     }
 };
+
 
 
 const calculateDayTotalCalories = (consumedFoodForDay) => {
