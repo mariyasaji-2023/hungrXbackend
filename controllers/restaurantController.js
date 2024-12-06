@@ -166,7 +166,6 @@ const getMeal = async (req, res) => {
     }
 }
 
-
 const searchGroceries = async (req, res) => {
     const { name } = req.body;
 
@@ -181,24 +180,34 @@ const searchGroceries = async (req, res) => {
         const grocery = mongoose.connection.db.collection("grocerys");
 
         const searchTerm = name.trim().toLowerCase();
-        const flexiblePattern = searchTerm
-            .split('')
-            .map(char => `${char}+`)
-            .join('.*?');
+        const searchWords = searchTerm.split(/\s+/);
+        
+        const wordPatterns = searchWords.map(word => ({
+            exact: word,
+            flexible: word.split('').map(char => `${char}+`).join('.*?')
+        }));
 
         const results = await grocery.aggregate([
             {
                 $match: {
                     $or: [
-                        // Brand name matches
+                        // Exact name match
+                        { name: new RegExp(`^${searchTerm}$`, 'i') },
+                        // Exact brand match
                         { brandName: new RegExp(`^${searchTerm}$`, 'i') },
-                        { brandName: new RegExp(`\\b${searchTerm}\\b`, 'i') },
-                        { brandName: new RegExp(`\\b${flexiblePattern}\\b`, 'i') },
-                        { brandName: new RegExp(searchTerm, 'i') },
-                        // Name matches
+                        // Partial or combined matches
+                        {
+                            $and: searchWords.map(word => ({
+                                $or: [
+                                    { brandName: new RegExp(`\\b${word}\\b`, 'i') },
+                                    { name: new RegExp(`\\b${word}\\b`, 'i') }
+                                ]
+                            }))
+                        },
+                        // Contains product name
                         { name: new RegExp(`\\b${searchTerm}\\b`, 'i') },
-                        { name: new RegExp(`\\b${flexiblePattern}\\b`, 'i') },
-                        { name: new RegExp(searchTerm, 'i') }
+                        // Contains brand name
+                        { brandName: new RegExp(`\\b${searchTerm}\\b`, 'i') }
                     ]
                 }
             },
@@ -207,57 +216,62 @@ const searchGroceries = async (req, res) => {
                     matchCategory: {
                         $switch: {
                             branches: [
+                                // Exact product name match (highest priority)
+                                {
+                                    case: { $regexMatch: { input: "$name", regex: new RegExp(`^${searchTerm}$`, 'i') } },
+                                    then: 10
+                                },
+                                // Exact brand name match
                                 {
                                     case: { $regexMatch: { input: "$brandName", regex: new RegExp(`^${searchTerm}$`, 'i') } },
-                                    then: 5
+                                    then: 9
                                 },
+                                // Partial/combined matches
                                 {
-                                    case: { $regexMatch: { input: "$brandName", regex: new RegExp(`^${searchTerm}\\b|\\b${searchTerm}$`, 'i') } },
-                                    then: 4
-                                },
-                                {
-                                    case: { 
-                                        $or: [
-                                            { $regexMatch: { input: "$name", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
-                                            { $regexMatch: { input: "$name", regex: new RegExp(`\\b${flexiblePattern}\\b`, 'i') } },
-                                            { $regexMatch: { input: "$name", regex: new RegExp(searchTerm, 'i') } }
-                                        ]
+                                    case: {
+                                        $and: searchWords.map(word => ({
+                                            $or: [
+                                                { $regexMatch: { input: "$brandName", regex: new RegExp(`\\b${word}\\b`, 'i') } },
+                                                { $regexMatch: { input: "$name", regex: new RegExp(`\\b${word}\\b`, 'i') } }
+                                            ]
+                                        }))
                                     },
-                                    then: 3
+                                    then: 8
                                 },
+                                // Product name contains the word
                                 {
-                                    case: { $regexMatch: { input: "$brandName", regex: new RegExp(`\\b${flexiblePattern}\\b`, 'i') } },
-                                    then: 2
+                                    case: { $regexMatch: { input: "$name", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
+                                    then: 7
                                 },
+                                // Brand name contains the word
                                 {
-                                    case: { $regexMatch: { input: "$brandName", regex: new RegExp(searchTerm, 'i') } },
-                                    then: 1
+                                    case: { $regexMatch: { input: "$brandName", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
+                                    then: 6
                                 }
                             ],
-                            default: 0
+                            default: 1
                         }
                     },
                     nameScore: {
                         $add: [
                             {
-                                $cond: [
-                                    { $regexMatch: { input: "$name", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
-                                    1000,
-                                    0
-                                ]
-                            },
-                            {
-                                $cond: [
-                                    { $regexMatch: { input: "$name", regex: new RegExp(`\\b${flexiblePattern}\\b`, 'i') } },
-                                    500,
-                                    0
-                                ]
-                            },
-                            {
-                                $cond: [
-                                    { $regexMatch: { input: "$name", regex: new RegExp(searchTerm, 'i') } },
-                                    100,
-                                    0
+                                $multiply: [
+                                    {
+                                        $size: {
+                                            $filter: {
+                                                input: searchWords,
+                                                as: "word",
+                                                cond: { 
+                                                    $regexMatch: { 
+                                                        input: "$name", 
+                                                        regex: { $concat: ["\\b", "$$word", "\\b"] },
+                                                        options: "i"
+                                                    } 
+                                                }
+                                            }
+                                        }
+                                    },
+                                    200
                                 ]
                             },
                             {
@@ -270,7 +284,6 @@ const searchGroceries = async (req, res) => {
                     }
                 }
             },
-            // Group by unique combination of fields
             {
                 $group: {
                     _id: {
@@ -281,11 +294,9 @@ const searchGroceries = async (req, res) => {
                         totalFat: "$nutritionFacts.totalFat.value",
                         totalCarbs: "$nutritionFacts.totalCarbohydrates.value"
                     },
-                    // Keep the first occurrence of each field
                     doc: { $first: "$$ROOT" }
                 }
             },
-            // Restore the original document structure
             {
                 $replaceRoot: { newRoot: "$doc" }
             },
@@ -338,7 +349,6 @@ const searchGroceries = async (req, res) => {
         });
     }
 };
-
 
 const calculateDayTotalCalories = (consumedFoodForDay) => {
     let totalCalories = 0;
