@@ -530,7 +530,8 @@ const home = async (req, res) => {
             weightInKg,
             weightInLbs,
             profilePhoto,
-            consumedFood
+            consumedFood,
+            dailyConsumption
         } = user;
 
         if (!caloriesToReachGoal || !dailyCalorieGoal || !daysToReachGoal) {
@@ -548,28 +549,46 @@ const home = async (req, res) => {
             year: 'numeric'
         }).replace(/\//g, '/');
 
-        let totalCaloriesConsumed = 0;
-        if (consumedFood?.dates?.[today]) {
+        // Get today's consumption from dailyConsumption field
+        const todayConsumption = dailyConsumption?.[today] || 0;
+ 
+        // If dailyConsumption doesn't exist for today, calculate it
+        let totalCaloriesConsumed = todayConsumption;
+ console.log(todayConsumption,totalCaloriesConsumed , "///////////////////////////");
+        if (totalCaloriesConsumed === 0 && consumedFood?.dates?.[today]) {
             const todaysFoods = consumedFood.dates[today];
-            totalCaloriesConsumed = Object.values(todaysFoods).reduce((sum, meal) => {
-                return sum + (meal?.totalCalories || 0);
-            }, 0);
+            Object.values(todaysFoods).forEach(meal => {
+                if (meal.foods && Array.isArray(meal.foods)) {
+                    meal.foods.forEach(food => {
+                        totalCaloriesConsumed += Number(food.totalCalories) || 0;
+                    });
+                }
+            });
+
+            // If calculated value differs from stored value, update it
+            if (totalCaloriesConsumed > 0) {
+                await User.updateOne(
+                    { _id: userId },
+                    { $set: { [`dailyConsumption.${today}`]: totalCaloriesConsumed } }
+                );
+            }
         }
 
-        const remainingCalories = parseInt(dailyCalorieGoal) - totalCaloriesConsumed;
-        console.log(remainingCalories,dailyCalorieGoal,totalCaloriesConsumed);
+        // Format numbers to avoid decimal issues
+        totalCaloriesConsumed = Number(totalCaloriesConsumed.toFixed(2));
+        const remainingCalories = Number((parseInt(dailyCalorieGoal) - totalCaloriesConsumed).toFixed(2));
+        const updatedCaloriesToReachGoal = Number((caloriesToReachGoal - totalCaloriesConsumed).toFixed(2));
+        console.log(totalCaloriesConsumed,remainingCalories,updatedCaloriesToReachGoal,"?????????????????????????????????");
         
-        const updatedCaloriesToReachGoal = caloriesToReachGoal - totalCaloriesConsumed;
 
-        // const goalHeading = goal ? `${goal}` : 'Calorie Goal';
         const weight = isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`;
 
         let goalHeading;
-        if(goal === 'lose weight'){
+        if (goal === 'lose weight') {
             goalHeading = 'Calorie to burn';
-        } else if(goal === 'maintain weight'){
+        } else if (goal === 'maintain weight') {
             goalHeading = "Maintain";
-        } else if(goal === 'gain weight'){
+        } else if (goal === 'gain weight') {
             goalHeading = 'Calorie to consume';
         } else {
             goalHeading = 'Calorie Goal';

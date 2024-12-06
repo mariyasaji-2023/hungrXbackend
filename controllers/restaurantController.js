@@ -59,7 +59,7 @@ const eatScreenSearchName = async (req, res) => {
 
     try {
         await client.connect();
-        const grocery = client.db("hungerX").collection("grocery");
+        const grocery = client.db("hungerX").collection("grocerys");
 
         const results = await grocery.aggregate([
             {
@@ -177,7 +177,7 @@ const searchGroceries = async (req, res) => {
     }
 
     try {
-        const grocery = mongoose.connection.db.collection("grocery");
+        const grocery = mongoose.connection.db.collection("grocerys");
 
         const searchTerm = name.trim().toLowerCase();
         const flexiblePattern = searchTerm
@@ -310,7 +310,7 @@ const addConsumedFood = async (req, res) => {
     try {
         const db = getDBInstance();
         const users = db.collection("users");
-        const groceries = db.collection("grocery");
+        const groceries = db.collection("grocerys");
 
         const {
             userId,
@@ -591,7 +591,7 @@ const addToHistory = async (req, res) => {
     }
 
     try {
-        const grocery = mongoose.connection.db.collection("grocery");
+        const grocery = mongoose.connection.db.collection("grocerys");
         const users = mongoose.connection.db.collection("users");
 
         const user = await users.findOne({ _id: new ObjectId(userId) });
@@ -771,6 +771,128 @@ const getConsumedFoodByDate = async (req, res) => {
     }
 };
 
+const deleteDishFromMeal = async (req, res) => {
+    try {
+        const db = getDBInstance();
+        const users = db.collection("users");
+        const {
+            userId,
+            date,     // format: DD/MM/YYYY
+            mealId,   // ID of the meal type (breakfast, lunch, dinner, snacks)
+            dishId    // ID of the specific dish to delete
+        } = req.body;
+
+        if (!userId || !date || !mealId || !dishId) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Meal type mapping
+        const mealTypeMapping = {
+            '6746a024a45e4d9e5d58ea12': 'breakfast',
+            '6746a024a45e4d9e5d58ea13': 'lunch',
+            '6746a024a45e4d9e5d58ea14': 'dinner',
+            '6746a024a45e4d9e5d58ea15': 'snacks'
+        };
+
+        const mealType = mealTypeMapping[mealId];
+        if (!mealType) {
+            return res.status(400).json({ error: 'Invalid meal ID' });
+        }
+
+        // Find user and get current data
+        const user = await users.findOne({ 
+            _id: new mongoose.Types.ObjectId(userId)
+        });
+
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const dateKey = `consumedFood.dates.${date}`;
+        const mealKey = `${dateKey}.${mealType}`;
+
+        // Find the specific food item in the meal's foods array
+        const currentMeal = user.consumedFood?.dates?.[date]?.[mealType];
+        if (!currentMeal || !currentMeal.foods) {
+            return res.status(404).json({ error: 'Meal not found for the specified date' });
+        }
+
+        const foodToDelete = currentMeal.foods.find(
+            food => food.dishId.toString() === dishId || food.foodId.toString() === dishId
+        );
+
+        if (!foodToDelete) {
+            return res.status(404).json({ error: 'Dish not found in the meal' });
+        }
+
+        // Calculate calories to add back
+        const caloriesToAddBack = Number(foodToDelete.totalCalories) || 0;
+        const currentCaloriesToReachGoal = parseInt(user.caloriesToReachGoal) || 0;
+        const newCaloriesToReachGoal = currentCaloriesToReachGoal + caloriesToAddBack;
+
+        // Remove the specific food item from the array
+        const updateOperations = {
+            $pull: {
+                [`${mealKey}.foods`]: {
+                    $or: [
+                        { dishId: new mongoose.Types.ObjectId(dishId) },
+                        { foodId: new mongoose.Types.ObjectId(dishId) }
+                    ]
+                }
+            },
+            $set: {
+                caloriesToReachGoal: newCaloriesToReachGoal
+            }
+        };
+
+        const result = await users.updateOne(
+            { _id: new mongoose.Types.ObjectId(userId) },
+            updateOperations
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Get updated user data
+        const updatedUser = await users.findOne({ 
+            _id: new mongoose.Types.ObjectId(userId) 
+        });
+
+        // Calculate the daily summary after deletion
+        const updatedMeal = updatedUser.consumedFood?.dates?.[date]?.[mealType];
+        let totalDayCalories = 0;
+        Object.values(updatedUser.consumedFood?.dates?.[date] || {}).forEach(meal => {
+            if (meal.foods && Array.isArray(meal.foods)) {
+                meal.foods.forEach(food => {
+                    totalDayCalories += Number(food.totalCalories) || 0;
+                });
+            }
+        });
+
+        res.status(200).json({
+            success: true,
+            message: 'Dish deleted successfully',
+            date: date,
+            mealId: mealId,
+            mealType: mealType,
+            updatedMeal: updatedMeal,
+            dailySummary: {
+                totalCalories: totalDayCalories,
+                dailyGoal: updatedUser.dailyCalorieGoal,
+                remaining: parseFloat(updatedUser.dailyCalorieGoal) - totalDayCalories
+            },
+            updatedCalories: {
+                caloriesToReachGoal: newCaloriesToReachGoal,
+                deletedCalories: caloriesToAddBack
+            }
+        });
+    } catch (error) {
+        console.error('Error deleting dish:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
 // const deleteDishFromMeal = async(req,res)=>{
 //     try {
         
@@ -780,4 +902,4 @@ const getConsumedFoodByDate = async (req, res) => {
 // }
 
 
-module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood ,addUnknownFood , getConsumedFoodByDate}
+module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood ,addUnknownFood , getConsumedFoodByDate , deleteDishFromMeal}
