@@ -388,7 +388,7 @@ const searchGroceries = async (req, res) => {
                     name: 1
                 }
             },
-            { $limit: 50 }
+            { $limit: 15 }
         ]).toArray();
 
         if (!results || results.length === 0) {
