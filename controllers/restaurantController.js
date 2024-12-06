@@ -166,6 +166,7 @@ const getMeal = async (req, res) => {
     }
 }
 
+
 const searchGroceries = async (req, res) => {
     const { name } = req.body;
 
@@ -189,22 +190,60 @@ const searchGroceries = async (req, res) => {
             {
                 $match: {
                     $or: [
+                        // Brand name matches
+                        { brandName: new RegExp(`^${searchTerm}$`, 'i') },  // Exact full brand match
+                        { brandName: new RegExp(`\\b${searchTerm}\\b`, 'i') },  // Exact word match
+                        { brandName: new RegExp(`\\b${flexiblePattern}\\b`, 'i') },
+                        { brandName: new RegExp(searchTerm, 'i') },
                         // Name matches
                         { name: new RegExp(`\\b${searchTerm}\\b`, 'i') },
                         { name: new RegExp(`\\b${flexiblePattern}\\b`, 'i') },
-                        { name: new RegExp(searchTerm, 'i') },
-                        // Brand name matches
-                        { brandName: new RegExp(`\\b${searchTerm}\\b`, 'i') },
-                        { brandName: new RegExp(`\\b${flexiblePattern}\\b`, 'i') },
-                        { brandName: new RegExp(searchTerm, 'i') }
+                        { name: new RegExp(searchTerm, 'i') }
                     ]
                 }
             },
             {
                 $addFields: {
-                    score: {
+                    matchCategory: {
+                        $switch: {
+                            branches: [
+                                // Strict exact brand match (full name matches exactly)
+                                {
+                                    case: { $regexMatch: { input: "$brandName", regex: new RegExp(`^${searchTerm}$`, 'i') } },
+                                    then: 5
+                                },
+                                // Exact word brand match (term appears as a complete word)
+                                {
+                                    case: { $regexMatch: { input: "$brandName", regex: new RegExp(`^${searchTerm}\\b|\\b${searchTerm}$`, 'i') } },
+                                    then: 4
+                                },
+                                // Product name matches
+                                {
+                                    case: { 
+                                        $or: [
+                                            { $regexMatch: { input: "$name", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
+                                            { $regexMatch: { input: "$name", regex: new RegExp(`\\b${flexiblePattern}\\b`, 'i') } },
+                                            { $regexMatch: { input: "$name", regex: new RegExp(searchTerm, 'i') } }
+                                        ]
+                                    },
+                                    then: 3
+                                },
+                                // Flexible brand match
+                                {
+                                    case: { $regexMatch: { input: "$brandName", regex: new RegExp(`\\b${flexiblePattern}\\b`, 'i') } },
+                                    then: 2
+                                },
+                                // Partial brand match
+                                {
+                                    case: { $regexMatch: { input: "$brandName", regex: new RegExp(searchTerm, 'i') } },
+                                    then: 1
+                                }
+                            ],
+                            default: 0
+                        }
+                    },
+                    nameScore: {
                         $add: [
-                            // Exact name match score
                             {
                                 $cond: [
                                     { $regexMatch: { input: "$name", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
@@ -212,14 +251,6 @@ const searchGroceries = async (req, res) => {
                                     0
                                 ]
                             },
-                            // Name length score
-                            {
-                                $multiply: [
-                                    { $subtract: [50, { $strLenCP: "$name" }] },
-                                    2
-                                ]
-                            },
-                            // Flexible name match score
                             {
                                 $cond: [
                                     { $regexMatch: { input: "$name", regex: new RegExp(`\\b${flexiblePattern}\\b`, 'i') } },
@@ -227,7 +258,6 @@ const searchGroceries = async (req, res) => {
                                     0
                                 ]
                             },
-                            // Partial name match score
                             {
                                 $cond: [
                                     { $regexMatch: { input: "$name", regex: new RegExp(searchTerm, 'i') } },
@@ -235,28 +265,10 @@ const searchGroceries = async (req, res) => {
                                     0
                                 ]
                             },
-                            // Brand exact match score
                             {
-                                $cond: [
-                                    { $regexMatch: { input: "$brandName", regex: new RegExp(`\\b${searchTerm}\\b`, 'i') } },
-                                    800,
-                                    0
-                                ]
-                            },
-                            // Flexible brand match score
-                            {
-                                $cond: [
-                                    { $regexMatch: { input: "$brandName", regex: new RegExp(`\\b${flexiblePattern}\\b`, 'i') } },
-                                    400,
-                                    0
-                                ]
-                            },
-                            // Partial brand match score
-                            {
-                                $cond: [
-                                    { $regexMatch: { input: "$brandName", regex: new RegExp(searchTerm, 'i') } },
-                                    80,
-                                    0
+                                $multiply: [
+                                    { $subtract: [50, { $strLenCP: "$name" }] },
+                                    2
                                 ]
                             }
                         ]
@@ -264,18 +276,10 @@ const searchGroceries = async (req, res) => {
                 }
             },
             {
-                $group: {
-                    _id: "$name",
-                    item: { $first: "$$ROOT" }
-                }
-            },
-            {
-                $replaceRoot: { newRoot: "$item" }
-            },
-            {
                 $sort: {
-                    score: -1,
-                    name: 1
+                    matchCategory: -1,  // Sort by match category first (5,4,3,2,1,0)
+                    nameScore: -1,      // Then by name relevance score
+                    name: 1             // Then alphabetically
                 }
             },
             { $limit: 15 }
@@ -301,7 +305,8 @@ const searchGroceries = async (req, res) => {
             source: item.source,
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
-            searchScore: item.score
+            matchCategory: item.matchCategory,
+            nameScore: item.nameScore
         }));
 
         return res.status(200).json({
@@ -319,7 +324,6 @@ const searchGroceries = async (req, res) => {
         });
     }
 };
-
 
 
 const calculateDayTotalCalories = (consumedFoodForDay) => {
@@ -927,13 +931,6 @@ const deleteDishFromMeal = async (req, res) => {
     }
 };
 
-// const deleteDishFromMeal = async(req,res)=>{
-//     try {
-        
-//     } catch (error) {
-        
-//     }
-// }
 
 
 module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood ,addUnknownFood , getConsumedFoodByDate , deleteDishFromMeal}
