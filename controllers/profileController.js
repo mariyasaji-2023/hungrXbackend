@@ -24,6 +24,7 @@ const profileScreen = async (req, res) => {
             name: user.name || null,
             email: user.email || null,
             gender: user.gender || null,
+            phone :user.mobile|| null,
             age: user.age ? `${user.age} years` : null,
             heightInCm: user.heightInCm ? `${user.heightInCm} cm` : null,
             weightInKg: user.weightInKg ? `${user.weightInKg} kg` : null,
