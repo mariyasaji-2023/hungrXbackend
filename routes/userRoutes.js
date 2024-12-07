@@ -6,6 +6,7 @@ const feedbackController = require('../controllers/feedbackController')
 const searchController = require('../controllers/searchController')
 const restaurantController = require('../controllers/restaurantController')
 const waterController = require('../controllers/waterController')
+const profileController = require ('../controllers/profileController')
 
 router.post('/signup/email', userController.signupWithEmail);
 router.post('/login/email',userController.loginWithEmail)
@@ -32,6 +33,7 @@ router.post('/addConsumedFood',restaurantController.addConsumedFood)
 router.post('/addUnknown',restaurantController.addUnknownFood)
 router.post('/getConsumedFoodByDate',restaurantController.getConsumedFoodByDate)
 router.post('/deleteDishFromMeal',restaurantController.deleteDishFromMeal)
+router.post('/profileScreen',profileController.profileScreen)
 
 
 module.exports = router;
