@@ -19,14 +19,15 @@ const basicInfo = async (req, res) => {
             });
         }
 
-        // Determine the weight based on the isMetric field
-        const weight = user.isMetric
-            ? user.weightInKg
-                ? `${user.weightInKg} kg`
-                : null
-            : user.weightInLbs
-                ? `${user.weightInLbs} lbs`
-                : null;
+        // Format both metric and imperial weights
+        const weightInKg = user.weightInKg ? `${user.weightInKg} kg` : null;
+        const weightInLbs = user.weightInLbs ? `${user.weightInLbs} lbs` : null;
+
+        // Format both metric and imperial heights
+        const heightInCm = user.heightInCm ? `${user.heightInCm} cm` : null;
+        const heightInFeetAndInches = user.heightInFeet && user.heightInInches 
+            ? `${user.heightInFeet} ft ${user.heightInInches} in` 
+            : null;
 
         // Create response object with formatted values and units
         const userProfile = {
@@ -35,19 +36,26 @@ const basicInfo = async (req, res) => {
             gender: user.gender || null,
             phone: user.mobile || null,
             age: user.age ? `${user.age} years` : null,
-            heightInCm: user.heightInCm ? `${user.heightInCm} cm` : null,
-            weight, // Dynamically determined based on isMetric
+            heightInCm,    // Always show metric height
+            heightInFeetAndInches,  // Always show imperial height
+            weightInKg,    // Always show metric weight
+            weightInLbs,  // Always show imperial weight
             targetWeight: user.targetWeight ? `${user.targetWeight} kg` : null,
-            // BMI: user.BMI || null,
-            // BMR: user.BMR ? `${user.BMR} kcal/day` : null,
-            // TDEE: user.TDEE ? `${user.TDEE} kcal/day` : null,
-            dailyCalorieGoal: user.dailyCalorieGoal ? `${user.dailyCalorieGoal} kcal/day` : null,
-            daysToReachGoal: user.daysToReachGoal ? `${user.daysToReachGoal} days` : null,
-            caloriesToReachGoal: user.caloriesToReachGoal ? `${user.caloriesToReachGoal} kcal` : null,
+            dailyCalorieGoal: user.dailyCalorieGoal
+                ? `${user.dailyCalorieGoal} kcal/day`
+                : null,
+            daysToReachGoal: user.daysToReachGoal
+                ? `${user.daysToReachGoal} days`
+                : null,
+            caloriesToReachGoal: user.caloriesToReachGoal
+                ? `${user.caloriesToReachGoal} kcal`
+                : null,
             activityLevel: user.activityLevel || null,
             goal: user.goal || null,
             mealsPerDay: user.mealsPerDay || null,
-            weightGainRate: user.weightGainRate ? `${user.weightGainRate} kg/week` : null,
+            weightGainRate: user.weightGainRate
+                ? `${user.weightGainRate} kg/week`
+                : null,
             isMetric: user.isMetric || false,
             isVerified: user.isVerified || false,
         };
@@ -57,6 +65,7 @@ const basicInfo = async (req, res) => {
             data: userProfile,
         });
     } catch (error) {
+        console.error('Error in basicInfo:', error);
         return res.status(500).json({
             status: false,
             message: 'Internal server error',
@@ -64,7 +73,6 @@ const basicInfo = async (req, res) => {
         });
     }
 };
-
 
 const updateBasicInfo = async (req, res) => {
     const {
@@ -78,55 +86,116 @@ const updateBasicInfo = async (req, res) => {
         weightInLbs,
         targetWeight,
         heightInCm,
-        goal
-    } = req.body
+        heightInFeet,
+        heightInInches,
+        goal,
+        isMetric
+    } = req.body;
 
     try {
-        const user = await userModel.findOne({ _id: userId })
+        // Find user first
+        const user = await userModel.findOne({ _id: userId });
+        
         if (!user) {
             return res.status(404).json({
                 status: false,
                 message: 'User does not exist'
-            })
-        }
-        if (email && email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-            return res.status(400).json({
-                status: false,
-                message: 'Invalid email format',
             });
         }
 
-        let updatedData = {}
-        updatedData.name = name;
-        updatedData.gender = gender;
-        updatedData.mobile = mobile;
-        updatedData.email = email;
-        updatedData.age = age;
-        updatedData.weightInKg = weightInKg;
-        updatedData.weightInLbs = weightInLbs;
-        updatedData.targetWeight = targetWeight;
-        updatedData.heightInCm = heightInCm
-        updatedData.goal = goal
+        // Validate email format if provided
+        if (email && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+            return res.status(400).json({
+                status: false,
+                message: 'Invalid email format'
+            });
+        }
 
+        // Create update object with only provided fields
+        let updatedData = {};
+        
+        // Only add fields that are provided in the request
+        if (name) updatedData.name = name;
+        if (gender) updatedData.gender = gender;
+        if (mobile) updatedData.mobile = mobile;
+        if (email) updatedData.email = email;
+        if (age) updatedData.age = age;
+        if (goal) updatedData.goal = goal;
+        if (typeof isMetric === 'boolean') updatedData.isMetric = isMetric;
+
+        // Handle height based on metric preference
+        if (isMetric && heightInCm) {
+            updatedData.heightInCm = heightInCm;
+        } else if (!isMetric && heightInFeet && heightInInches) {
+            updatedData.heightInFeet = heightInFeet;
+            updatedData.heightInInches = heightInInches;
+        }
+
+        // Handle weight based on metric preference
+        if (isMetric && weightInKg) {
+            updatedData.weightInKg = weightInKg;
+        } else if (!isMetric && weightInLbs) {
+            updatedData.weightInLbs = weightInLbs;
+        }
+
+        // Handle target weight (always in kg as per your basicInfo function)
+        if (targetWeight) {
+            updatedData.targetWeight = targetWeight;
+        }
+
+        // Update user with provided data
         const updatedUser = await userModel.findByIdAndUpdate(
             userId,
-            {$set : updatedData},
-            {new : true}
-        )
+            { $set: updatedData },
+            { new: true }
+        );
+
+        // Format the response similar to basicInfo
+        const weight = updatedUser.isMetric
+            ? updatedUser.weightInKg
+                ? `${updatedUser.weightInKg} kg`
+                : null
+            : updatedUser.weightInLbs
+                ? `${updatedUser.weightInLbs} lbs`
+                : null;
+
+        const height = updatedUser.isMetric
+            ? updatedUser.heightInCm
+                ? `${updatedUser.heightInCm} cm`
+                : null
+            : updatedUser.heightInFeet && updatedUser.heightInInches
+                ? `${updatedUser.heightInFeet} ft ${updatedUser.heightInInches} in`
+                : null;
+
+        // Format response data
+        const formattedUser = {
+            name: updatedUser.name || null,
+            email: updatedUser.email || null,
+            gender: updatedUser.gender || null,
+            phone: updatedUser.mobile || null,
+            age: updatedUser.age ? `${updatedUser.age} years` : null,
+            height,
+            weight,
+            targetWeight: updatedUser.targetWeight ? `${updatedUser.targetWeight} kg` : null,
+            goal: updatedUser.goal || null,
+            isMetric: updatedUser.isMetric || false
+        };
+
         return res.status(200).json({
-            status :true,
-            message : 'User details updated successfully',
-            data : updatedUser
-        })
-           
+            status: true,
+            message: 'User details updated successfully',
+            data: formattedUser
+        });
+
     } catch (error) {
+        console.error('Error in updateBasicInfo:', error);
         return res.status(500).json({
             status: false,
             message: 'Internal server error',
-            error: error.message,
-        }); 
+            error: error.message
+        });
     }
-}
+};
 
 const profileScreen = async (req, res) => {
     const { userId } = req.body; // Only pass userId from the request body
