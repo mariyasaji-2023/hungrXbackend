@@ -25,10 +25,12 @@ const basicInfo = async (req, res) => {
 
         // Format both metric and imperial heights
         const heightInCm = user.heightInCm ? `${user.heightInCm} cm` : null;
-        const heightInFeetAndInches = user.heightInFeet && user.heightInInches 
+        const heightInFeet= user.heightInFeet 
             ? `${user.heightInFeet} ft ${user.heightInInches} in` 
             : null;
-
+         const heightInInches = user.heightInInches 
+         ? `${user.heightInInches} ft ` 
+            : null;
         // Create response object with formatted values and units
         const userProfile = {
             name: user.name || null,
@@ -37,7 +39,8 @@ const basicInfo = async (req, res) => {
             phone: user.mobile || null,
             age: user.age ? `${user.age} years` : null,
             heightInCm,    // Always show metric height
-            heightInFeetAndInches,  // Always show imperial height
+            heightInFeet,  // Always show imperial height
+            heightInInches,
             weightInKg,    // Always show metric weight
             weightInLbs,  // Always show imperial weight
             targetWeight: user.targetWeight ? `${user.targetWeight} kg` : null,

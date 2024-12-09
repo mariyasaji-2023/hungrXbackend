@@ -54,9 +54,15 @@ const userSchema = new mongoose.Schema({
     //     type: String,
     //     unique: false
     // },
+    // googleId: {
+    //     type: String,
+    //     unique: true
+    // },
     googleId: {
         type: String,
-        unique: true
+        sparse: true,  // This allows null/undefined values and only creates indices for non-null values
+        unique: true ,  // Only enforced on non-null values due to sparse index
+        default: undefined
     },
     mealsPerDay: {
         type: Number,
