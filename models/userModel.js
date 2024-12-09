@@ -116,6 +116,9 @@ const userSchema = new mongoose.Schema({
     },
     profilePhoto:{
         type:String
+    },
+    mobile:{
+        type:String
     }
 });
 

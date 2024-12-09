@@ -175,7 +175,7 @@ const updateBasicInfo = async (req, res) => {
             name: updatedUser.name || null,
             email: updatedUser.email || null,
             gender: updatedUser.gender || null,
-            phone: updatedUser.mobile || null,
+            mobile: updatedUser.mobile || null,
             age: updatedUser.age ? `${updatedUser.age} years` : null,
             height,
             weight,
