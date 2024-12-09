@@ -1,5 +1,5 @@
 const userModel = require('../models/userModel')
-const mongoose = require ('mongoose')
+const mongoose = require('mongoose')
 const { getDBInstance } = require('../config/db');
 
 
@@ -20,12 +20,12 @@ const basicInfo = async (req, res) => {
         }
 
         // Determine the weight based on the isMetric field
-        const weight = user.isMetric 
-            ? user.weightInKg 
-                ? `${user.weightInKg} kg` 
+        const weight = user.isMetric
+            ? user.weightInKg
+                ? `${user.weightInKg} kg`
                 : null
-            : user.weightInLbs 
-                ? `${user.weightInLbs} lbs` 
+            : user.weightInLbs
+                ? `${user.weightInLbs} lbs`
                 : null;
 
         // Create response object with formatted values and units
@@ -66,11 +66,73 @@ const basicInfo = async (req, res) => {
 };
 
 
+const updateBasicInfo = async (req, res) => {
+    const {
+        userId,
+        name,
+        gender,
+        mobile,
+        email,
+        age,
+        weightInKg,
+        weightInLbs,
+        targetWeight,
+        heightInCm,
+        goal
+    } = req.body
+
+    try {
+        const user = await userModel.findOne({ _id: userId })
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User does not exist'
+            })
+        }
+        if (email && email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+            return res.status(400).json({
+                status: false,
+                message: 'Invalid email format',
+            });
+        }
+
+        let updatedData = {}
+        updatedData.name = name;
+        updatedData.gender = gender;
+        updatedData.mobile = mobile;
+        updatedData.email = email;
+        updatedData.age = age;
+        updatedData.weightInKg = weightInKg;
+        updatedData.weightInLbs = weightInLbs;
+        updatedData.targetWeight = targetWeight;
+        updatedData.heightInCm = heightInCm
+        updatedData.goal = goal
+
+        const updatedUser = await userModel.findByIdAndUpdate(
+            userId,
+            {$set : updatedData},
+            {new : true}
+        )
+        return res.status(200).json({
+            status :true,
+            message : 'User details updated successfully',
+            data : updatedUser
+        })
+           
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            message: 'Internal server error',
+            error: error.message,
+        }); 
+    }
+}
+
 const profileScreen = async (req, res) => {
     const { userId } = req.body; // Only pass userId from the request body
 
 
-    
+
     try {
         // Find the user in the database
         const user = await userModel.findOne({ _id: userId });
@@ -82,7 +144,7 @@ const profileScreen = async (req, res) => {
         }
 
         // Extract isMetric and determine the weight
-        const { isMetric, weightInKg, weightInLbs, TDEE, targetWeight, BMI } = user;
+        const { name , isMetric, weightInKg, weightInLbs, TDEE, targetWeight, BMI } = user;
         const weight = isMetric ? weightInKg : weightInLbs;
 
         // Prepare user details
@@ -92,12 +154,15 @@ const profileScreen = async (req, res) => {
             isMetric,
             targetWeight,
             BMI,
+            name,
+            profilephoto : null
         };
 
         // Send response
         return res.status(200).json({
             status: true,
             data: userDetails,
+           
         });
     } catch (error) {
         // Handle any server error
@@ -110,4 +175,4 @@ const profileScreen = async (req, res) => {
 };
 
 
-module.exports = {profileScreen,basicInfo}
+module.exports = { profileScreen, basicInfo ,updateBasicInfo}
