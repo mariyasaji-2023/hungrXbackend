@@ -13,7 +13,7 @@ router.post('/login/email',userController.loginWithEmail)
 router.post('/sendOTP',userController.sendOTP)
 router.post('/verifyOTP',userController.verifyOTP)
 router.post('/signup/google',userController.loginWithGoogle)
-router.put('/addName', upload.single('profilePhoto'), userController.addName);
+router.put('/createProfile', upload.single('profilePhoto'), userController.createProfile);
 router.post('/calculate-metrics',userController.calculateUserMetrics);
 router.post('/home', userController.home);
 router.post('/trackuser',userController.trackUser)

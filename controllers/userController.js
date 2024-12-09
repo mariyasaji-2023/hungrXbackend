@@ -297,7 +297,7 @@ const loginWithGoogle = async (req, res) => {
     }
 };
 
-const addName = async (req, res) => {
+const createProfile = async (req, res) => {
     const {
         userId,
         name,
@@ -822,5 +822,5 @@ const checkUser = async (req, res) => {
     }
 }
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, addName, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory, checkUser };
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, createProfile, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory, checkUser };
 
