@@ -69,6 +69,8 @@ const basicInfo = async (req, res) => {
 const profileScreen = async (req, res) => {
     const { userId } = req.body; // Only pass userId from the request body
 
+
+    
     try {
         // Find the user in the database
         const user = await userModel.findOne({ _id: userId });
