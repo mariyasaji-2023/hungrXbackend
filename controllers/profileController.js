@@ -246,5 +246,37 @@ const profileScreen = async (req, res) => {
     }
 };
 
+const goalGetting = async(req,res)=>{
+    const {userId} = req.body
+    try {
+        const user = await userModel.findOne({_id:userId})
+        if(!user){
+            res.status(404).json({
+                status:false,
+                message:'User not found'
+            })
+        }
+        const {goal,targetWeight,weightGainRate,activityLevel} = user
 
-module.exports = { profileScreen, basicInfo ,updateBasicInfo}
+        const result ={
+            goal,
+            targetWeight,
+            weightGainRate,
+            activityLevel
+        }
+        return res.status(200).json({
+            status:true,
+            data:result
+        })
+
+    } catch (error) {
+        return res.status(500).json({
+            status:false,
+            message : 'Internal server error',
+            error: error.message
+        })
+    }
+}
+
+
+module.exports = { profileScreen, basicInfo ,updateBasicInfo , goalGetting}

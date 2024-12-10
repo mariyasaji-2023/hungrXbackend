@@ -36,6 +36,7 @@ router.post('/deleteDishFromMeal',restaurantController.deleteDishFromMeal)
 router.post('/basicInfo',profileController.basicInfo)
 router.post('/profileScreen',profileController.profileScreen)
 router.post('/updateBasicInfo',profileController.updateBasicInfo)
+router.post('/goalSetting',profileController.goalGetting)
 
 
 module.exports = router;
