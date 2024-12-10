@@ -203,8 +203,6 @@ const updateBasicInfo = async (req, res) => {
 const profileScreen = async (req, res) => {
     const { userId } = req.body; // Only pass userId from the request body
 
-
-
     try {
         // Find the user in the database
         const user = await userModel.findOne({ _id: userId });
@@ -279,5 +277,60 @@ const goalGetting = async(req,res)=>{
     }
 }
 
+const updateGoalSetting = async (req, res) => {
+    const { userId, targetWeight, weightGainRate, activityLevel, mealsPerDay } = req.body;
 
-module.exports = { profileScreen, basicInfo ,updateBasicInfo , goalGetting}
+    try {
+        // Check if the user exists
+        const user = await userModel.findOne({ _id: userId });
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User not found',
+            });
+        }
+
+        // Create an object to hold the update details
+        let updateDetails = {};
+
+        // Dynamically add fields to the update object if provided in the request body
+        if (targetWeight) updateDetails.targetWeight = targetWeight;
+        if (weightGainRate) updateDetails.weightGainRate = weightGainRate;
+        if (activityLevel) updateDetails.activityLevel = activityLevel;
+        if (mealsPerDay) updateDetails.mealsPerDay = mealsPerDay;
+
+        // Update the user document with the provided details
+        await userModel.findByIdAndUpdate(
+            userId,
+            { $set: updateDetails },
+            { new: true } // Ensure the update is applied
+        );
+
+        // Prepare the response with only the required fields
+        const response = {
+            userId,
+            targetWeight: updateDetails.targetWeight || user.targetWeight,
+            weightGainRate: updateDetails.weightGainRate || user.weightGainRate,
+            activityLevel: updateDetails.activityLevel || user.activityLevel,
+            mealsPerDay: updateDetails.mealsPerDay || user.mealsPerDay,
+        };
+
+        // Send a success response
+        return res.status(200).json({
+            status: true,
+            message: 'Goal settings updated successfully',
+            data: response,
+        });
+
+    } catch (error) {
+        // Handle any errors
+        console.error('Error updating goal settings:', error);
+        return res.status(500).json({
+            status: false,
+            message: 'An error occurred while updating goal settings',
+        });
+    }
+};
+
+
+module.exports = { profileScreen, basicInfo ,updateBasicInfo , goalGetting ,updateGoalSetting}

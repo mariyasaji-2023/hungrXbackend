@@ -37,6 +37,7 @@ router.post('/basicInfo',profileController.basicInfo)
 router.post('/profileScreen',profileController.profileScreen)
 router.post('/updateBasicInfo',profileController.updateBasicInfo)
 router.post('/goalSetting',profileController.goalGetting)
+router.post('/updateGoalSetting',profileController.updateGoalSetting)
 
 
 module.exports = router;
