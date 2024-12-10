@@ -256,13 +256,14 @@ const goalGetting = async(req,res)=>{
                 message:'User not found'
             })
         }
-        const {goal,targetWeight,weightGainRate,activityLevel} = user
+        const {goal,targetWeight,weightGainRate,activityLevel,mealsPerDay} = user
 
         const result ={
             goal,
             targetWeight,
             weightGainRate,
-            activityLevel
+            activityLevel,
+            mealsPerDay
         }
         return res.status(200).json({
             status:true,
