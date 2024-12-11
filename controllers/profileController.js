@@ -254,14 +254,17 @@ const goalGetting = async(req,res)=>{
                 message:'User not found'
             })
         }
-        const {goal,targetWeight,weightGainRate,activityLevel,mealsPerDay} = user
+        const {goal,targetWeight,weightGainRate,activityLevel,mealsPerDay,isMetric,weightInKg,weightInLbs} = user
+        const currentWeight = user.isMetric? weightInKg :weightInLbs
 
         const result ={
             goal,
             targetWeight,
             weightGainRate,
             activityLevel,
-            mealsPerDay
+            mealsPerDay,
+            isMetric,
+            currentWeight
         }
         return res.status(200).json({
             status:true,
@@ -278,7 +281,7 @@ const goalGetting = async(req,res)=>{
 }
 
 const updateGoalSetting = async (req, res) => {
-    const { userId, targetWeight, weightGainRate, activityLevel, mealsPerDay } = req.body;
+    const { userId, targetWeight, weightGainRate, activityLevel, mealsPerDay  } = req.body;
 
     try {
         // Check if the user exists
