@@ -1,4 +1,5 @@
 const userModel = require('../models/userModel')
+const deletedUserModel = require('../models/deletedUsersModel')
 const mongoose = require('mongoose')
 const { getDBInstance } = require('../config/db');
 
@@ -337,5 +338,79 @@ const updateGoalSetting = async (req, res) => {
     }
 };
 
+const deleteUser = async (req, res) => {
+    const { userId } = req.body; // Assuming userId is sent in the request body
 
-module.exports = { profileScreen, basicInfo, updateBasicInfo, goalGetting, updateGoalSetting }
+    try {
+        // Validate userId
+        if (!userId) {
+            return res.status(400).json({
+                status: false,
+                message: 'User ID is required',
+            });
+        }
+
+        // Check if the user exists
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User not found',
+            });
+        }
+
+        // Create a record in the 'deleted_users' collection
+        const deletedUser = new deletedUserModel({
+            userId: user._id,
+            mobile: user.mobile,
+            email: user.email,
+            password: user.password,
+            otp: user.otp,
+            isVerified: user.isVerified,
+            name: user.name,
+            gender: user.gender,
+            heightInFeet: user.heightInFeet,
+            heightInInches: user.heightInInches,
+            heightInCm: user.heightInCm,
+            isMetric: user.isMetric,
+            weightInKg: user.weightInKg,
+            weightInLbs: user.weightInLbs,
+            googleId: user.googleId,
+            mealsPerDay: user.mealsPerDay,
+            goal: user.goal,
+            targetWeight: user.targetWeight,
+            weightGainRate: user.weightGainRate,
+            activityLevel: user.activityLevel,
+            age: user.age,
+            BMI: user.BMI,
+            BMR: user.BMR,
+            TDEE: user.TDEE,
+            dailyCalorieGoal: user.dailyCalorieGoal,
+            caloriesToReachGoal: user.caloriesToReachGoal,
+            daysToReachGoal: user.daysToReachGoal,
+            profilePhoto: user.profilePhoto,
+        });
+
+        await deletedUser.save(); // Save to deleted_users collection
+
+        // Delete the user from the 'users' collection
+        await userModel.findByIdAndDelete(userId);
+
+        // Send success response
+        return res.status(200).json({
+            status: true,
+            message: 'User account deleted and stored in deleted_users collection',
+        });
+    } catch (error) {
+        // Handle any errors
+        console.error('Error deleting user:', error.message);
+        return res.status(500).json({
+            status: false,
+            message: 'An error occurred while deleting the user account',
+        });
+    }
+};
+
+
+
+module.exports = { profileScreen, basicInfo, updateBasicInfo, goalGetting, updateGoalSetting ,deleteUser }
