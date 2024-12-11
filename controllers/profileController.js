@@ -25,11 +25,11 @@ const basicInfo = async (req, res) => {
 
         // Format both metric and imperial heights
         const heightInCm = user.heightInCm ? `${user.heightInCm}` : null;
-        const heightInFeet= user.heightInFeet 
-            ? `${user.heightInFeet}` 
+        const heightInFeet = user.heightInFeet
+            ? `${user.heightInFeet}`
             : null;
-         const heightInInches = user.heightInInches 
-         ? `${user.heightInInches}` 
+        const heightInInches = user.heightInInches
+            ? `${user.heightInInches}`
             : null;
         // Create response object with formatted values and units
         const userProfile = {
@@ -98,7 +98,7 @@ const updateBasicInfo = async (req, res) => {
     try {
         // Find user first
         const user = await userModel.findOne({ _id: userId });
-        
+
         if (!user) {
             return res.status(404).json({
                 status: false,
@@ -116,7 +116,7 @@ const updateBasicInfo = async (req, res) => {
 
         // Create update object with only provided fields
         let updatedData = {};
-        
+
         // Only add fields that are provided in the request
         if (name) updatedData.name = name;
         if (gender) updatedData.gender = gender;
@@ -214,7 +214,7 @@ const profileScreen = async (req, res) => {
         }
 
         // Extract isMetric and determine the weight
-        const { name , isMetric, weightInKg, weightInLbs, TDEE, targetWeight, BMI } = user;
+        const { name, isMetric, weightInKg, weightInLbs, TDEE, targetWeight, BMI } = user;
         const weight = isMetric ? weightInKg : weightInLbs;
 
         // Prepare user details
@@ -225,14 +225,14 @@ const profileScreen = async (req, res) => {
             targetWeight,
             BMI,
             name,
-            profilephoto : null
+            profilephoto: null
         };
 
         // Send response
         return res.status(200).json({
             status: true,
             data: userDetails,
-           
+
         });
     } catch (error) {
         // Handle any server error
@@ -244,20 +244,20 @@ const profileScreen = async (req, res) => {
     }
 };
 
-const goalGetting = async(req,res)=>{
-    const {userId} = req.body
+const goalGetting = async (req, res) => {
+    const { userId } = req.body
     try {
-        const user = await userModel.findOne({_id:userId})
-        if(!user){
+        const user = await userModel.findOne({ _id: userId })
+        if (!user) {
             res.status(404).json({
-                status:false,
-                message:'User not found'
+                status: false,
+                message: 'User not found'
             })
         }
-        const {goal,targetWeight,weightGainRate,activityLevel,mealsPerDay,isMetric,weightInKg,weightInLbs} = user
-        const currentWeight = user.isMetric? weightInKg :weightInLbs
+        const { goal, targetWeight, weightGainRate, activityLevel, mealsPerDay, isMetric, weightInKg, weightInLbs } = user
+        const currentWeight = user.isMetric ? weightInKg : weightInLbs
 
-        const result ={
+        const result = {
             goal,
             targetWeight,
             weightGainRate,
@@ -267,21 +267,21 @@ const goalGetting = async(req,res)=>{
             currentWeight
         }
         return res.status(200).json({
-            status:true,
-            data:result
+            status: true,
+            data: result
         })
 
     } catch (error) {
         return res.status(500).json({
-            status:false,
-            message : 'Internal server error',
+            status: false,
+            message: 'Internal server error',
             error: error.message
         })
     }
 }
 
 const updateGoalSetting = async (req, res) => {
-    const { userId, targetWeight, weightGainRate, activityLevel, mealsPerDay  } = req.body;
+    const { userId, targetWeight, weightGainRate, activityLevel, mealsPerDay, goal } = req.body;
 
     try {
         // Check if the user exists
@@ -301,6 +301,7 @@ const updateGoalSetting = async (req, res) => {
         if (weightGainRate) updateDetails.weightGainRate = weightGainRate;
         if (activityLevel) updateDetails.activityLevel = activityLevel;
         if (mealsPerDay) updateDetails.mealsPerDay = mealsPerDay;
+        if (goal) updateDetails.goal = goal
 
         // Update the user document with the provided details
         await userModel.findByIdAndUpdate(
@@ -316,6 +317,7 @@ const updateGoalSetting = async (req, res) => {
             weightGainRate: updateDetails.weightGainRate || user.weightGainRate,
             activityLevel: updateDetails.activityLevel || user.activityLevel,
             mealsPerDay: updateDetails.mealsPerDay || user.mealsPerDay,
+            goal:updateDetails.goal || user.goal
         };
 
         // Send a success response
@@ -336,4 +338,4 @@ const updateGoalSetting = async (req, res) => {
 };
 
 
-module.exports = { profileScreen, basicInfo ,updateBasicInfo , goalGetting ,updateGoalSetting}
+module.exports = { profileScreen, basicInfo, updateBasicInfo, goalGetting, updateGoalSetting }
