@@ -39,6 +39,7 @@ router.post('/updateBasicInfo',profileController.updateBasicInfo)
 router.post('/goalSetting',profileController.goalGetting)
 router.post('/updateGoalSetting',profileController.updateGoalSetting)
 router.delete('/deleteUser',profileController.deleteUser)
+router.post('/bug',feedbackController.reportBug)
 
 
 module.exports = router;
