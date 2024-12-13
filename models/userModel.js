@@ -119,6 +119,11 @@ const userSchema = new mongoose.Schema({
     },
     mobile:{
         type:String
+    },
+    dailyConsumptionStats: {
+        type: Map,
+        of: Number,
+        default: new Map()
     }
 });
 

@@ -532,8 +532,7 @@ const home = async (req, res) => {
             weightInKg,
             weightInLbs,
             profilePhoto,
-            consumedFood,
-            dailyConsumption
+            dailyConsumptionStats
         } = user;
 
         if (!caloriesToReachGoal || !dailyCalorieGoal || !daysToReachGoal) {
@@ -545,43 +544,23 @@ const home = async (req, res) => {
             });
         }
 
+        // Get today's date in the correct format
         const today = new Date().toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric'
         }).replace(/\//g, '/');
 
-        // Get today's consumption from dailyConsumption field
-        const todayConsumption = dailyConsumption?.[today] || 10;
+        // Get today's consumed calories from dailyConsumptionStats Map
+        const totalCaloriesConsumed = Number(dailyConsumptionStats.get(today) || 0);
+        console.log('Today:', today);
+        console.log('Daily Consumption Stats:', dailyConsumptionStats);
+        console.log('Total Calories Consumed:', totalCaloriesConsumed);
 
-        // If dailyConsumption doesn't exist for today, calculate it
-        let totalCaloriesConsumed = todayConsumption;
-        console.log(todayConsumption, totalCaloriesConsumed, "///////////////////////////");
-        if (totalCaloriesConsumed === 0 && consumedFood?.dates?.[today]) {
-            const todaysFoods = consumedFood.dates[today];
-            Object.values(todaysFoods).forEach(meal => {
-                if (meal.foods && Array.isArray(meal.foods)) {
-                    meal.foods.forEach(food => {
-                        totalCaloriesConsumed += Number(food.totalCalories) || 0;
-                    });
-                }
-            });
-
-            // If calculated value differs from stored value, update it
-            if (totalCaloriesConsumed > 0) {
-                await User.updateOne(
-                    { _id: userId },
-                    { $set: { [`dailyConsumption.${today}`]: totalCaloriesConsumed } }
-                );
-            }
-        }
-
-        // Format numbers to avoid decimal issues
-        totalCaloriesConsumed = Number(totalCaloriesConsumed.toFixed(2));
-        const remainingCalories = Number((parseInt(dailyCalorieGoal) - totalCaloriesConsumed).toFixed(2));
+        // Calculate remaining calories
+        const parsedDailyGoal = Number(dailyCalorieGoal);
+        const remainingCalories = Number((parsedDailyGoal - totalCaloriesConsumed).toFixed(2));
         const updatedCaloriesToReachGoal = Number((caloriesToReachGoal - totalCaloriesConsumed).toFixed(2));
-        console.log(totalCaloriesConsumed, remainingCalories, updatedCaloriesToReachGoal, "?????????????????????????????????");
-
 
         const weight = isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`;
 
@@ -603,7 +582,7 @@ const home = async (req, res) => {
                 goalHeading,
                 weight,
                 caloriesToReachGoal: updatedCaloriesToReachGoal,
-                dailyCalorieGoal: parseInt(dailyCalorieGoal),
+                dailyCalorieGoal: parsedDailyGoal,
                 daysToReachGoal,
                 profilePhoto,
                 remaining: remainingCalories,
@@ -621,7 +600,6 @@ const home = async (req, res) => {
         });
     }
 };
-
 
 const trackUser = async (req, res) => {
     const { userId } = req.body;

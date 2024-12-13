@@ -178,42 +178,150 @@ const searchGroceries = async (req, res) => {
     }
 
     try {
-        const grocery = mongoose.connection.db.collection("sample");
+        const grocery = mongoose.connection.db.collection("grocerys");
+
         const searchTerm = name.trim().toLowerCase();
         const searchWords = searchTerm.split(/\s+/);
         
-        // Simplified fuzzy search patterns
+        // Enhanced fuzzy search patterns
         const fuzzySearchPatterns = searchWords.map(word => {
             const variations = [
-                word,                                    // exact match
-                word.replace(/s$/, ''),                  // remove trailing 's'
-                word.replace(/([aeiou])/g, '[aeiou]'),  // any vowel
-                `.*${word}.*`,                          // contains word
-                // Add partial matches for longer words only
-                ...(word.length > 4 ? [
-                    word.substring(0, Math.ceil(word.length * 0.75)),
-                    word.substring(word.length * 0.25)
-                ] : [])
+                word,                                        // exact match
+                word.replace(/s$/, ''),                      // remove trailing 's'
+                word.replace(/ed$/, ''),                     // remove 'ed'
+                word + 'ed',                                 // add 'ed'
+                word + 's',                                  // add 's'
+                word.replace(/([aeiou])/g, '[aeiou]'),      // any vowel
+                word.replace(/([a-z])/g, '$1?'),            // optional characters
+                word.replace(/([a-z])/g, '$1?s'),           // optional characters with plural
+                word.replace(/s+/g, 's?'),                  // optional 's'
+                `.*${word}.*`,                              // contains word
+                word.split('').join('.*'),                  // characters in sequence with anything between
+                // Handle common double letter mistakes
+                word.replace(/([a-z])\1/g, '$1'),           // remove doubles
+                word.replace(/([a-z])/g, '$1$1?'),          // optional doubles
             ];
             
+            // Add partial matches for longer words
+            if (word.length > 4) {
+                variations.push(
+                    word.substring(0, Math.ceil(word.length * 0.75)), // First 75% of word
+                    word.substring(word.length * 0.25)                // Last 75% of word
+                );
+            }
+
             return variations.map(v => new RegExp(v, 'i'));
         }).flat();
 
-        const pipeline = [
+        const results = await grocery.aggregate([
             {
-                $match: {
-                    name: {
-                        $in: fuzzySearchPatterns
+                $addFields: {
+                    combinedText: {
+                        $concat: [
+                            { $ifNull: ["$brandName", ""] },
+                            " ",
+                            { $ifNull: ["$name", ""] }
+                        ]
                     }
                 }
             },
             {
+                $match: {
+                    $or: [
+                        { name: new RegExp(`^${searchTerm}$`, 'i') },
+                        { brandName: new RegExp(`^${searchTerm}$`, 'i') },
+                        ...fuzzySearchPatterns.map(pattern => ({
+                            $or: [
+                                { name: pattern },
+                                { brandName: pattern },
+                                { combinedText: pattern }
+                            ]
+                        })),
+                        {
+                            $and: searchWords.map(word => ({
+                                combinedText: new RegExp(word, 'i')
+                            }))
+                        },
+                        { 
+                            name: new RegExp(searchTerm.substring(0, Math.max(3, searchTerm.length)), 'i')
+                        }
+                    ]
+                }
+            },
+            {
                 $addFields: {
-                    matchScore: {
+                    matchCategory: {
+                        $switch: {
+                            branches: [
+                                {
+                                    case: { 
+                                        $regexMatch: { 
+                                            input: "$name", 
+                                            regex: new RegExp(`^${searchTerm}$`, 'i') 
+                                        }
+                                    },
+                                    then: 10
+                                },
+                                {
+                                    case: { 
+                                        $regexMatch: { 
+                                            input: "$brandName", 
+                                            regex: new RegExp(`^${searchTerm}$`, 'i') 
+                                        }
+                                    },
+                                    then: 9
+                                },
+                                {
+                                    case: {
+                                        $or: fuzzySearchPatterns.map(pattern => ({
+                                            $regexMatch: { input: "$name", regex: pattern }
+                                        }))
+                                    },
+                                    then: 8
+                                },
+                                {
+                                    case: {
+                                        $regexMatch: {
+                                            input: "$combinedText",
+                                            regex: new RegExp(searchWords.join('.*?'), 'i')
+                                        }
+                                    },
+                                    then: 7
+                                },
+                                {
+                                    case: {
+                                        $and: searchWords.map(word => ({
+                                            $regexMatch: {
+                                                input: "$combinedText",
+                                                regex: new RegExp(word, 'i')
+                                            }
+                                        }))
+                                    },
+                                    then: 6
+                                },
+                                {
+                                    case: {
+                                        $regexMatch: {
+                                            input: "$name",
+                                            regex: new RegExp(searchTerm.substring(0, Math.max(3, searchTerm.length)), 'i')
+                                        }
+                                    },
+                                    then: 5
+                                }
+                            ],
+                            default: 1
+                        }
+                    },
+                    relevanceScore: {
                         $add: [
                             {
                                 $cond: [
-                                    { $regexMatch: { input: "$name", regex: new RegExp(`^${searchTerm}$`, 'i') } },
+                                    {
+                                        $or: [
+                                            { $regexMatch: { input: "$name", regex: new RegExp(`^${searchTerm}$`, 'i') } },
+                                            { $regexMatch: { input: "$brandName", regex: new RegExp(`^${searchTerm}$`, 'i') } }
+                                        ]
+                                    },
                                     1000,
                                     0
                                 ]
@@ -227,9 +335,28 @@ const searchGroceries = async (req, res) => {
                                                 as: "word",
                                                 cond: { 
                                                     $regexMatch: { 
-                                                        input: "$name",
+                                                        input: "$combinedText",
                                                         regex: new RegExp("$$word", 'i')
                                                     }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    100
+                                ]
+                            },
+                            {
+                                $multiply: [
+                                    {
+                                        $size: {
+                                            $filter: {
+                                                input: fuzzySearchPatterns,
+                                                as: "pattern",
+                                                cond: {
+                                                    $or: [
+                                                        { $regexMatch: { input: "$name", regex: "$$pattern" } },
+                                                        { $regexMatch: { input: "$brandName", regex: "$$pattern" } }
+                                                    ]
                                                 }
                                             }
                                         }
@@ -242,36 +369,27 @@ const searchGroceries = async (req, res) => {
                 }
             },
             {
+                $group: {
+                    _id: {
+                        name: "$name",
+                        brandName: "$brandName",
+                        calories: "$nutritionFacts.calories"
+                    },
+                    doc: { $first: "$$ROOT" }
+                }
+            },
+            {
+                $replaceRoot: { newRoot: "$doc" }
+            },
+            {
                 $sort: {
-                    matchScore: -1,
+                    matchCategory: -1,
+                    relevanceScore: -1,
                     name: 1
                 }
             },
-            {
-                $limit: 15
-            },
-            {
-                $project: {
-                    _id: 1,
-                    name: 1,
-                    foodGroup: 1,
-                    nutritionFacts: {
-                        calories: 1,
-                        totalFat: 1,
-                        protein: 1,
-                        totalCarbohydrates: 1,
-                        sugars: 1
-                    },
-                    createdAt: 1,
-                    updatedAt: 1,
-                    matchScore: 1
-                }
-            }
-        ];
-
-        const results = await grocery.aggregate(pipeline, {
-            allowDiskUse: true
-        }).toArray();
+            { $limit: 15 }
+        ]).toArray();
 
         if (!results || results.length === 0) {
             return res.status(404).json({
@@ -280,16 +398,26 @@ const searchGroceries = async (req, res) => {
             });
         }
 
-        // Transform dates to ISO string format
         const transformedResults = results.map(item => ({
-            ...item,
-            createdAt: item.createdAt instanceof Date ? item.createdAt.toISOString() : item.createdAt,
-            updatedAt: item.updatedAt instanceof Date ? item.updatedAt.toISOString() : item.updatedAt
+            _id: item._id,
+            id: item.id,
+            name: item.name,
+            brandName: item.brandName || 'Unknown Brand',
+            calorieBurnNote: item.calorieBurnNote,
+            category: item.category,
+            image: item.image,
+            nutritionFacts: item.nutritionFacts,
+            servingInfo: item.servingInfo,
+            source: item.source,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+            matchCategory: item.matchCategory,
+            nameScore: item.nameScore
         }));
 
         return res.status(200).json({
             status: true,
-            count: transformedResults.length,
+            count: results.length,
             data: transformedResults
         });
 
@@ -310,20 +438,15 @@ const calculateDayTotalCalories = (consumedFoodForDay) => {
     // Loop through all meal types
     ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(mealType => {
         if (consumedFoodForDay[mealType]?.foods) {
-            // Sum up calories from foods in this meal
+            // Sum up calories from all foods in this meal
             totalCalories += consumedFoodForDay[mealType].foods.reduce(
-                (sum, food) => sum + (food.nutritionFacts?.calories || 0), 
+                (sum, food) => sum + (food.totalCalories || 0), 
                 0
             );
         }
     });
     
     return totalCalories;
-};
-
-module.exports = {
-    searchGroceries,
-    calculateDayTotalCalories
 };
 
 const addConsumedFood = async (req, res) => {
@@ -366,6 +489,7 @@ const addConsumedFood = async (req, res) => {
         }
 
         const dateKey = `consumedFood.dates.${date}`;
+        const statsDateKey = `dailyConsumptionStats.${date}`;
         const mealKey = `${dateKey}.${mealType.toLowerCase()}`;
 
         const foodEntry = {
@@ -387,9 +511,9 @@ const addConsumedFood = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Initialize the meal structure if it doesn't exist
-        const userMealData = currentUser.consumedFood?.dates?.[date]?.[mealType.toLowerCase()];
-        if (!userMealData) {
+        // Initialize meal structure if it doesn't exist
+        const currentDayData = currentUser.consumedFood?.dates?.[date];
+        if (!currentDayData?.[mealType.toLowerCase()]) {
             await users.updateOne(
                 { _id: new mongoose.Types.ObjectId(userId) },
                 {
@@ -403,19 +527,15 @@ const addConsumedFood = async (req, res) => {
             );
         }
 
-        // Get current daily consumption or initialize it
-        const currentDailyConsumption = currentUser.dailyConsumption?.[date] || {
-            totalCalories: 0,
-            remainingCalories: parseInt(currentUser.dailyCalorieGoal)
-        };
+        // Get current calories or initialize
+        const currentCalories = currentUser.dailyConsumptionStats?.[date] || 0;
+        const newTotalCalories = currentCalories + Number(totalCalories);
 
-        // Calculate new totals
-        const newTotalCalories = currentDailyConsumption.totalCalories + Number(totalCalories);
-        const currentCalories = parseInt(currentUser.caloriesToReachGoal) || 0;
-        const newCaloriesToReachGoal = currentCalories - Number(totalCalories);
-        const remainingCalories = parseInt(currentUser.dailyCalorieGoal) - newTotalCalories;
+        // Calculate calories to reach goal
+        const dailyCalorieGoal = currentUser.dailyCalorieGoal || 0;
+        const newCaloriesToReachGoal = dailyCalorieGoal - newTotalCalories;
 
-        // Add food entry and update daily consumption tracking
+        // Update everything in one operation
         const result = await users.updateOne(
             { _id: new mongoose.Types.ObjectId(userId) },
             {
@@ -423,12 +543,8 @@ const addConsumedFood = async (req, res) => {
                     [`${dateKey}.${mealType.toLowerCase()}.foods`]: foodEntry
                 },
                 $set: {
-                    caloriesToReachGoal: newCaloriesToReachGoal,
-                    [`dailyConsumption.${date}`]: {
-                        totalCalories: newTotalCalories,
-                        lastUpdated: today,
-                        remainingCalories: remainingCalories
-                    }
+                    [statsDateKey]: newTotalCalories,
+                    caloriesToReachGoal: newCaloriesToReachGoal
                 }
             }
         );
@@ -439,6 +555,7 @@ const addConsumedFood = async (req, res) => {
 
         const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         const updatedMeal = updatedUser.consumedFood.dates[date][mealType.toLowerCase()];
+        const dailyCalories = updatedUser.dailyConsumptionStats[date];
 
         res.status(200).json({
             success: true,
@@ -452,15 +569,11 @@ const addConsumedFood = async (req, res) => {
                 mealId: validMealIds[mealType.toLowerCase()]
             },
             updatedMeal: updatedMeal,
+            dailyCalories: dailyCalories,
             updatedCalories: {
-                remaining: remainingCalories,
-                consumed: newTotalCalories,
+                remaining: dailyCalorieGoal - dailyCalories,
+                consumed: dailyCalories,
                 caloriesToReachGoal: newCaloriesToReachGoal
-            },
-            dailyConsumption: {
-                totalCalories: newTotalCalories,
-                remainingCalories: remainingCalories,
-                date: date
             }
         });
     } catch (error) {
@@ -468,7 +581,6 @@ const addConsumedFood = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
-
 
 const addUnknownFood = async (req, res) => {
     try {
@@ -505,7 +617,7 @@ const addUnknownFood = async (req, res) => {
         }
 
         const dateKey = `consumedFood.dates.${date}`;
-        const mealKey = `${dateKey}.${mealTypeName}`;
+        const statsDateKey = `dailyConsumptionStats.${date}`;
 
         // Create a new food entry in groceries collection
         const newGroceryItem = {
@@ -548,9 +660,9 @@ const addUnknownFood = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Initialize the meal structure if it doesn't exist
-        const userMealData = currentUser.consumedFood?.dates?.[date]?.[mealTypeName];
-        if (!userMealData) {
+        // Initialize meal structure if it doesn't exist
+        const currentDayData = currentUser.consumedFood?.dates?.[date];
+        if (!currentDayData?.[mealTypeName]) {
             await users.updateOne(
                 { _id: new mongoose.Types.ObjectId(userId) },
                 {
@@ -564,32 +676,31 @@ const addUnknownFood = async (req, res) => {
             );
         }
 
-        // Calculate existing calories consumed for the day
-        const currentDayCalories = calculateDayTotalCalories(currentUser.consumedFood?.dates?.[date]);
-        const newTotalCalories = currentDayCalories + Number(calories);
-        const currentCalories = parseInt(currentUser.caloriesToReachGoal) || 0;
-        const newCaloriesToReachGoal = currentCalories - Number(calories);
+        // Get current calories or initialize
+        const currentCalories = currentUser.dailyConsumptionStats?.[date] || 0;
+        const newTotalCalories = currentCalories + Number(calories);
 
-        // Only update consumed food
-        const result = await users.updateOne(
+        // Calculate calories to reach goal
+        const dailyCalorieGoal = currentUser.dailyCalorieGoal || 0;
+        const newCaloriesToReachGoal = dailyCalorieGoal - newTotalCalories;
+
+        // Update everything in one operation
+        await users.updateOne(
             { _id: new mongoose.Types.ObjectId(userId) },
             {
                 $push: {
                     [`${dateKey}.${mealTypeName}.foods`]: foodEntry
                 },
                 $set: {
+                    [statsDateKey]: newTotalCalories,
                     caloriesToReachGoal: newCaloriesToReachGoal
                 }
             }
         );
 
-        if (result.matchedCount === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
         const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         const updatedMeal = updatedUser.consumedFood.dates[date][mealTypeName];
-        const remainingCalories = parseInt(updatedUser.dailyCalorieGoal) - newTotalCalories;
+        const dailyCalories = updatedUser.dailyConsumptionStats[date];
 
         res.status(200).json({
             success: true,
@@ -603,9 +714,10 @@ const addUnknownFood = async (req, res) => {
                 mealId: mealType
             },
             updatedMeal: updatedMeal,
+            dailyCalories: dailyCalories,
             updatedCalories: {
-                remaining: remainingCalories,
-                consumed: newTotalCalories,
+                remaining: dailyCalorieGoal - dailyCalories,
+                consumed: dailyCalories,
                 caloriesToReachGoal: newCaloriesToReachGoal
             }
         });
@@ -615,6 +727,7 @@ const addUnknownFood = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
 
 const addToHistory = async (req, res) => {
     const { userId, productId } = req.body;
