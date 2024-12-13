@@ -17,7 +17,7 @@ const generateToken = (userId) => {
 };
 
 const verifyToken = (req, res, next) => {
-    
+
     const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
@@ -25,7 +25,7 @@ const verifyToken = (req, res, next) => {
     }
 
     try {
-       
+
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         req.user = decoded
@@ -48,7 +48,7 @@ const signupWithEmail = async (req, res) => {
     }
 
     try {
-    
+
         let user = await User.findOne({ email });
 
         if (user && user.isVerified) {
@@ -59,7 +59,7 @@ const signupWithEmail = async (req, res) => {
             });
         }
 
-       
+
         const hashedPassword = await hashPassword(password);
 
         if (!user) {
@@ -69,7 +69,7 @@ const signupWithEmail = async (req, res) => {
                 isVerified: false,
             });
         } else {
-          
+
             user.password = hashedPassword;
             user.isVerified = false;
         }
@@ -88,7 +88,7 @@ const signupWithEmail = async (req, res) => {
     } catch (err) {
         res.status(500).json({ message: err.message });
         console.log(err);
-        
+
     }
 };
 
@@ -96,7 +96,7 @@ const loginWithEmail = async (req, res) => {
     const { email, password } = req.body;
 
     try {
-        
+
         const user = await User.findOne({ email });
 
         if (!user) {
@@ -219,8 +219,8 @@ const verifyOTP = async (req, res) => {
                 });
                 await user.save();
             } else {
-            
-                user.isVerified = true; 
+
+                user.isVerified = true;
                 await user.save();
             }
 
@@ -228,7 +228,7 @@ const verifyOTP = async (req, res) => {
                 status: true,
                 data: {
                     message: 'OTP verified successfully. User has been created/updated.',
-                    userId: user._id, 
+                    userId: user._id,
                     user,
                 }
             });
@@ -552,11 +552,11 @@ const home = async (req, res) => {
         }).replace(/\//g, '/');
 
         // Get today's consumption from dailyConsumption field
-        const todayConsumption = dailyConsumption?.[today] || 0;
- 
+        const todayConsumption = dailyConsumption?.[today] || 10;
+
         // If dailyConsumption doesn't exist for today, calculate it
         let totalCaloriesConsumed = todayConsumption;
- console.log(todayConsumption,totalCaloriesConsumed , "///////////////////////////");
+        console.log(todayConsumption, totalCaloriesConsumed, "///////////////////////////");
         if (totalCaloriesConsumed === 0 && consumedFood?.dates?.[today]) {
             const todaysFoods = consumedFood.dates[today];
             Object.values(todaysFoods).forEach(meal => {
@@ -580,8 +580,8 @@ const home = async (req, res) => {
         totalCaloriesConsumed = Number(totalCaloriesConsumed.toFixed(2));
         const remainingCalories = Number((parseInt(dailyCalorieGoal) - totalCaloriesConsumed).toFixed(2));
         const updatedCaloriesToReachGoal = Number((caloriesToReachGoal - totalCaloriesConsumed).toFixed(2));
-        console.log(totalCaloriesConsumed,remainingCalories,updatedCaloriesToReachGoal,"?????????????????????????????????");
-        
+        console.log(totalCaloriesConsumed, remainingCalories, updatedCaloriesToReachGoal, "?????????????????????????????????");
+
 
         const weight = isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`;
 
@@ -621,6 +621,7 @@ const home = async (req, res) => {
         });
     }
 };
+
 
 const trackUser = async (req, res) => {
     const { userId } = req.body;
