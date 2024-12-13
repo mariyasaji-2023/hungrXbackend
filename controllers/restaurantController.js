@@ -166,6 +166,7 @@ const getMeal = async (req, res) => {
     }
 }
 
+
 const searchGroceries = async (req, res) => {
     const { name } = req.body;
 
@@ -177,11 +178,11 @@ const searchGroceries = async (req, res) => {
     }
 
     try {
-        const grocery = mongoose.connection.db.collection("grocerys");
+        const grocery = mongoose.connection.db.collection("sample");
         const searchTerm = name.trim().toLowerCase();
         const searchWords = searchTerm.split(/\s+/);
         
-        // Simplified fuzzy search patterns focusing on most effective variations
+        // Simplified fuzzy search patterns
         const fuzzySearchPatterns = searchWords.map(word => {
             const variations = [
                 word,                                    // exact match
@@ -201,16 +202,9 @@ const searchGroceries = async (req, res) => {
         const pipeline = [
             {
                 $match: {
-                    $or: [
-                        { name: new RegExp(`^${searchTerm}$`, 'i') },
-                        { brandName: new RegExp(`^${searchTerm}$`, 'i') },
-                        ...fuzzySearchPatterns.map(pattern => ({
-                            $or: [
-                                { name: pattern },
-                                { brandName: pattern }
-                            ]
-                        }))
-                    ]
+                    name: {
+                        $in: fuzzySearchPatterns
+                    }
                 }
             },
             {
@@ -225,13 +219,6 @@ const searchGroceries = async (req, res) => {
                                 ]
                             },
                             {
-                                $cond: [
-                                    { $regexMatch: { input: "$brandName", regex: new RegExp(`^${searchTerm}$`, 'i') } },
-                                    800,
-                                    0
-                                ]
-                            },
-                            {
                                 $multiply: [
                                     {
                                         $size: {
@@ -240,7 +227,7 @@ const searchGroceries = async (req, res) => {
                                                 as: "word",
                                                 cond: { 
                                                     $regexMatch: { 
-                                                        input: { $concat: ["$name", " ", { $ifNull: ["$brandName", ""] }] },
+                                                        input: "$name",
                                                         regex: new RegExp("$$word", 'i')
                                                     }
                                                 }
@@ -266,15 +253,15 @@ const searchGroceries = async (req, res) => {
             {
                 $project: {
                     _id: 1,
-                    id: 1,
                     name: 1,
-                    brandName: { $ifNull: ["$brandName", "Unknown Brand"] },
-                    calorieBurnNote: 1,
-                    category: 1,
-                    image: 1,
-                    nutritionFacts: 1,
-                    servingInfo: 1,
-                    source: 1,
+                    foodGroup: 1,
+                    nutritionFacts: {
+                        calories: 1,
+                        totalFat: 1,
+                        protein: 1,
+                        totalCarbohydrates: 1,
+                        sugars: 1
+                    },
                     createdAt: 1,
                     updatedAt: 1,
                     matchScore: 1
@@ -293,10 +280,17 @@ const searchGroceries = async (req, res) => {
             });
         }
 
+        // Transform dates to ISO string format
+        const transformedResults = results.map(item => ({
+            ...item,
+            createdAt: item.createdAt instanceof Date ? item.createdAt.toISOString() : item.createdAt,
+            updatedAt: item.updatedAt instanceof Date ? item.updatedAt.toISOString() : item.updatedAt
+        }));
+
         return res.status(200).json({
             status: true,
-            count: results.length,
-            data: results
+            count: transformedResults.length,
+            data: transformedResults
         });
 
     } catch (error) {
@@ -316,15 +310,20 @@ const calculateDayTotalCalories = (consumedFoodForDay) => {
     // Loop through all meal types
     ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(mealType => {
         if (consumedFoodForDay[mealType]?.foods) {
-            // Sum up calories from all foods in this meal
+            // Sum up calories from foods in this meal
             totalCalories += consumedFoodForDay[mealType].foods.reduce(
-                (sum, food) => sum + (food.totalCalories || 0), 
+                (sum, food) => sum + (food.nutritionFacts?.calories || 0), 
                 0
             );
         }
     });
     
     return totalCalories;
+};
+
+module.exports = {
+    searchGroceries,
+    calculateDayTotalCalories
 };
 
 const addConsumedFood = async (req, res) => {
