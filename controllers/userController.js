@@ -386,12 +386,11 @@ const createProfile = async (req, res) => {
     }
 };
 
-
 const calculateUserMetrics = async (req, res) => {
     const { userId } = req.body;
 
     try {
-        const user = await User.findById({ _id: userId }); // Directly use the ID.
+        const user = await User.findById({ _id: userId });
         if (!user) {
             return res.status(404).json({
                 status: false,
@@ -420,7 +419,7 @@ const calculateUserMetrics = async (req, res) => {
             return res.status(400).json({
                 status: false,
                 data: {
-                    meassage: ''
+                    message: 'Missing required user data'
                 }
             });
         }
@@ -468,6 +467,10 @@ const calculateUserMetrics = async (req, res) => {
             dailyCalorieGoal -= dailyCalorieAdjustment;
         }
 
+        // Apply minimum calorie limits based on gender
+        const minCalories = gender === 'male' ? 1500 : 1200;
+        dailyCalorieGoal = Math.max(dailyCalorieGoal, minCalories);
+
         const totalWeightChange = targetWeight ? Math.abs(targetWeight - weight) : 0;
         const caloriesToReachGoal = totalWeightChange * 7700;
 
@@ -512,7 +515,6 @@ const calculateUserMetrics = async (req, res) => {
         });
     }
 };
-
 
 const home = async (req, res) => {
     const { userId } = req.body;

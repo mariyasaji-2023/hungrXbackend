@@ -1,125 +1,124 @@
-const calculateUserMetrics = async (req, res) => {
-    const { userId } = req.body;
+const fs = require('fs');
+const jwt = require('jsonwebtoken');
+const AppleAuth = require('apple-auth'); // Make sure you have this package installed
+const User = require('./models/User'); // Replace with the actual path to your User model
+const config = require('./config'); // Replace with the actual path to your config
 
+// Load Apple private key
+let privateKey;
+try {
+    privateKey = fs.readFileSync(config.apple.privateKeyPath);
+} catch (error) {
+    console.error('Error loading Apple private key:', error);
+    throw error;
+}
+
+// Generate JWT token for user
+function generateJWT(user) {
+    return jwt.sign(
+        {
+            id: user._id,
+            appleId: user.appleId,
+            email: user.email
+        },
+        config.jwt.secret,
+        { expiresIn: config.jwt.expiresIn }
+    );
+}
+
+// Sign in with Apple function
+async function signInWithApple(req, res) {
     try {
-        const user = await User.findById({ _id: userId }); // Directly use the ID.
+        const { authorization, user: userDetails } = req.body;
+
+        if (!authorization) {
+            return res.status(400).json({
+                status: false,
+                message: 'Apple authorization token is required'
+            });
+        }
+
+        // Verify Apple ID token
+        const appleIdTokenClaims = await AppleAuth.verifyIdToken(authorization, {
+            audience: config.apple.clientId,
+            ignoreExpiration: true // Handle token expiration as needed
+        });
+
+        // Get user info from token
+        const { sub: appleId, email, email_verified } = appleIdTokenClaims;
+
+        // Find or create user
+        let user = await User.findOne({ appleId });
+
         if (!user) {
-            return res.status(404).json({
-                status: false,
-                data: {
-                    message: 'User not found'
-                }
+            // Create new user
+            user = new User({
+                appleId,
+                email,
+                isEmailVerified: email_verified,
+                name: userDetails?.name // Name from Apple only comes in first sign in
             });
+        } else {
+            // Update existing user
+            user.lastLoginAt = new Date();
+            if (userDetails?.name) {
+                user.name = userDetails.name;
+            }
         }
-
-        const {
-            weightInKg,
-            weightInLbs,
-            heightInCm,
-            heightInFeet = 0,
-            heightInInches = 0,
-            isMetric,
-            gender,
-            age,
-            activityLevel,
-            goal,
-            targetWeight,
-            weightGainRate = 0.5,
-        } = user;
-
-        if (!age || !gender || (!weightInKg && !weightInLbs)) {
-            return res.status(400).json({
-                status: false,
-                data: {
-                    meassage: ''
-                }
-            });
-        }
-
-        // Calculate weight and height based on unit system
-        let weight = isMetric ? weightInKg : weightInLbs * 0.453592;
-        let height = isMetric
-            ? heightInCm / 100
-            : ((heightInFeet * 12) + heightInInches) * 0.0254;
-
-        if (!weight || !height) {
-            return res.status(400).json({
-                status: false,
-                data: {
-                    message: 'Invalid height or weight'
-                }
-            });
-        }
-
-        // BMR Calculation
-        const BMR = gender === 'male'
-            ? 10 * weight + 6.25 * (height * 100) - 5 * age + 5
-            : 10 * weight + 6.25 * (height * 100) - 5 * age - 161;
-
-        // TDEE Calculation
-        const activityMultiplier = {
-            'sedentary': 1.2,
-            'lightly active': 1.375,
-            'moderately active': 1.55,
-            'very active': 1.725,
-            'extra active': 1.9,
-        };
-        const TDEE = BMR * (activityMultiplier[activityLevel] || 1.2);
-
-        // BMI Calculation
-        const BMI = weight / (height ** 2);
-
-        // Daily Calorie Goal based on weight gain/loss rate
-        // Convert weekly weight change to daily calories (1 kg = 7700 calories)
-        const dailyCalorieAdjustment = (weightGainRate * 7700) / 7;
-        let dailyCalorieGoal = TDEE;
-        if (goal === 'gain weight') {
-            dailyCalorieGoal += dailyCalorieAdjustment;
-        } else if (goal === 'lose weight') {
-            dailyCalorieGoal -= dailyCalorieAdjustment;
-        }
-
-        const totalWeightChange = targetWeight ? Math.abs(targetWeight - weight) : 0;
-        const caloriesToReachGoal = totalWeightChange * 7700;
-
-        const weeklyCaloricChange = weightGainRate * 7700;
-        const daysToReachGoal = totalWeightChange > 0
-            ? Math.ceil((caloriesToReachGoal / weeklyCaloricChange) * 7)
-            : 0;
-
-        // Update user metrics and save to DB
-        user.BMI = BMI.toFixed(2);
-        user.BMR = BMR.toFixed(2);
-        user.TDEE = TDEE.toFixed(2);
-        user.dailyCalorieGoal = dailyCalorieGoal.toFixed(2);
-        user.caloriesToReachGoal = caloriesToReachGoal.toFixed(2);
-        user.daysToReachGoal = daysToReachGoal;
 
         await user.save();
 
-        res.status(200).json({
+        // Generate access token
+        const accessToken = generateJWT(user);
+
+        return res.status(200).json({
             status: true,
             data: {
-                height: isMetric
-                    ? `${(height * 100).toFixed(2)} cm`
-                    : `${heightInFeet} ft ${heightInInches} in`,
-                weight: isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`,
-                BMI: BMI.toFixed(2),
-                BMR: BMR.toFixed(2),
-                TDEE: TDEE.toFixed(2),
-                dailyCalorieGoal: dailyCalorieGoal.toFixed(2),
-                caloriesToReachGoal: caloriesToReachGoal.toFixed(2),
-                goalPace: `${weightGainRate} kg per week`,
-                daysToReachGoal,
-            },
-        });
-    } catch (error) {
-        console.error('Error calculating user metrics:', error);
-        res.status(500).json({
-            status: false,
-            data: {
-                message: 'Internal server error'
+                accessToken,
+                user: {
+                    id: user._id,
+                    email: user.email,
+                    name: user.name,
+                    isEmailVerified: user.isEmailVerified
+                }
             }
         });
+
+    } catch (error) {
+        console.error('Apple authentication error:', error);
+        return res.status(401).json({
+            status: false,
+            message: 'Authentication failed'
+        });
     }
+}
+
+// Get user profile function
+async function getUserProfile(req, res) {
+    try {
+        const user = await User.findById(req.user.id).select('-appleId');
+
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User not found'
+            });
+        }
+
+        return res.status(200).json({
+            status: true,
+            data: { user }
+        });
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        return res.status(500).json({
+            status: false,
+            message: 'Internal server error'
+        });
+    }
+}
+
+module.exports = {
+    signInWithApple,
+    getUserProfile
 };
