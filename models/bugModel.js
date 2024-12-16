@@ -5,9 +5,9 @@ const bugSchema = new mongoose.Schema({
         ref: 'User',
         required: true,
     },
-    report:{
-        type:String,
-        required:true
+    report: {
+        type: String,
+        required: true
     },
     createdAt: {
         type: Date,
@@ -15,4 +15,4 @@ const bugSchema = new mongoose.Schema({
     },
 })
 
-module.exports = mongoose.model('reportBug',bugSchema)
+module.exports = mongoose.model('reportBug', bugSchema)

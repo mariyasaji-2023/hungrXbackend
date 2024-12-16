@@ -420,7 +420,7 @@ const calculateUserMetrics = async (req, res) => {
             return res.status(400).json({
                 status: false,
                 data: {
-                    meassage: 'Missing essential user details'
+                    meassage: ''
                 }
             });
         }
@@ -458,10 +458,15 @@ const calculateUserMetrics = async (req, res) => {
         // BMI Calculation
         const BMI = weight / (height ** 2);
 
-        // Daily Calorie Goal
+        // Daily Calorie Goal based on weight gain/loss rate
+        // Convert weekly weight change to daily calories (1 kg = 7700 calories)
+        const dailyCalorieAdjustment = (weightGainRate * 7700) / 7;
         let dailyCalorieGoal = TDEE;
-        if (goal === 'gain weight') dailyCalorieGoal += 500;
-        else if (goal === 'lose weight') dailyCalorieGoal -= 500;
+        if (goal === 'gain weight') {
+            dailyCalorieGoal += dailyCalorieAdjustment;
+        } else if (goal === 'lose weight') {
+            dailyCalorieGoal -= dailyCalorieAdjustment;
+        }
 
         const totalWeightChange = targetWeight ? Math.abs(targetWeight - weight) : 0;
         const caloriesToReachGoal = totalWeightChange * 7700;
@@ -508,6 +513,7 @@ const calculateUserMetrics = async (req, res) => {
     }
 };
 
+
 const home = async (req, res) => {
     const { userId } = req.body;
 
@@ -521,7 +527,6 @@ const home = async (req, res) => {
                 }
             });
         }
-
         const {
             name,
             goal,

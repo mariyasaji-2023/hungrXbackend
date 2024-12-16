@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 
 const deletedUserSchema = new mongoose.Schema({
-    userId: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        required: true, 
-        ref: 'User' // Reference to the original user's ID
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        ref: 'User'
     },
     mobile: String,
     email: String,
@@ -50,7 +50,7 @@ const deletedUserSchema = new mongoose.Schema({
     profilePhoto: String,
     deletedAt: {
         type: Date,
-        default: Date.now, // Automatically set the deletion timestamp
+        default: Date.now,
     },
 });
 

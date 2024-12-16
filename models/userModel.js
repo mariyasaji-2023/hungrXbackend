@@ -4,7 +4,7 @@ const userSchema = new mongoose.Schema({
     mobile: {
         type: String,
         unique: true,
-        sparse: true, // Allows either mobile or email to be empty
+        sparse: true,
     },
     email: {
         type: String,
@@ -13,23 +13,21 @@ const userSchema = new mongoose.Schema({
     },
     password: {
         type: String,
-        minlength: 6, // Set a minimum length for security
+        minlength: 6,
     },
     otp: {
-        type: String, // Store OTP temporarily
+        type: String,
     },
     isVerified: {
         type: Boolean,
-        default: false, // User is not verified until they enter correct OTP
+        default: false,
     },
     name: {
         type: String,
-        // required:true
     },
     gender: {
         type: String,
         enum: ['male', 'female'],
-        // required:true
     },
     heightInFeet: {
         type: Number
@@ -50,18 +48,10 @@ const userSchema = new mongoose.Schema({
     weightInLbs: {
         type: Number
     },
-    // uid: {
-    //     type: String,
-    //     unique: false
-    // },
-    // googleId: {
-    //     type: String,
-    //     unique: true
-    // },
     googleId: {
         type: String,
-        sparse: true,  // This allows null/undefined values and only creates indices for non-null values
-        unique: true ,  // Only enforced on non-null values due to sparse index
+        sparse: true,
+        unique: true,
         default: undefined
     },
     mealsPerDay: {
@@ -71,21 +61,17 @@ const userSchema = new mongoose.Schema({
     goal: {
         type: String,
         enum: ['lose weight', 'maintain weight', 'gain weight'],
-        // required:true
     },
     targetWeight: {
         type: String,
-        // required:true
     },
     weightGainRate: {
         type: Number,
         enum: [0.25, 0.50, 0.75, 1],
-        // required:true
     },
     activityLevel: {
         type: String,
         enum: ['sedentary', 'lightly active', 'moderately active', 'very active', 'extra active'],
-        // required:true
     },
     age: {
         type: Number
@@ -114,11 +100,11 @@ const userSchema = new mongoose.Schema({
         type: Number,
         required: false
     },
-    profilePhoto:{
-        type:String
+    profilePhoto: {
+        type: String
     },
-    mobile:{
-        type:String
+    mobile: {
+        type: String
     },
     dailyConsumptionStats: {
         type: Map,

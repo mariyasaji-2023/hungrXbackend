@@ -1,5 +1,5 @@
 const bcrypt = require('bcrypt');
-const User = require('../models/userModel'); // Assuming you have a User model
+const User = require('../models/userModel')
 const UserActivity = require('../models/trackUserModel')
 const Weight = require('../models/userWeightModel')
 const Feedback = require('../models/feedbackModel')
@@ -28,15 +28,15 @@ const submitFeedback = async (req, res) => {
     }
 }
 
-const reportBug = async(req,res)=>{
-    const {userId , report}=req.body
+const reportBug = async (req, res) => {
+    const { userId, report } = req.body
     try {
-        const message = new bugModel({userId,report})
+        const message = new bugModel({ userId, report })
         await message.save()
         res.status(201).json({
-            status:true,
-            data:{
-                message:"submitted successfully",
+            status: true,
+            data: {
+                message: "submitted successfully",
                 message
             }
         })
@@ -50,4 +50,4 @@ const reportBug = async(req,res)=>{
 }
 
 
-module.exports = {submitFeedback,reportBug}
+module.exports = { submitFeedback, reportBug }

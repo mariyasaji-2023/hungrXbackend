@@ -13,15 +13,15 @@ const waterTrackerSchema = new mongoose.Schema({
         default: Date.now
     },
     targetWaterIntake: {
-        type: Number,  // in liters
+        type: Number,
         required: true
     },
     waterConsumed: {
-        type: Number,  // in liters
+        type: Number,
         default: 0
     },
     waterLog: [{
-        amount: Number,  // in liters
+        amount: Number,
         timestamp: {
             type: Date,
             default: Date.now
@@ -29,7 +29,6 @@ const waterTrackerSchema = new mongoose.Schema({
     }]
 }, { timestamps: true });
 
-// Add index for efficient querying
 waterTrackerSchema.index({ userId: 1, date: 1 });
 
 module.exports = mongoose.model('WaterTracker', waterTrackerSchema);

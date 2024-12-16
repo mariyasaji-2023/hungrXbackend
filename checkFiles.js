@@ -1,340 +1,125 @@
-// router.post('/create-payment-intent', async (req, res) => {
-//     const { amount, currency } = req.body; // Accept the amount and currency in the request body
-    
-//     try {
-//       const paymentIntent = await stripe.paymentIntents.create({
-//         amount, // Amount in the smallest currency unit (e.g., cents for USD)
-//         currency,
-//       });
-  
-//       res.status(200).send({
-//         clientSecret: paymentIntent.client_secret,
-//       });
-//     } catch (error) {
-//       res.status(500).send({ error: error.message });
-//     }
-//   });
-  
-const addConsumedFood = async (req, res) => {
+const calculateUserMetrics = async (req, res) => {
+    const { userId } = req.body;
+
     try {
-        const db = getDBInstance();
-        const users = db.collection("users");
-        const groceries = db.collection("grocerys");
+        const user = await User.findById({ _id: userId }); // Directly use the ID.
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                data: {
+                    message: 'User not found'
+                }
+            });
+        }
 
         const {
-            userId,
-            mealType,
-            servingSize,
-            selectedMeal,
-            dishId,
-            totalCalories
-        } = req.body;
+            weightInKg,
+            weightInLbs,
+            heightInCm,
+            heightInFeet = 0,
+            heightInInches = 0,
+            isMetric,
+            gender,
+            age,
+            activityLevel,
+            goal,
+            targetWeight,
+            weightGainRate = 0.5,
+        } = user;
 
-        // Get food details from groceries collection
-        const foodDetails = await groceries.findOne({ _id: new mongoose.Types.ObjectId(dishId) });
-        if (!foodDetails) {
-            return res.status(404).json({ error: 'Food item not found in grocery database' });
-        }
-
-        const today = new Date();
-        const date = today.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        }).replace(/\//g, '/');
-
-        const validMealIds = {
-            'breakfast': '6746a024a45e4d9e5d58ea12',
-            'lunch': '6746a024a45e4d9e5d58ea13',
-            'dinner': '6746a024a45e4d9e5d58ea14',
-            'snacks': '6746a024a45e4d9e5d58ea15'
-        };
-
-        if (!validMealIds[mealType.toLowerCase()]) {
-            return res.status(400).json({ error: 'Invalid meal type' });
-        }
-
-        // Get current user and initialize if needed
-        let currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
-        if (!currentUser) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        // Initialize consumedFood structure if it doesn't exist
-        if (!currentUser.consumedFood) {
-            await users.updateOne(
-                { _id: new mongoose.Types.ObjectId(userId) },
-                {
-                    $setOnInsert: {
-                        consumedFood: {
-                            dates: {}
-                        }
-                    }
-                },
-                { upsert: true }
-            );
-        }
-
-        // Initialize date structure if it doesn't exist
-        if (!currentUser.consumedFood?.dates?.[date]) {
-            await users.updateOne(
-                { _id: new mongoose.Types.ObjectId(userId) },
-                {
-                    $set: {
-                        [`consumedFood.dates.${date}`]: {
-                            breakfast: { mealId: validMealIds['breakfast'], foods: [] },
-                            lunch: { mealId: validMealIds['lunch'], foods: [] },
-                            dinner: { mealId: validMealIds['dinner'], foods: [] },
-                            snacks: { mealId: validMealIds['snacks'], foods: [] }
-                        }
-                    }
+        if (!age || !gender || (!weightInKg && !weightInLbs)) {
+            return res.status(400).json({
+                status: false,
+                data: {
+                    meassage: ''
                 }
-            );
+            });
         }
 
-        const foodEntry = {
-            servingSize: Number(servingSize),
-            selectedMeal: new mongoose.Types.ObjectId(selectedMeal),
-            dishId: new mongoose.Types.ObjectId(dishId),
-            totalCalories: Number(totalCalories),
-            timestamp: today,
-            name: foodDetails.name,
-            brandName: foodDetails.brandName,
-            image: foodDetails.image,
-            nutritionFacts: foodDetails.nutritionFacts,
-            servingInfo: foodDetails.servingInfo,
-            foodId: new mongoose.Types.ObjectId()
-        };
+        // Calculate weight and height based on unit system
+        let weight = isMetric ? weightInKg : weightInLbs * 0.453592;
+        let height = isMetric
+            ? heightInCm / 100
+            : ((heightInFeet * 12) + heightInInches) * 0.0254;
 
-        // Calculate calories
-        const currentDayCalories = calculateDayTotalCalories(currentUser.consumedFood?.dates?.[date]);
-        const newTotalCalories = currentDayCalories + Number(totalCalories);
-        const currentCalories = parseInt(currentUser.caloriesToReachGoal) || 0;
-        const newCaloriesToReachGoal = currentCalories - Number(totalCalories);
-
-        // Update with new food entry
-        const result = await users.updateOne(
-            { _id: new mongoose.Types.ObjectId(userId) },
-            {
-                $addToSet: {
-                    [`consumedFood.dates.${date}.${mealType.toLowerCase()}.foods`]: foodEntry
-                },
-                $set: {
-                    caloriesToReachGoal: newCaloriesToReachGoal
+        if (!weight || !height) {
+            return res.status(400).json({
+                status: false,
+                data: {
+                    message: 'Invalid height or weight'
                 }
-            }
-        );
-
-        if (result.matchedCount === 0) {
-            return res.status(404).json({ error: 'User not found' });
+            });
         }
 
-        const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
-        const updatedMeal = updatedUser.consumedFood.dates[date][mealType.toLowerCase()];
-        const remainingCalories = parseInt(updatedUser.dailyCalorieGoal) - newTotalCalories;
+        // BMR Calculation
+        const BMR = gender === 'male'
+            ? 10 * weight + 6.25 * (height * 100) - 5 * age + 5
+            : 10 * weight + 6.25 * (height * 100) - 5 * age - 161;
+
+        // TDEE Calculation
+        const activityMultiplier = {
+            'sedentary': 1.2,
+            'lightly active': 1.375,
+            'moderately active': 1.55,
+            'very active': 1.725,
+            'extra active': 1.9,
+        };
+        const TDEE = BMR * (activityMultiplier[activityLevel] || 1.2);
+
+        // BMI Calculation
+        const BMI = weight / (height ** 2);
+
+        // Daily Calorie Goal based on weight gain/loss rate
+        // Convert weekly weight change to daily calories (1 kg = 7700 calories)
+        const dailyCalorieAdjustment = (weightGainRate * 7700) / 7;
+        let dailyCalorieGoal = TDEE;
+        if (goal === 'gain weight') {
+            dailyCalorieGoal += dailyCalorieAdjustment;
+        } else if (goal === 'lose weight') {
+            dailyCalorieGoal -= dailyCalorieAdjustment;
+        }
+
+        const totalWeightChange = targetWeight ? Math.abs(targetWeight - weight) : 0;
+        const caloriesToReachGoal = totalWeightChange * 7700;
+
+        const weeklyCaloricChange = weightGainRate * 7700;
+        const daysToReachGoal = totalWeightChange > 0
+            ? Math.ceil((caloriesToReachGoal / weeklyCaloricChange) * 7)
+            : 0;
+
+        // Update user metrics and save to DB
+        user.BMI = BMI.toFixed(2);
+        user.BMR = BMR.toFixed(2);
+        user.TDEE = TDEE.toFixed(2);
+        user.dailyCalorieGoal = dailyCalorieGoal.toFixed(2);
+        user.caloriesToReachGoal = caloriesToReachGoal.toFixed(2);
+        user.daysToReachGoal = daysToReachGoal;
+
+        await user.save();
 
         res.status(200).json({
-            success: true,
-            message: 'Consumed food added successfully',
-            date: date,
-            mealId: selectedMeal,
-            foodDetails: {
-                id: dishId,
-                ...foodDetails,
-                mealType: mealType.toLowerCase(),
-                mealId: validMealIds[mealType.toLowerCase()]
+            status: true,
+            data: {
+                height: isMetric
+                    ? `${(height * 100).toFixed(2)} cm`
+                    : `${heightInFeet} ft ${heightInInches} in`,
+                weight: isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`,
+                BMI: BMI.toFixed(2),
+                BMR: BMR.toFixed(2),
+                TDEE: TDEE.toFixed(2),
+                dailyCalorieGoal: dailyCalorieGoal.toFixed(2),
+                caloriesToReachGoal: caloriesToReachGoal.toFixed(2),
+                goalPace: `${weightGainRate} kg per week`,
+                daysToReachGoal,
             },
-            updatedMeal: updatedMeal,
-            updatedCalories: {
-                remaining: remainingCalories,
-                consumed: newTotalCalories,
-                caloriesToReachGoal: newCaloriesToReachGoal
-            }
         });
     } catch (error) {
-        console.error('Error adding consumed food:', error);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-};
-
-const addUnknownFood = async (req, res) => {
-    try {
-        const db = getDBInstance();
-        const users = db.collection("users");
-        const groceries = db.collection("groceries");
-
-        const {
-            userId,
-            mealType,
-            foodName,
-            calories
-        } = req.body;
-
-        const today = new Date();
-        const date = today.toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        }).replace(/\//g, '/');
-
-        const unknownFoodId = new mongoose.Types.ObjectId();
-
-        const mealTypeMapping = {
-            '6746a024a45e4d9e5d58ea12': 'breakfast',
-            '6746a024a45e4d9e5d58ea13': 'lunch',
-            '6746a024a45e4d9e5d58ea14': 'dinner',
-            '6746a024a45e4d9e5d58ea15': 'snacks'
-        };
-
-        const mealTypeName = mealTypeMapping[mealType];
-        if (!mealTypeName) {
-            return res.status(400).json({ error: 'Invalid meal type ID' });
-        }
-
-        // Create a new food entry in groceries collection
-        const newGroceryItem = {
-            _id: unknownFoodId,
-            name: foodName,
-            brandName: "Custom Food",
-            nutritionFacts: {
-                calories: Number(calories)
-            },
-            servingInfo: {
-                size: 1,
-                unit: "serving"
-            },
-            isCustomFood: true
-        };
-
-        await groceries.insertOne(newGroceryItem);
-
-        // Get current user and initialize if needed
-        let currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
-        if (!currentUser) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        // Initialize consumedFood structure if it doesn't exist
-        if (!currentUser.consumedFood) {
-            await users.updateOne(
-                { _id: new mongoose.Types.ObjectId(userId) },
-                {
-                    $setOnInsert: {
-                        consumedFood: {
-                            dates: {}
-                        }
-                    }
-                },
-                { upsert: true }
-            );
-        }
-
-        // Initialize date structure if it doesn't exist
-        if (!currentUser.consumedFood?.dates?.[date]) {
-            await users.updateOne(
-                { _id: new mongoose.Types.ObjectId(userId) },
-                {
-                    $set: {
-                        [`consumedFood.dates.${date}`]: {
-                            breakfast: { mealId: '6746a024a45e4d9e5d58ea12', foods: [] },
-                            lunch: { mealId: '6746a024a45e4d9e5d58ea13', foods: [] },
-                            dinner: { mealId: '6746a024a45e4d9e5d58ea14', foods: [] },
-                            snacks: { mealId: '6746a024a45e4d9e5d58ea15', foods: [] }
-                        }
-                    }
-                }
-            );
-        }
-
-        const foodEntry = {
-            servingSize: 1,
-            selectedMeal: new mongoose.Types.ObjectId(mealType),
-            dishId: unknownFoodId,
-            totalCalories: Number(calories),
-            timestamp: today,
-            name: foodName,
-            brandName: "Custom Food",
-            nutritionFacts: {
-                calories: Number(calories)
-            },
-            servingInfo: {
-                size: 1,
-                unit: "serving"
-            },
-            isCustomFood: true,
-            foodId: new mongoose.Types.ObjectId()
-        };
-
-        // Calculate calories
-        const currentDayCalories = calculateDayTotalCalories(currentUser.consumedFood?.dates?.[date]);
-        const newTotalCalories = currentDayCalories + Number(calories);
-        const currentCalories = parseInt(currentUser.caloriesToReachGoal) || 0;
-        const newCaloriesToReachGoal = currentCalories - Number(calories);
-
-        // Update with new food entry
-        const result = await users.updateOne(
-            { _id: new mongoose.Types.ObjectId(userId) },
-            {
-                $addToSet: {
-                    [`consumedFood.dates.${date}.${mealTypeName}.foods`]: foodEntry
-                },
-                $set: {
-                    caloriesToReachGoal: newCaloriesToReachGoal
-                }
-            }
-        );
-
-        if (result.matchedCount === 0) {
-            return res.status(404).json({ error: 'User not found' });
-        }
-
-        const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
-        const updatedMeal = updatedUser.consumedFood.dates[date][mealTypeName];
-        const remainingCalories = parseInt(updatedUser.dailyCalorieGoal) - newTotalCalories;
-
-        res.status(200).json({
-            success: true,
-            message: 'Unknown food added successfully',
-            date: date,
-            mealId: mealType,
-            foodDetails: {
-                id: unknownFoodId,
-                ...newGroceryItem,
-                mealType: mealTypeName,
-                mealId: mealType
-            },
-            updatedMeal: updatedMeal,
-            updatedCalories: {
-                remaining: remainingCalories,
-                consumed: newTotalCalories,
-                caloriesToReachGoal: newCaloriesToReachGoal
+        console.error('Error calculating user metrics:', error);
+        res.status(500).json({
+            status: false,
+            data: {
+                message: 'Internal server error'
             }
         });
-
-    } catch (error) {
-        console.error('Error adding unknown food:', error);
-        res.status(500).json({ error: 'Internal server error' });
     }
-};
-
-// Helper function to calculate total calories for a day
-const calculateDayTotalCalories = (dateData) => {
-    if (!dateData) return 0;
-    
-    let totalCalories = 0;
-    const mealTypes = ['breakfast', 'lunch', 'dinner', 'snacks'];
-    
-    mealTypes.forEach(mealType => {
-        if (dateData[mealType] && dateData[mealType].foods) {
-            totalCalories += dateData[mealType].foods.reduce((sum, food) => 
-                sum + (food.totalCalories || 0), 0);
-        }
-    });
-    
-    return totalCalories;
-};
-
-module.exports = {
-    addConsumedFood,
-    addUnknownFood
 };

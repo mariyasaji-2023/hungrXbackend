@@ -1,11 +1,11 @@
 const mongoose = require('mongoose')
 
 const userActivitySchema = new mongoose.Schema({
-    userId :{
-        type:String
+    userId: {
+        type: String
     },
-    date :{
-        type:Date
+    date: {
+        type: Date
     }
 })
 

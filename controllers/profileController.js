@@ -19,12 +19,9 @@ const basicInfo = async (req, res) => {
                 message: 'User does not exist',
             });
         }
-
-        // Format both metric and imperial weights
         const weightInKg = user.weightInKg ? `${user.weightInKg}` : null;
         const weightInLbs = user.weightInLbs ? `${user.weightInLbs}` : null;
 
-        // Format both metric and imperial heights
         const heightInCm = user.heightInCm ? `${user.heightInCm}` : null;
         const heightInFeet = user.heightInFeet
             ? `${user.heightInFeet}`
@@ -32,18 +29,17 @@ const basicInfo = async (req, res) => {
         const heightInInches = user.heightInInches
             ? `${user.heightInInches}`
             : null;
-        // Create response object with formatted values and units
         const userProfile = {
             name: user.name || null,
             email: user.email || null,
             gender: user.gender || null,
             phone: user.mobile || null,
             age: user.age ? `${user.age}` : null,
-            heightInCm,    // Always show metric height
-            heightInFeet,  // Always show imperial height
+            heightInCm,
+            heightInFeet,
             heightInInches,
-            weightInKg,    // Always show metric weight
-            weightInLbs,  // Always show imperial weight
+            weightInKg,
+            weightInLbs,
             targetWeight: user.targetWeight ? `${user.targetWeight} kg` : null,
             dailyCalorieGoal: user.dailyCalorieGoal
                 ? `${user.dailyCalorieGoal} kcal/day`
@@ -97,7 +93,6 @@ const updateBasicInfo = async (req, res) => {
     } = req.body;
 
     try {
-        // Find user first
         const user = await userModel.findOne({ _id: userId });
 
         if (!user) {
@@ -106,8 +101,6 @@ const updateBasicInfo = async (req, res) => {
                 message: 'User does not exist'
             });
         }
-
-        // Validate email format if provided
         if (email && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
             return res.status(400).json({
                 status: false,
@@ -318,7 +311,7 @@ const updateGoalSetting = async (req, res) => {
             weightGainRate: updateDetails.weightGainRate || user.weightGainRate,
             activityLevel: updateDetails.activityLevel || user.activityLevel,
             mealsPerDay: updateDetails.mealsPerDay || user.mealsPerDay,
-            goal:updateDetails.goal || user.goal
+            goal: updateDetails.goal || user.goal
         };
 
         // Send a success response
@@ -413,4 +406,4 @@ const deleteUser = async (req, res) => {
 
 
 
-module.exports = { profileScreen, basicInfo, updateBasicInfo, goalGetting, updateGoalSetting ,deleteUser }
+module.exports = { profileScreen, basicInfo, updateBasicInfo, goalGetting, updateGoalSetting, deleteUser }
