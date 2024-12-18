@@ -674,9 +674,8 @@ const trackUser = async (req, res) => {
 
 const updateWeight = async (req, res) => {
     const { userId, newWeight } = req.body;
-
+    
     try {
-
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({
@@ -685,11 +684,54 @@ const updateWeight = async (req, res) => {
             });
         }
 
+        // Update weight based on metric preference
         if (user.isMetric) {
             user.weightInKg = newWeight;
         } else {
             user.weightInLbs = newWeight;
         }
+
+        // Recalculate BMI
+        const heightInM = user.heightInCm / 100;
+        const weightInKg = user.isMetric ? newWeight : newWeight * 0.453592;
+        user.BMI = (weightInKg / (heightInM * heightInM)).toFixed(2);
+
+        // Recalculate BMR using Mifflin-St Jeor Equation
+        const bmrMultiplier = user.gender === 'female' ? -161 : 5;
+        user.BMR = (
+            10 * weightInKg +
+            6.25 * user.heightInCm -
+            5 * user.age +
+            bmrMultiplier
+        ).toFixed(2);
+
+        // Recalculate TDEE based on activity level
+        const activityMultipliers = {
+            'sedentary': 1.2,
+            'lightly active': 1.375,
+            'moderately active': 1.55,
+            'very active': 1.725,
+            'extra active': 1.9
+        };
+        const activityMultiplier = activityMultipliers[user.activityLevel] || 1.2;
+        user.TDEE = (parseFloat(user.BMR) * activityMultiplier).toFixed(2);
+
+        // Recalculate calories and days to reach goal
+        const targetWeightInKg = parseFloat(user.targetWeight);
+        const weightDifference = Math.abs(weightInKg - targetWeightInKg);
+        const weeklyRate = user.weightGainRate || 0.5; // kg per week
+        const caloriesPerKg = user.goal === 'lose weight' ? 7700 : 7700; // calories per kg
+        
+        user.caloriesToReachGoal = (weightDifference * caloriesPerKg).toFixed(2);
+        user.daysToReachGoal = Math.ceil((weightDifference / weeklyRate) * 7);
+
+        // Adjust daily calorie goal based on goal type
+        const dailyCalorieAdjustment = (weeklyRate * 7700) / 7;
+        user.dailyCalorieGoal = user.goal === 'lose weight' 
+            ? (parseFloat(user.TDEE) - dailyCalorieAdjustment).toFixed(2)
+            : user.goal === 'gain weight'
+                ? (parseFloat(user.TDEE) + dailyCalorieAdjustment).toFixed(2)
+                : user.TDEE;
 
         // Save the updated user information
         await user.save();
@@ -698,7 +740,7 @@ const updateWeight = async (req, res) => {
         const weightEntry = new Weight({
             userId: user._id,
             weight: newWeight,
-            timestamp: new Date() // Add the current timestamp
+            timestamp: new Date()
         });
         await weightEntry.save();
 
@@ -709,7 +751,13 @@ const updateWeight = async (req, res) => {
                 userId: user._id,
                 weight: newWeight,
                 isMetric: user.isMetric,
-                timestamp: weightEntry.timestamp.toISOString().split('T')[0].split('-').reverse().join('-') // Format date as DD-MM-YYYY
+                BMI: user.BMI,
+                BMR: user.BMR,
+                TDEE: user.TDEE,
+                caloriesToReachGoal: user.caloriesToReachGoal,
+                dailyCalorieGoal: user.dailyCalorieGoal,
+                daysToReachGoal: user.daysToReachGoal,
+                timestamp: weightEntry.timestamp.toISOString().split('T')[0].split('-').reverse().join('-')
             }
         });
     } catch (error) {

@@ -33,7 +33,7 @@ const getEatPage = async (req, res) => {
         if (!name || !dailyCalorieGoal) {
             return res.status(404).json({
                 status: false,
-                message: 'missing essantial user details'
+                message: 'missing essential user details'
             })
         }
         return res.status(200).json({
@@ -1042,6 +1042,45 @@ const deleteDishFromMeal = async (req, res) => {
     }
 };
 
+const searchRestaurant = async (req, res) => {
+    const { userId, name } = req.body;
+    try {
+        const user = await userModel.findById(userId);
+        if (!user) {
+            return res.status(400).json({
+                status: false,
+                message: 'User not found'
+            });
+        }
 
+        const searchTerm = name.trim().toLowerCase();
+        const restaurant = mongoose.connection.db.collection("restaurants");
+        const restaurantName = await restaurant.findOne({ name: { $regex: searchTerm, $options: 'i' } });
+        
+        if (!restaurantName) {
+            return res.status(404).json({
+                status: false,
+                message: 'Restaurant not found'
+            });
+        }
 
-module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood ,addUnknownFood , getConsumedFoodByDate , deleteDishFromMeal}
+        return res.status(200).json({
+            status: true,
+            message: 'Restaurant found',
+            data: {
+                id: restaurantName._id,
+                name: restaurantName.name,
+                logo: restaurantName.logo,
+                menus: restaurantName.menus
+            }
+        });
+    } catch (error) {
+        console.error('Search restaurant error:', error);
+        return res.status(500).json({
+            status: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood ,addUnknownFood , getConsumedFoodByDate , deleteDishFromMeal,searchRestaurant}

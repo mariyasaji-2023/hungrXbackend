@@ -40,6 +40,7 @@ router.post('/goalSetting', profileController.goalGetting)
 router.post('/updateGoalSetting', profileController.updateGoalSetting)
 router.delete('/deleteUser', profileController.deleteUser)
 router.post('/bug', feedbackController.reportBug)
+router.post('/searchRestaurant',restaurantController.searchRestaurant)
 
 
 module.exports = router;
