@@ -972,15 +972,15 @@ const deleteDishFromMeal = async (req, res) => {
 };
 
 const searchRestaurant = async (req, res) => {
-    const { userId, name } = req.body;
+    const { name } = req.body;
     try {
-        const user = await userModel.findById(userId);
-        if (!user) {
-            return res.status(400).json({
-                status: false,
-                message: 'User not found'
-            });
-        }
+        // const user = await userModel.findById(userId);
+        // if (!user) {
+        //     return res.status(400).json({
+        //         status: false,
+        //         message: 'User not found'
+        //     });
+        // }
 
         const searchTerm = name.trim().toLowerCase();
         const restaurant = mongoose.connection.db.collection("restaurants");

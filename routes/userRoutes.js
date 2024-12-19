@@ -7,6 +7,7 @@ const searchController = require('../controllers/searchController')
 const restaurantController = require('../controllers/restaurantController')
 const waterController = require('../controllers/waterController')
 const profileController = require('../controllers/profileController')
+const mapboxController = require('../controllers/mapBoxController')
 
 router.post('/signup/email', userController.signupWithEmail);
 router.post('/login/email', userController.loginWithEmail)
@@ -41,6 +42,7 @@ router.post('/updateGoalSetting', profileController.updateGoalSetting)
 router.delete('/deleteUser', profileController.deleteUser)
 router.post('/bug', feedbackController.reportBug)
 router.post('/searchRestaurant',restaurantController.searchRestaurant)
+router.get('/nearby',mapboxController.getNearbyRestaurants)
 
 
 module.exports = router;
