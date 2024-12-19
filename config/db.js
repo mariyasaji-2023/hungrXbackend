@@ -5,10 +5,12 @@ let dbInstance;
 
 const connectDB = async () => {
     try {
-        const connection = await mongoose.connect('mongodb+srv://hungrx001:b19cQlcRApahiWUD@cluster0.ynchc4e.mongodb.net/hungerX', {
+        const connection = await mongoose.connect(process.env.DB_URI, {
            
         });
+        const uri = process.env.DB_URI
         dbInstance = connection.connection.db;
+        console.log(uri,"//////////////////////////////");
         console.log('Connected to MongoDB');
         return dbInstance; // Return the MongoDB instance
     } catch (err) {

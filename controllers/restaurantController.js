@@ -1071,7 +1071,7 @@ const searchRestaurant = async (req, res) => {
                 id: restaurantName._id,
                 name: restaurantName.name,
                 logo: restaurantName.logo,
-                menus: restaurantName.menus
+                // menus: restaurantName.menus
             }
         });
     } catch (error) {
