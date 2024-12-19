@@ -6,7 +6,7 @@ const { getDBInstance } = require('../config/db');
 
 const { MongoClient } = require("mongodb");
 const { ObjectId } = require('mongodb');
-const client = new MongoClient("mongodb+srv://hungrx001:b19cQlcRApahiWUD@cluster0.ynchc4e.mongodb.net/hungerX");
+const client = new MongoClient(process.env.DB_URI);
 
 const getEatPage = async (req, res) => {
     const { userId } = req.body
@@ -165,8 +165,6 @@ const getMeal = async (req, res) => {
         })
     }
 }
-
-
 const searchGroceries = async (req, res) => {
     const { name } = req.body;
 
@@ -178,42 +176,47 @@ const searchGroceries = async (req, res) => {
     }
 
     try {
-        const grocery = mongoose.connection.db.collection("grocerys");
-
+        const grocery = mongoose.connection.db.collection("grocery");
         const searchTerm = name.trim().toLowerCase();
         const searchWords = searchTerm.split(/\s+/);
         
-        // Enhanced fuzzy search patterns
+        // Simplified fuzzy search patterns focusing on most effective variations
         const fuzzySearchPatterns = searchWords.map(word => {
             const variations = [
-                word,                                        // exact match
-                word.replace(/s$/, ''),                      // remove trailing 's'
-                word.replace(/ed$/, ''),                     // remove 'ed'
-                word + 'ed',                                 // add 'ed'
-                word + 's',                                  // add 's'
-                word.replace(/([aeiou])/g, '[aeiou]'),      // any vowel
-                word.replace(/([a-z])/g, '$1?'),            // optional characters
-                word.replace(/([a-z])/g, '$1?s'),           // optional characters with plural
-                word.replace(/s+/g, 's?'),                  // optional 's'
-                `.*${word}.*`,                              // contains word
-                word.split('').join('.*'),                  // characters in sequence with anything between
-                // Handle common double letter mistakes
-                word.replace(/([a-z])\1/g, '$1'),           // remove doubles
-                word.replace(/([a-z])/g, '$1$1?'),          // optional doubles
+                word,                                    // exact match
+                word.replace(/s$/, ''),                  // remove trailing 's'
+                word.replace(/ed$/, ''),                 // remove 'ed'
+                `.*${word}.*`,                          // contains word
+                word.split('').join('.*'),              // characters in sequence
             ];
             
-            // Add partial matches for longer words
+            // Only add partial matches for words longer than 4 characters
             if (word.length > 4) {
-                variations.push(
-                    word.substring(0, Math.ceil(word.length * 0.75)), // First 75% of word
-                    word.substring(word.length * 0.25)                // Last 75% of word
-                );
+                variations.push(word.substring(0, Math.ceil(word.length * 0.75)));
             }
 
             return variations.map(v => new RegExp(v, 'i'));
         }).flat();
 
-        const results = await grocery.aggregate([
+        // Pre-compile regex patterns
+        const exactMatchPattern = new RegExp(`^${searchTerm}$`, 'i');
+        const partialMatchPattern = new RegExp(searchTerm.substring(0, Math.max(3, searchTerm.length)), 'i');
+
+        const pipeline = [
+            // Stage 1: Initial match to reduce documents early
+            {
+                $match: {
+                    $or: [
+                        { name: exactMatchPattern },
+                        { brandName: exactMatchPattern },
+                        { name: partialMatchPattern },
+                        ...fuzzySearchPatterns.map(pattern => ({
+                            $or: [{ name: pattern }, { brandName: pattern }]
+                        }))
+                    ]
+                }
+            },
+            // Stage 2: Add combined text field
             {
                 $addFields: {
                     combinedText: {
@@ -225,162 +228,84 @@ const searchGroceries = async (req, res) => {
                     }
                 }
             },
-            {
-                $match: {
-                    $or: [
-                        { name: new RegExp(`^${searchTerm}$`, 'i') },
-                        { brandName: new RegExp(`^${searchTerm}$`, 'i') },
-                        ...fuzzySearchPatterns.map(pattern => ({
-                            $or: [
-                                { name: pattern },
-                                { brandName: pattern },
-                                { combinedText: pattern }
-                            ]
-                        })),
-                        {
-                            $and: searchWords.map(word => ({
-                                combinedText: new RegExp(word, 'i')
-                            }))
-                        },
-                        { 
-                            name: new RegExp(searchTerm.substring(0, Math.max(3, searchTerm.length)), 'i')
-                        }
-                    ]
-                }
-            },
+            // Stage 3: Calculate relevance scores
             {
                 $addFields: {
                     matchCategory: {
                         $switch: {
                             branches: [
                                 {
-                                    case: { 
-                                        $regexMatch: { 
-                                            input: "$name", 
-                                            regex: new RegExp(`^${searchTerm}$`, 'i') 
-                                        }
-                                    },
+                                    case: { $regexMatch: { input: "$name", regex: exactMatchPattern } },
                                     then: 10
                                 },
                                 {
-                                    case: { 
-                                        $regexMatch: { 
-                                            input: "$brandName", 
-                                            regex: new RegExp(`^${searchTerm}$`, 'i') 
-                                        }
-                                    },
+                                    case: { $regexMatch: { input: "$brandName", regex: exactMatchPattern } },
                                     then: 9
                                 },
                                 {
-                                    case: {
-                                        $or: fuzzySearchPatterns.map(pattern => ({
-                                            $regexMatch: { input: "$name", regex: pattern }
-                                        }))
-                                    },
+                                    case: { $regexMatch: { input: "$name", regex: partialMatchPattern } },
                                     then: 8
-                                },
-                                {
-                                    case: {
-                                        $regexMatch: {
-                                            input: "$combinedText",
-                                            regex: new RegExp(searchWords.join('.*?'), 'i')
-                                        }
-                                    },
-                                    then: 7
-                                },
-                                {
-                                    case: {
-                                        $and: searchWords.map(word => ({
-                                            $regexMatch: {
-                                                input: "$combinedText",
-                                                regex: new RegExp(word, 'i')
-                                            }
-                                        }))
-                                    },
-                                    then: 6
-                                },
-                                {
-                                    case: {
-                                        $regexMatch: {
-                                            input: "$name",
-                                            regex: new RegExp(searchTerm.substring(0, Math.max(3, searchTerm.length)), 'i')
-                                        }
-                                    },
-                                    then: 5
                                 }
                             ],
-                            default: 1
+                            default: 5
                         }
                     },
-                    relevanceScore: {
-                        $add: [
-                            {
-                                $cond: [
+                    wordMatches: {
+                        $reduce: {
+                            input: searchWords,
+                            initialValue: 0,
+                            in: {
+                                $add: [
+                                    "$$value",
                                     {
-                                        $or: [
-                                            { $regexMatch: { input: "$name", regex: new RegExp(`^${searchTerm}$`, 'i') } },
-                                            { $regexMatch: { input: "$brandName", regex: new RegExp(`^${searchTerm}$`, 'i') } }
+                                        $cond: [
+                                            {
+                                                $regexMatch: {
+                                                    input: "$combinedText",
+                                                    regex: new RegExp("$$this", "i")
+                                                }
+                                            },
+                                            1,
+                                            0
                                         ]
-                                    },
-                                    1000,
-                                    0
-                                ]
-                            },
-                            {
-                                $multiply: [
-                                    {
-                                        $size: {
-                                            $filter: {
-                                                input: searchWords,
-                                                as: "word",
-                                                cond: { 
-                                                    $regexMatch: { 
-                                                        input: "$combinedText",
-                                                        regex: new RegExp("$$word", 'i')
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    },
-                                    100
-                                ]
-                            },
-                            {
-                                $multiply: [
-                                    {
-                                        $size: {
-                                            $filter: {
-                                                input: fuzzySearchPatterns,
-                                                as: "pattern",
-                                                cond: {
-                                                    $or: [
-                                                        { $regexMatch: { input: "$name", regex: "$$pattern" } },
-                                                        { $regexMatch: { input: "$brandName", regex: "$$pattern" } }
-                                                    ]
-                                                }
-                                            }
-                                        }
-                                    },
-                                    50
+                                    }
                                 ]
                             }
-                        ]
+                        }
                     }
                 }
             },
             {
+                $addFields: {
+                    relevanceScore: {
+                        $add: [
+                            {
+                                $cond: [
+                                    { $regexMatch: { input: "$name", regex: exactMatchPattern } },
+                                    1000,
+                                    0
+                                ]
+                            },
+                            { $multiply: ["$wordMatches", 100] }
+                        ]
+                    }
+                }
+            },
+            // Stage 4: Group to remove duplicates
+            {
                 $group: {
                     _id: {
                         name: "$name",
-                        brandName: "$brandName",
-                        calories: "$nutritionFacts.calories"
+                        brandName: "$brandName"
                     },
                     doc: { $first: "$$ROOT" }
                 }
             },
+            // Stage 5: Restore full document
             {
                 $replaceRoot: { newRoot: "$doc" }
             },
+            // Stage 6: Sort results
             {
                 $sort: {
                     matchCategory: -1,
@@ -388,8 +313,13 @@ const searchGroceries = async (req, res) => {
                     name: 1
                 }
             },
+            // Stage 7: Limit results
             { $limit: 15 }
-        ]).toArray();
+        ];
+
+        const results = await grocery.aggregate(pipeline, {
+            allowDiskUse: true
+        }).toArray();
 
         if (!results || results.length === 0) {
             return res.status(404).json({
@@ -411,8 +341,7 @@ const searchGroceries = async (req, res) => {
             source: item.source,
             createdAt: item.createdAt,
             updatedAt: item.updatedAt,
-            matchCategory: item.matchCategory,
-            nameScore: item.nameScore
+            matchCategory: item.matchCategory
         }));
 
         return res.status(200).json({
@@ -1071,7 +1000,6 @@ const searchRestaurant = async (req, res) => {
                 id: restaurantName._id,
                 name: restaurantName.name,
                 logo: restaurantName.logo,
-                // menus: restaurantName.menus
             }
         });
     } catch (error) {
