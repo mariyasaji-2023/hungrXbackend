@@ -1011,16 +1011,16 @@ const suggestions = async (req, res) => {
 
         // Find restaurants and project specific fields
         const restaurants = await Restaurant.find({}).project({
-            name: 1,
+            restaurantName: 1,
             address: 1,
             coordinates: 1,
             distance: 1,
             _id: 1
         }).toArray();
-
+   
         // Map the results to handle null values
         const formattedRestaurants = restaurants.map(restaurant => ({
-            name: restaurant.name || null,
+            name: restaurant.restaurantName || null,
             address: restaurant.address || null,
             coordinates: restaurant.coordinates || null,
             distance: restaurant.distance || null,
