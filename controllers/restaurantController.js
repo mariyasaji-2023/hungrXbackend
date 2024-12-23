@@ -64,7 +64,7 @@ const eatScreenSearchName = async (req, res) => {
         const results = await grocery.aggregate([
             {
                 $match: {
-                    name: { $regex: name, $options: 'i' } 
+                    name: { $regex: name, $options: 'i' }
                 }
             },
             {
@@ -80,7 +80,7 @@ const eatScreenSearchName = async (req, res) => {
                 }
             },
             {
-                $limit: 15 
+                $limit: 15
             }
         ]).toArray();
 
@@ -91,7 +91,7 @@ const eatScreenSearchName = async (req, res) => {
             });
         }
 
-        
+
         const transformedResults = results.map(item => {
             const type = item.menus ? 'restaurant' : 'grocery';
             const isRestaurant = type === 'restaurant';
@@ -179,7 +179,7 @@ const searchGroceries = async (req, res) => {
         const grocery = mongoose.connection.db.collection("grocery");
         const searchTerm = name.trim().toLowerCase();
         const searchWords = searchTerm.split(/\s+/);
-        
+
         // Simplified fuzzy search patterns focusing on most effective variations
         const fuzzySearchPatterns = searchWords.map(word => {
             const variations = [
@@ -189,7 +189,7 @@ const searchGroceries = async (req, res) => {
                 `.*${word}.*`,                          // contains word
                 word.split('').join('.*'),              // characters in sequence
             ];
-            
+
             // Only add partial matches for words longer than 4 characters
             if (word.length > 4) {
                 variations.push(word.substring(0, Math.ceil(word.length * 0.75)));
@@ -369,12 +369,12 @@ const calculateDayTotalCalories = (consumedFoodForDay) => {
         if (consumedFoodForDay[mealType]?.foods) {
             // Sum up calories from all foods in this meal
             totalCalories += consumedFoodForDay[mealType].foods.reduce(
-                (sum, food) => sum + (food.totalCalories || 0), 
+                (sum, food) => sum + (food.totalCalories || 0),
                 0
             );
         }
     });
-    
+
     return totalCalories;
 };
 
@@ -745,7 +745,7 @@ const getUserHistory = async (req, res) => {
 
     try {
         const users = mongoose.connection.db.collection("users");
-        
+
         const user = await users.findOne(
             { _id: new ObjectId(userId) },
             { projection: { foodHistory: 1 } }
@@ -759,8 +759,8 @@ const getUserHistory = async (req, res) => {
         }
 
         // Sort the foodHistory array by viewedAt in descending order
-        const sortedHistory = user.foodHistory ? 
-            user.foodHistory.sort((a, b) => new Date(b.viewedAt) - new Date(a.viewedAt)) 
+        const sortedHistory = user.foodHistory ?
+            user.foodHistory.sort((a, b) => new Date(b.viewedAt) - new Date(a.viewedAt))
             : [];
 
         return res.status(200).json({
@@ -786,7 +786,7 @@ const getConsumedFoodByDate = async (req, res) => {
         const users = db.collection("users");
         const { userId, date } = req.body;
 
-        const user = await users.findOne({ 
+        const user = await users.findOne({
             _id: new mongoose.Types.ObjectId(userId)
         });
 
@@ -878,7 +878,7 @@ const deleteDishFromMeal = async (req, res) => {
         }
 
         // Find user and get current data
-        const user = await users.findOne({ 
+        const user = await users.findOne({
             _id: new mongoose.Types.ObjectId(userId)
         });
 
@@ -933,8 +933,8 @@ const deleteDishFromMeal = async (req, res) => {
         }
 
         // Get updated user data
-        const updatedUser = await users.findOne({ 
-            _id: new mongoose.Types.ObjectId(userId) 
+        const updatedUser = await users.findOne({
+            _id: new mongoose.Types.ObjectId(userId)
         });
 
         // Calculate the daily summary after deletion
@@ -974,18 +974,10 @@ const deleteDishFromMeal = async (req, res) => {
 const searchRestaurant = async (req, res) => {
     const { name } = req.body;
     try {
-        // const user = await userModel.findById(userId);
-        // if (!user) {
-        //     return res.status(400).json({
-        //         status: false,
-        //         message: 'User not found'
-        //     });
-        // }
-
         const searchTerm = name.trim().toLowerCase();
         const restaurant = mongoose.connection.db.collection("restaurants");
         const restaurantName = await restaurant.findOne({ name: { $regex: searchTerm, $options: 'i' } });
-        
+
         if (!restaurantName) {
             return res.status(404).json({
                 status: false,
@@ -1011,4 +1003,40 @@ const searchRestaurant = async (req, res) => {
     }
 };
 
-module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood ,addUnknownFood , getConsumedFoodByDate , deleteDishFromMeal,searchRestaurant}
+const suggestions = async (req, res) => {
+    try {
+        await client.connect();
+        const db = client.db(process.env.DB_NAME);
+        const Restaurant = db.collection("restaurants");
+
+        // Find restaurants and project specific fields
+        const restaurants = await Restaurant.find({}).project({
+            name: 1,
+            address: 1,
+            coordinates: 1,
+            distance: 1,
+            _id: 1
+        }).toArray();
+
+        // Map the results to handle null values
+        const formattedRestaurants = restaurants.map(restaurant => ({
+            name: restaurant.name || null,
+            address: restaurant.address || null,
+            coordinates: restaurant.coordinates || null,
+            distance: restaurant.distance || null,
+            _id: restaurant._id || null
+        }));
+
+        return res.status(200).json({
+            status: true,
+            restaurants: formattedRestaurants
+        });
+    } catch (error) {
+        console.error('Error fetching suggestions:', error);
+        return res.status(500).json({
+            status: false,
+            message: 'Internal server error'
+        });
+    }
+};
+module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood, addUnknownFood, getConsumedFoodByDate, deleteDishFromMeal, searchRestaurant, suggestions }

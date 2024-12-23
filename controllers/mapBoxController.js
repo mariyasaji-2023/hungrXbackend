@@ -43,7 +43,7 @@
 //                 fetchRestaurantsByType('japanese restaurant', longitude, latitude, radius)
 //             ]);
 //    console.log(results,"res");
-   
+
 //             // Use a Map to deduplicate by restaurant ID
 //             const uniqueRestaurants = new Map();
 
@@ -82,7 +82,7 @@
 //                 .filter(restaurant => restaurant.distance <= radius)
 //                 .sort((a, b) => a.distance - b.distance);
 //          console.log(allRestaurants,"///////////////////////");
-         
+
 //             return res.status(200).json({
 //                 success: true,
 //                 data: allRestaurants
@@ -127,7 +127,7 @@
 // const fetchRestaurantsByType = async (searchTerm, longitude, latitude, radius) => {
 //     try {
 //         const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchTerm)}.json`;
-        
+
 //         const response = await axios.get(mapboxUrl, {
 //             params: {
 //                 access_token: process.env.MAPBOX_ACCESS_TOKEN,
@@ -167,12 +167,12 @@
 //     const R = 6371;
 //     const dLat = toRad(lat2 - lat1);
 //     const dLon = toRad(lon2 - lon1);
-    
+
 //     const a = 
 //         Math.sin(dLat/2) * Math.sin(dLat/2) +
 //         Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * 
 //         Math.sin(dLon/2) * Math.sin(dLon/2);
-    
+
 //     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 //     return Math.round(R * c * 1000); // Convert to meters and round
 // };
@@ -201,7 +201,7 @@
 // const fetchRestaurantsByType = async (searchTerm, longitude, latitude, radius) => {
 //     try {
 //         const mapboxUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchTerm)}.json`;
-        
+
 //         // Simplified parameters for better results
 //         const response = await axios.get(mapboxUrl, {
 //             params: {
@@ -254,12 +254,12 @@
 //     const R = 6371; // Earth's radius in km
 //     const dLat = toRad(lat2 - lat1);
 //     const dLon = toRad(lon2 - lon1);
-    
+
 //     const a = 
 //         Math.sin(dLat/2) * Math.sin(dLat/2) +
 //         Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * 
 //         Math.sin(dLon/2) * Math.sin(dLon/2);
-    
+
 //     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 //     return Math.round(R * c * 1000); // Convert to meters and round
 // };
@@ -444,7 +444,7 @@
 //                     }
 //                 }
 //             }
-           
+
 //             const allRestaurants = Array.from(uniqueRestaurants.values())
 //                 .filter((restaurant) => restaurant.distance <= radius)
 //                 .sort((a, b) => a.distance - b.distance);
@@ -551,15 +551,29 @@
 const axios = require('axios');
 const { MongoClient } = require('mongodb');
 const client = new MongoClient(process.env.DB_URI);
+const getValidCategories = async () => {
+    try {
+        await client.connect();
+        const db = client.db(process.env.DB_NAME);
+        const categoriesCollection = db.collection("categories");
 
-const VALID_CATEGORIES = {
-    "McDonald's": "McDonald's",
-    'pizza': 'pizza',
-    'Starbucks': 'Starbucks',
-    'Fast food restaurant': 'Fast food restaurant',
-    'burger': 'burger',
-    'restaurant': 'restaurant'
+        // Find all categories and convert to array
+        const categories = await categoriesCollection.find({}).toArray();
+
+        // Convert array to object format needed for validation
+        const validCategories = {};
+        categories.forEach(category => {
+            validCategories[category.name] = category.name;
+        });
+console.log(validCategories,"????????????????????????");
+
+        return validCategories;
+    } catch (error) {
+        console.error('Error fetching categories:', error);
+        return {};
+    }
 };
+
 
 const generateSessionToken = () => {
     return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -589,12 +603,18 @@ const checkRestaurantInDatabase = async (restaurantData) => {
 
 const getNearbyRestaurants = async (req, res) => {
     try {
+        const VALID_CATEGORIES = await getValidCategories()
         const { longitude, latitude, radius = 1000, category = 'all' } = req.query;
 
         if (!longitude || !latitude) {
             return res.status(400).json({ success: false, message: 'Longitude and latitude are required' });
         }
-
+        if (!VALID_CATEGORIES[category] && category !== 'all') {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid category. Valid categories are: ' + Object.keys(VALID_CATEGORIES).join(', ')
+            });
+        }
         const uniqueRestaurants = new Map();
         const sessionToken = generateSessionToken();
 
@@ -633,7 +653,7 @@ const getNearbyRestaurants = async (req, res) => {
                     }
                 }
             }
-           
+
             const allRestaurants = Array.from(uniqueRestaurants.values())
                 .filter((restaurant) => restaurant.distance <= radius)
                 .sort((a, b) => a.distance - b.distance);
@@ -699,7 +719,7 @@ const getNearbyRestaurants = async (req, res) => {
 const fetchRestaurantsByType = async (searchTerm, longitude, latitude, radius, sessionToken) => {
     try {
         const searchboxUrl = `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(searchTerm)}`;
-        
+
         const response = await axios.get(searchboxUrl, {
             params: {
                 access_token: process.env.MAPBOX_ACCESS_TOKEN,
@@ -755,13 +775,13 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const R = 6371;
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
-    
-    const a = 
-        Math.sin(dLat/2) * Math.sin(dLat/2) +
-        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * 
-        Math.sin(dLon/2) * Math.sin(dLon/2);
-    
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return Math.round(R * c * 1000);
 };
 

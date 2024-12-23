@@ -44,6 +44,6 @@ router.delete('/deleteUser', profileController.deleteUser)
 router.post('/bug', feedbackController.reportBug)
 router.post('/searchRestaurant',restaurantController.searchRestaurant)
 router.get('/nearby',mapboxController.getNearbyRestaurants)
-// router.get('/sample',sample.getNearbyRestaurants)
+router.get('/suggestions',restaurantController.suggestions)
 
 module.exports = router;
