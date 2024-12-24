@@ -1,7 +1,6 @@
 const { MongoClient } = require("mongodb");
 const client = new MongoClient(process.env.DB_URI);
 const { ObjectId } = require('mongodb');
-
 const getMenu = async (req, res) => {
     const { restaurantId } = req.body;
     
@@ -25,10 +24,19 @@ const getMenu = async (req, res) => {
                 message: "Restaurant not found"
             });
         }
+
+        // Ensure categories array exists and process each category
+        const processedMenu = {
+            ...menu,
+            categories: menu.categories?.map(category => ({
+                ...category,
+                subCategories: category.subCategories || []
+            })) || []
+        };
         
         return res.status(200).json({
             success: true,
-            menu
+            menu: processedMenu
         });
 
     } catch (error) {
@@ -38,9 +46,7 @@ const getMenu = async (req, res) => {
             error: error.message
         });
     } finally {
-        // Close the connection
         await client.close();
     }
 };
-
 module.exports = {getMenu}
