@@ -565,7 +565,6 @@ const getValidCategories = async () => {
         categories.forEach(category => {
             validCategories[category.name] = category.name;
         });
-console.log(validCategories,"????????????????????????");
 
         return validCategories;
     } catch (error) {

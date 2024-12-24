@@ -56,7 +56,6 @@ const getEatPage = async (req, res) => {
 
 const eatScreenSearchName = async (req, res) => {
     const { name } = req.body;
-
     try {
         await client.connect();
         const grocery = client.db("hungerX").collection("grocerys");
@@ -165,6 +164,7 @@ const getMeal = async (req, res) => {
         })
     }
 }
+
 const searchGroceries = async (req, res) => {
     const { name } = req.body;
 
@@ -1017,7 +1017,7 @@ const suggestions = async (req, res) => {
             distance: 1,
             _id: 1
         }).toArray();
-   
+
         // Map the results to handle null values
         const formattedRestaurants = restaurants.map(restaurant => ({
             name: restaurant.restaurantName || null,
