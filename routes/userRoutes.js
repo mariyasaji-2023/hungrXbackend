@@ -46,5 +46,6 @@ router.post('/searchRestaurant',restaurantController.searchRestaurant)
 router.get('/nearby',mapboxController.getNearbyRestaurants)
 router.get('/suggestions',restaurantController.suggestions)
 router.post('/getMenu',menuController.getMenu)
+router.post('/addToCart',restaurantController.addToCart)
 
 module.exports = router;

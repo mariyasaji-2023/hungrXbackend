@@ -5,7 +5,7 @@ function convertKclToCalories(value) {
     // Convert string to number and handle potential errors
     const kcl = parseFloat(value);
     if (isNaN(kcl)) return value;
-    
+
     // Convert kcl to calories (1 kcl = 1000 calories)
     return (kcl * 1000).toString();
 }
@@ -30,7 +30,7 @@ fs.readFile('HungerXDataCollection.restaurants.json', 'utf8', (err, data) => {
                             if (dish.servingInfos) {
                                 dish.servingInfos.forEach(servingInfo => {
                                     if (servingInfo.servingInfo?.nutritionFacts?.calories?.value) {
-                                        servingInfo.servingInfo.nutritionFacts.calories.value = 
+                                        servingInfo.servingInfo.nutritionFacts.calories.value =
                                             convertKclToCalories(servingInfo.servingInfo.nutritionFacts.calories.value);
                                         // Update the unit from kcl to cal
                                         servingInfo.servingInfo.nutritionFacts.calories.unit = 'cal';
@@ -45,8 +45,8 @@ fs.readFile('HungerXDataCollection.restaurants.json', 'utf8', (err, data) => {
 
         // Write the converted data to a new file
         fs.writeFile(
-            'converted_calories.json', 
-            JSON.stringify(restaurants, null, 2), 
+            'converted_calories.json',
+            JSON.stringify(restaurants, null, 2),
             'utf8',
             (err) => {
                 if (err) {

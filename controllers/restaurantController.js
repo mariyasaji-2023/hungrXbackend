@@ -516,39 +516,31 @@ const addUnknownFood = async (req, res) => {
         const db = getDBInstance();
         const users = db.collection("users");
         const groceries = db.collection("groceries");
-
         const {
             userId,
             mealType,
             foodName,
             calories
         } = req.body;
-
         const today = new Date();
         const date = today.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric'
         }).replace(/\//g, '/');
-
         const unknownFoodId = new mongoose.Types.ObjectId();
-
         const mealTypeMapping = {
             '6746a024a45e4d9e5d58ea12': 'breakfast',
             '6746a024a45e4d9e5d58ea13': 'lunch',
             '6746a024a45e4d9e5d58ea14': 'dinner',
             '6746a024a45e4d9e5d58ea15': 'snacks'
         };
-
         const mealTypeName = mealTypeMapping[mealType];
         if (!mealTypeName) {
             return res.status(400).json({ error: 'Invalid meal type ID' });
         }
-
         const dateKey = `consumedFood.dates.${date}`;
         const statsDateKey = `dailyConsumptionStats.${date}`;
-
-        // Create a new food entry in groceries collection
         const newGroceryItem = {
             _id: unknownFoodId,
             name: foodName,
@@ -562,9 +554,7 @@ const addUnknownFood = async (req, res) => {
             },
             isCustomFood: true
         };
-
         await groceries.insertOne(newGroceryItem);
-
         const foodEntry = {
             servingSize: 1,
             selectedMeal: new mongoose.Types.ObjectId(mealType),
@@ -583,13 +573,10 @@ const addUnknownFood = async (req, res) => {
             isCustomFood: true,
             foodId: new mongoose.Types.ObjectId()
         };
-
         const currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         if (!currentUser) {
             return res.status(404).json({ error: 'User not found' });
         }
-
-        // Initialize meal structure if it doesn't exist
         const currentDayData = currentUser.consumedFood?.dates?.[date];
         if (!currentDayData?.[mealTypeName]) {
             await users.updateOne(
@@ -604,16 +591,10 @@ const addUnknownFood = async (req, res) => {
                 }
             );
         }
-
-        // Get current calories or initialize
         const currentCalories = currentUser.dailyConsumptionStats?.[date] || 0;
         const newTotalCalories = currentCalories + Number(calories);
-
-        // Calculate calories to reach goal
         const dailyCalorieGoal = currentUser.dailyCalorieGoal || 0;
         const newCaloriesToReachGoal = dailyCalorieGoal - newTotalCalories;
-
-        // Update everything in one operation
         await users.updateOne(
             { _id: new mongoose.Types.ObjectId(userId) },
             {
@@ -626,11 +607,9 @@ const addUnknownFood = async (req, res) => {
                 }
             }
         );
-
         const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         const updatedMeal = updatedUser.consumedFood.dates[date][mealTypeName];
         const dailyCalories = updatedUser.dailyConsumptionStats[date];
-
         res.status(200).json({
             success: true,
             message: 'Unknown food added successfully',
@@ -650,7 +629,6 @@ const addUnknownFood = async (req, res) => {
                 caloriesToReachGoal: newCaloriesToReachGoal
             }
         });
-
     } catch (error) {
         console.error('Error adding unknown food:', error);
         res.status(500).json({ error: 'Internal server error' });
@@ -660,18 +638,15 @@ const addUnknownFood = async (req, res) => {
 
 const addToHistory = async (req, res) => {
     const { userId, productId } = req.body;
-
     if (!userId || !productId) {
         return res.status(400).json({
             status: false,
             message: 'User ID and Product ID are required'
         });
     }
-
     try {
         const grocery = mongoose.connection.db.collection("grocerys");
         const users = mongoose.connection.db.collection("users");
-
         const user = await users.findOne({ _id: new ObjectId(userId) });
         if (!user) {
             return res.status(404).json({
@@ -679,7 +654,6 @@ const addToHistory = async (req, res) => {
                 message: 'User not found'
             });
         }
-
         const foodItem = await grocery.findOne({ _id: new ObjectId(productId) });
         if (!foodItem) {
             return res.status(404).json({
@@ -687,11 +661,9 @@ const addToHistory = async (req, res) => {
                 message: 'Food item not found'
             });
         }
-
         const now = new Date();
         const searchDate = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
         const searchTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-
         const historyEntry = {
             foodId: new ObjectId(productId),
             name: foodItem.name,
@@ -703,26 +675,22 @@ const addToHistory = async (req, res) => {
             searchDate: searchDate,
             searchTime: searchTime
         };
-
-        // Update user's foodHistory using $push with $slice
         const result = await users.updateOne(
             { _id: new ObjectId(userId) },
             {
                 $push: {
                     foodHistory: {
                         $each: [historyEntry],
-                        $slice: -15  // Keep only the last 15 items
+                        $slice: -15
                     }
                 }
             }
         );
-
         return res.status(200).json({
             status: true,
             message: 'Added to history successfully',
             data: historyEntry
         });
-
     } catch (error) {
         console.error("Error adding to history:", error);
         return res.status(500).json({
@@ -733,16 +701,15 @@ const addToHistory = async (req, res) => {
     }
 };
 
+
 const getUserHistory = async (req, res) => {
     const { userId } = req.body;
-
     if (!userId) {
         return res.status(400).json({
             status: false,
             message: 'User ID is required'
         });
     }
-
     try {
         const users = mongoose.connection.db.collection("users");
 
@@ -750,25 +717,20 @@ const getUserHistory = async (req, res) => {
             { _id: new ObjectId(userId) },
             { projection: { foodHistory: 1 } }
         );
-
         if (!user) {
             return res.status(404).json({
                 status: false,
                 message: 'User not found'
             });
         }
-
-        // Sort the foodHistory array by viewedAt in descending order
         const sortedHistory = user.foodHistory ?
             user.foodHistory.sort((a, b) => new Date(b.viewedAt) - new Date(a.viewedAt))
             : [];
-
         return res.status(200).json({
             status: true,
             count: sortedHistory.length,
             data: sortedHistory
         });
-
     } catch (error) {
         console.error("Error fetching history:", error);
         return res.status(500).json({
@@ -785,20 +747,16 @@ const getConsumedFoodByDate = async (req, res) => {
         const db = getDBInstance();
         const users = db.collection("users");
         const { userId, date } = req.body;
-
         const user = await users.findOne({
             _id: new mongoose.Types.ObjectId(userId)
         });
-
         if (!user) {
             return res.status(404).json({
                 success: false,
                 message: 'User not found'
             });
         }
-
         const consumedFoodForDate = user.consumedFood?.dates?.[date] || {};
-
         if (Object.keys(consumedFoodForDate).length === 0) {
             return res.status(200).json({
                 success: true,
@@ -812,8 +770,6 @@ const getConsumedFoodByDate = async (req, res) => {
                 }
             });
         }
-
-        // Calculate total calories for the day
         let totalDayCalories = 0;
         Object.values(consumedFoodForDate).forEach(meal => {
             if (meal.foods && Array.isArray(meal.foods)) {
@@ -822,12 +778,9 @@ const getConsumedFoodByDate = async (req, res) => {
                 });
             }
         });
-
-        // Convert to proper number format and handle potential decimal places
         const formattedTotalCalories = Number(totalDayCalories.toFixed(2));
         const dailyGoal = parseFloat(user.dailyCalorieGoal);
         const remaining = Number((dailyGoal - formattedTotalCalories).toFixed(2));
-
         return res.status(200).json({
             success: true,
             message: 'Food entries found',
@@ -839,7 +792,6 @@ const getConsumedFoodByDate = async (req, res) => {
                 remaining: remaining
             }
         });
-
     } catch (error) {
         console.error('Error fetching consumed food:', error);
         return res.status(500).json({
@@ -855,60 +807,44 @@ const deleteDishFromMeal = async (req, res) => {
         const users = db.collection("users");
         const {
             userId,
-            date,     // format: DD/MM/YYYY
-            mealId,   // ID of the meal type (breakfast, lunch, dinner, snacks)
-            dishId    // ID of the specific dish to delete
+            date,
+            mealId,
+            dishId
         } = req.body;
-
         if (!userId || !date || !mealId || !dishId) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
-
-        // Meal type mapping
         const mealTypeMapping = {
             '6746a024a45e4d9e5d58ea12': 'breakfast',
             '6746a024a45e4d9e5d58ea13': 'lunch',
             '6746a024a45e4d9e5d58ea14': 'dinner',
             '6746a024a45e4d9e5d58ea15': 'snacks'
         };
-
         const mealType = mealTypeMapping[mealId];
         if (!mealType) {
             return res.status(400).json({ error: 'Invalid meal ID' });
         }
-
-        // Find user and get current data
         const user = await users.findOne({
             _id: new mongoose.Types.ObjectId(userId)
         });
-
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
-
         const dateKey = `consumedFood.dates.${date}`;
         const mealKey = `${dateKey}.${mealType}`;
-
-        // Find the specific food item in the meal's foods array
         const currentMeal = user.consumedFood?.dates?.[date]?.[mealType];
         if (!currentMeal || !currentMeal.foods) {
             return res.status(404).json({ error: 'Meal not found for the specified date' });
         }
-
         const foodToDelete = currentMeal.foods.find(
             food => food.dishId.toString() === dishId || food.foodId.toString() === dishId
         );
-
         if (!foodToDelete) {
             return res.status(404).json({ error: 'Dish not found in the meal' });
         }
-
-        // Calculate calories to add back
         const caloriesToAddBack = Number(foodToDelete.totalCalories) || 0;
         const currentCaloriesToReachGoal = parseInt(user.caloriesToReachGoal) || 0;
         const newCaloriesToReachGoal = currentCaloriesToReachGoal + caloriesToAddBack;
-
-        // Remove the specific food item from the array
         const updateOperations = {
             $pull: {
                 [`${mealKey}.foods`]: {
@@ -922,22 +858,16 @@ const deleteDishFromMeal = async (req, res) => {
                 caloriesToReachGoal: newCaloriesToReachGoal
             }
         };
-
         const result = await users.updateOne(
             { _id: new mongoose.Types.ObjectId(userId) },
             updateOperations
         );
-
         if (result.matchedCount === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
-
-        // Get updated user data
         const updatedUser = await users.findOne({
             _id: new mongoose.Types.ObjectId(userId)
         });
-
-        // Calculate the daily summary after deletion
         const updatedMeal = updatedUser.consumedFood?.dates?.[date]?.[mealType];
         let totalDayCalories = 0;
         Object.values(updatedUser.consumedFood?.dates?.[date] || {}).forEach(meal => {
@@ -947,7 +877,6 @@ const deleteDishFromMeal = async (req, res) => {
                 });
             }
         });
-
         res.status(200).json({
             success: true,
             message: 'Dish deleted successfully',
@@ -977,14 +906,12 @@ const searchRestaurant = async (req, res) => {
         const searchTerm = name.trim().toLowerCase();
         const restaurant = mongoose.connection.db.collection("restaurants");
         const restaurantName = await restaurant.findOne({ name: { $regex: searchTerm, $options: 'i' } });
-
         if (!restaurantName) {
             return res.status(404).json({
                 status: false,
                 message: 'Restaurant not found'
             });
         }
-
         return res.status(200).json({
             status: true,
             message: 'Restaurant found',
@@ -1003,13 +930,12 @@ const searchRestaurant = async (req, res) => {
     }
 };
 
+
 const suggestions = async (req, res) => {
     try {
         await client.connect();
         const db = client.db(process.env.DB_NAME);
         const Restaurant = db.collection("restaurants");
-
-        // Find restaurants and project specific fields
         const restaurants = await Restaurant.find({}).project({
             restaurantName: 1,
             address: 1,
@@ -1017,8 +943,6 @@ const suggestions = async (req, res) => {
             distance: 1,
             _id: 1
         }).toArray();
-
-        // Map the results to handle null values
         const formattedRestaurants = restaurants.map(restaurant => ({
             name: restaurant.restaurantName || null,
             address: restaurant.address || null,
@@ -1026,7 +950,6 @@ const suggestions = async (req, res) => {
             distance: restaurant.distance || null,
             _id: restaurant._id || null
         }));
-
         return res.status(200).json({
             status: true,
             restaurants: formattedRestaurants
@@ -1039,4 +962,122 @@ const suggestions = async (req, res) => {
         });
     }
 };
-module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood, addUnknownFood, getConsumedFoodByDate, deleteDishFromMeal, searchRestaurant, suggestions }
+
+const addToCart = async (req, res) => {
+    const { userId, orders } = req.body;
+ 
+    try {
+        await client.connect();
+        const db = client.db(process.env.DB_NAME);
+        const cartCollection = db.collection("cartDetails");
+        const restaurantCollection = db.collection("restaurants");
+        const restaurants = await restaurantCollection.find({}).toArray();
+ 
+        const findDishInRestaurant = (restaurants, targetDishId) => {
+            for (const restaurant of restaurants) {
+                for (const category of restaurant.categories) {
+                    if (category.dishes && category.dishes.length > 0) {
+                        const mainDish = category.dishes.find(dish => {
+                            const dishId = dish._id.toString ? dish._id.toString() : dish._id.$oid;
+                            return dishId === targetDishId;
+                        });
+ 
+                        if (mainDish) {
+                            return {
+                                dish: mainDish,
+                                restaurant,
+                                categoryName: category.categoryName
+                            };
+                        }
+                    }
+ 
+                    if (category.subCategories) {
+                        for (const subCategory of category.subCategories) {
+                            const subDish = subCategory.dishes.find(dish => {
+                                const dishId = dish._id.toString ? dish._id.toString() : dish._id.$oid;
+                                return dishId === targetDishId;
+                            });
+ 
+                            if (subDish) {
+                                return {
+                                    dish: subDish,
+                                    restaurant,
+                                    categoryName: category.categoryName,
+                                    subCategoryName: subCategory.subCategoryName
+                                };
+                            }
+                        }
+                    }
+                }
+            }
+            return null;
+        };
+ 
+        const allDishDetails = orders.flatMap(order => {
+            return order.items.map(item => {
+                const restaurantData = findDishInRestaurant(restaurants, item.dishId);
+ 
+                if (!restaurantData) {
+                    console.log('No restaurant data found for dishId:', item.dishId);
+                    return null;
+                }
+ 
+                const { dish, restaurant, categoryName, subCategoryName } = restaurantData;
+                const servingInfo = dish.servingInfos.find(info =>
+                    info.servingInfo.size === item.servingSize
+                );
+ 
+                if (!servingInfo) {
+                    console.log('No serving info found for size:', item.servingSize);
+                    return null;
+                }
+ 
+                return {
+                    restaurantId: order.restaurantId,
+                    restaurantName: restaurant.restaurantName,
+                    categoryName,
+                    subCategoryName,
+                    dishId: item.dishId,
+                    dishName: dish.dishName,
+                    servingSize: item.servingSize,
+                    nutritionInfo: servingInfo.servingInfo.nutritionFacts,
+                };
+            }).filter(Boolean);
+        });
+ 
+        if (allDishDetails.length === 0) {
+            return res.status(404).json({
+                status: false,
+                message: 'No valid dishes found in the order'
+            });
+        }
+ 
+        const cartDocument = {
+            userId,
+            orders,
+            dishDetails: allDishDetails,
+            createdAt: new Date(),
+            status: true,
+            message: 'Cart stored and dish details retrieved successfully'
+        };
+ 
+        await cartCollection.insertOne(cartDocument);
+ 
+        return res.status(200).json({
+            status: true,
+            message: 'Cart stored and dish details retrieved successfully',
+            dishes: allDishDetails
+        });
+ 
+    } catch (error) {
+        console.error('Error in addToCart:', error);
+        return res.status(500).json({
+            status: false,
+            message: 'Internal server error'
+        });
+    } finally {
+        await client.close();
+    }
+ };
+
+module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood, addUnknownFood, getConsumedFoodByDate, deleteDishFromMeal, searchRestaurant, suggestions, addToCart }
