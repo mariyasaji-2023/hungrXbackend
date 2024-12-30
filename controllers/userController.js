@@ -304,10 +304,10 @@ const createProfile = async (req, res) => {
         userId,
         name,
         gender,
-        heightInFeet,   // Height in feet
+        heightInFeet,
         heightInInches,
-        heightInCm,  // Height in inches
-        isMetric,       // Flag to determine metric or imperial
+        heightInCm,
+        isMetric,
         weightInKg,
         weightInLbs,
         mealsPerDay,
@@ -319,7 +319,7 @@ const createProfile = async (req, res) => {
         profilePhoto
     } = req.body;
 
-    console.log('Request Body:', req.body); // Log the request
+    console.log('Request Body:', req.body);
 
     try {
         const user = await User.findOne({ _id: userId });
@@ -334,11 +334,7 @@ const createProfile = async (req, res) => {
         const updateUserDetails = async (user) => {
             if (name) user.name = name;
             if (gender) user.gender = gender;
-            // if (req.file) {
-            //     user.profilePhoto = `uploads/${req.file.filename}`;
-            // }
             if (profilePhoto) user.profilePhoto = profilePhoto;
-            // Simplify height logic
             if (isMetric) {
                 user.heightInCm = heightInCm;
             } else {
@@ -348,7 +344,6 @@ const createProfile = async (req, res) => {
 
             user.isMetric = isMetric;
 
-            // Store weight in both units
             if (weightInKg) {
                 user.weightInKg = weightInKg;
             } else if (weightInLbs) {
@@ -363,7 +358,7 @@ const createProfile = async (req, res) => {
             if (activityLevel) user.activityLevel = activityLevel;
 
             await user.save();
-            console.log('Updated User:', user); // Log updated user
+            console.log('Updated User:', user);
         };
         ;
 
@@ -424,7 +419,6 @@ const calculateUserMetrics = async (req, res) => {
             });
         }
 
-        // Calculate weight and height based on unit system
         let weight = isMetric ? weightInKg : weightInLbs * 0.453592;
         let height = isMetric
             ? heightInCm / 100
@@ -454,11 +448,8 @@ const calculateUserMetrics = async (req, res) => {
         };
         const TDEE = BMR * (activityMultiplier[activityLevel] || 1.2);
 
-        // BMI Calculation
         const BMI = weight / (height ** 2);
 
-        // Daily Calorie Goal based on weight gain/loss rate
-        // Convert weekly weight change to daily calories (1 kg = 7700 calories)
         const dailyCalorieAdjustment = (weightGainRate * 7700) / 7;
         let dailyCalorieGoal = TDEE;
         if (goal === 'gain weight') {
@@ -467,7 +458,6 @@ const calculateUserMetrics = async (req, res) => {
             dailyCalorieGoal -= dailyCalorieAdjustment;
         }
 
-        // Apply minimum calorie limits based on gender
         const minCalories = gender === 'male' ? 1500 : 1200;
         dailyCalorieGoal = Math.max(dailyCalorieGoal, minCalories);
 
@@ -674,7 +664,7 @@ const trackUser = async (req, res) => {
 
 const updateWeight = async (req, res) => {
     const { userId, newWeight } = req.body;
-    
+
     try {
         const user = await User.findById(userId);
         if (!user) {
@@ -721,13 +711,13 @@ const updateWeight = async (req, res) => {
         const weightDifference = Math.abs(weightInKg - targetWeightInKg);
         const weeklyRate = user.weightGainRate || 0.5; // kg per week
         const caloriesPerKg = user.goal === 'lose weight' ? 7700 : 7700; // calories per kg
-        
+
         user.caloriesToReachGoal = (weightDifference * caloriesPerKg).toFixed(2);
         user.daysToReachGoal = Math.ceil((weightDifference / weeklyRate) * 7);
 
         // Adjust daily calorie goal based on goal type
         const dailyCalorieAdjustment = (weeklyRate * 7700) / 7;
-        user.dailyCalorieGoal = user.goal === 'lose weight' 
+        user.dailyCalorieGoal = user.goal === 'lose weight'
             ? (parseFloat(user.TDEE) - dailyCalorieAdjustment).toFixed(2)
             : user.goal === 'gain weight'
                 ? (parseFloat(user.TDEE) + dailyCalorieAdjustment).toFixed(2)
@@ -775,7 +765,6 @@ const getWeightHistory = async (req, res) => {
     const { userId } = req.body;
 
     try {
-        // Fetch user details to get isMetric flag and current weight
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({
@@ -783,14 +772,11 @@ const getWeightHistory = async (req, res) => {
                 message: 'User not found',
             });
         }
-        console.log(user, "uuuuuuuuuuuuuuuuuuuuuu");
+        console.log(user);
 
-        // Determine the current weight based on isMetric flag
         const currentWeight = user.isMetric ? user.weightInKg : user.weightInLbs;
-        console.log(currentWeight, "cccccccccccccccccccccccccccc");
+        console.log(currentWeight);
 
-
-        // Fetch the user's weight history from the Weight collection
         const weightHistory = await Weight.find({ userId }).sort({ timestamp: -1 });
 
         if (!weightHistory.length) {
@@ -801,22 +787,17 @@ const getWeightHistory = async (req, res) => {
         }
 
         const history = [
-            // {
-            //     weight: currentWeight,
-            //     date: "Current Weight", // Latest weight from the user schema
-            // },
             ...weightHistory.map((entry) => ({
                 weight: entry.weight,
-                date: entry.timestamp.toISOString().split('T')[0].split('-').reverse().join('-'), // Format as DD-MM-YYYY
+                date: entry.timestamp.toISOString().split('T')[0].split('-').reverse().join('-'),
             })),
         ];
 
-        // Construct the response
         res.status(200).json({
             status: true,
             message: 'Weight history retrieved successfully',
             isMetric: user.isMetric,
-            currentWeight, // Current weight from user schema
+            currentWeight,
             history,
         });
     } catch (error) {
@@ -857,6 +838,7 @@ const checkUser = async (req, res) => {
         });
     }
 }
+
 
 module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, createProfile, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory, checkUser };
 

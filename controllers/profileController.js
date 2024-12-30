@@ -6,7 +6,8 @@ const { getDBInstance } = require('../config/db');
 
 const { MongoClient } = require("mongodb");
 const { ObjectId } = require('mongodb');
-const client = new MongoClient("mongodb+srv://hungrx001:b19cQlcRApahiWUD@cluster0.ynchc4e.mongodb.net/hungerX");
+// const client = new MongoClient("mongodb+srv://hungrx001:hungrxmongo@cluster0.ynchc4e.mongodb.net/hungerX");
+const client = new MongoClient(process.env.DB_URI);
 
 const basicInfo = async (req, res) => {
     const { userId } = req.body;
@@ -147,7 +148,6 @@ const updateBasicInfo = async (req, res) => {
             { new: true }
         );
 
-        // Format the response similar to basicInfo
         const weight = updatedUser.isMetric
             ? updatedUser.weightInKg
                 ? `${updatedUser.weightInKg} kg`
@@ -207,11 +207,9 @@ const profileScreen = async (req, res) => {
             });
         }
 
-        // Extract isMetric and determine the weight
         const { name, isMetric, weightInKg, weightInLbs, TDEE, targetWeight, BMI } = user;
         const weight = isMetric ? weightInKg : weightInLbs;
 
-        // Prepare user details
         const userDetails = {
             TDEE,
             Weight: weight,
@@ -222,14 +220,12 @@ const profileScreen = async (req, res) => {
             profilephoto: null
         };
 
-        // Send response
         return res.status(200).json({
             status: true,
             data: userDetails,
 
         });
     } catch (error) {
-        // Handle any server error
         return res.status(500).json({
             status: false,
             message: 'Internal server error',
@@ -278,7 +274,6 @@ const updateGoalSetting = async (req, res) => {
     const { userId, targetWeight, weightGainRate, activityLevel, mealsPerDay, goal } = req.body;
 
     try {
-        // Check if the user exists
         const user = await userModel.findOne({ _id: userId });
         if (!user) {
             return res.status(404).json({
@@ -287,24 +282,20 @@ const updateGoalSetting = async (req, res) => {
             });
         }
 
-        // Create an object to hold the update details
         let updateDetails = {};
 
-        // Dynamically add fields to the update object if provided in the request body
         if (targetWeight) updateDetails.targetWeight = targetWeight;
         if (weightGainRate) updateDetails.weightGainRate = weightGainRate;
         if (activityLevel) updateDetails.activityLevel = activityLevel;
         if (mealsPerDay) updateDetails.mealsPerDay = mealsPerDay;
         if (goal) updateDetails.goal = goal
 
-        // Update the user document with the provided details
         await userModel.findByIdAndUpdate(
             userId,
             { $set: updateDetails },
-            { new: true } // Ensure the update is applied
+            { new: true } 
         );
 
-        // Prepare the response with only the required fields
         const response = {
             userId,
             targetWeight: updateDetails.targetWeight || user.targetWeight,

@@ -313,7 +313,6 @@ const searchGroceries = async (req, res) => {
                     name: 1
                 }
             },
-            // Stage 7: Limit results
             { $limit: 15 }
         ];
 
@@ -364,10 +363,8 @@ const calculateDayTotalCalories = (consumedFoodForDay) => {
     let totalCalories = 0;
     if (!consumedFoodForDay) return totalCalories;
 
-    // Loop through all meal types
     ['breakfast', 'lunch', 'dinner', 'snacks'].forEach(mealType => {
         if (consumedFoodForDay[mealType]?.foods) {
-            // Sum up calories from all foods in this meal
             totalCalories += consumedFoodForDay[mealType].foods.reduce(
                 (sum, food) => sum + (food.totalCalories || 0),
                 0
@@ -393,7 +390,6 @@ const addConsumedFood = async (req, res) => {
             totalCalories
         } = req.body;
 
-        // Get food details from groceries collection
         const foodDetails = await groceries.findOne({ _id: new mongoose.Types.ObjectId(dishId) });
         if (!foodDetails) {
             return res.status(404).json({ error: 'Food item not found in grocery database' });
@@ -440,7 +436,6 @@ const addConsumedFood = async (req, res) => {
             return res.status(404).json({ error: 'User not found' });
         }
 
-        // Initialize meal structure if it doesn't exist
         const currentDayData = currentUser.consumedFood?.dates?.[date];
         if (!currentDayData?.[mealType.toLowerCase()]) {
             await users.updateOne(
@@ -456,15 +451,12 @@ const addConsumedFood = async (req, res) => {
             );
         }
 
-        // Get current calories or initialize
         const currentCalories = currentUser.dailyConsumptionStats?.[date] || 0;
         const newTotalCalories = currentCalories + Number(totalCalories);
 
-        // Calculate calories to reach goal
         const dailyCalorieGoal = currentUser.dailyCalorieGoal || 0;
         const newCaloriesToReachGoal = dailyCalorieGoal - newTotalCalories;
 
-        // Update everything in one operation
         const result = await users.updateOne(
             { _id: new mongoose.Types.ObjectId(userId) },
             {
@@ -900,6 +892,7 @@ const deleteDishFromMeal = async (req, res) => {
     }
 };
 
+
 const searchRestaurant = async (req, res) => {
     const { name } = req.body;
     try {
@@ -963,155 +956,6 @@ const suggestions = async (req, res) => {
     }
 };
 
-const addToCart = async (req, res) => {
-    const { userId, orders } = req.body;
 
-    try {
-        await client.connect();
-        const db = client.db(process.env.DB_NAME);
-        const cartCollection = db.collection("cartDetails");
-        const restaurantCollection = db.collection("restaurants");
-        const restaurants = await restaurantCollection.find({}).toArray();
 
-        const findDishInRestaurant = (restaurants, targetDishId) => {
-            for (const restaurant of restaurants) {
-                for (const category of restaurant.categories) {
-                    if (category.dishes && category.dishes.length > 0) {
-                        const mainDish = category.dishes.find(dish => {
-                            const dishId = dish._id.toString ? dish._id.toString() : dish._id.$oid;
-                            return dishId === targetDishId;
-                        });
-
-                        if (mainDish) {
-                            return {
-                                dish: mainDish,
-                                restaurant,
-                                categoryName: category.categoryName
-                            };
-                        }
-                    }
-
-                    if (category.subCategories) {
-                        for (const subCategory of category.subCategories) {
-                            const subDish = subCategory.dishes.find(dish => {
-                                const dishId = dish._id.toString ? dish._id.toString() : dish._id.$oid;
-                                return dishId === targetDishId;
-                            });
-
-                            if (subDish) {
-                                return {
-                                    dish: subDish,
-                                    restaurant,
-                                    categoryName: category.categoryName,
-                                    subCategoryName: subCategory.subCategoryName
-                                };
-                            }
-                        }
-                    }
-                }
-            }
-            return null;
-        };
-
-        const allDishDetails = orders.flatMap(order => {
-            return order.items.map(item => {
-                const restaurantData = findDishInRestaurant(restaurants, item.dishId);
-
-                if (!restaurantData) {
-                    console.log('No restaurant data found for dishId:', item.dishId);
-                    return null;
-                }
-
-                const { dish, restaurant, categoryName, subCategoryName } = restaurantData;
-                const servingInfo = dish.servingInfos.find(info =>
-                    info.servingInfo.size === item.servingSize
-                );
-
-                if (!servingInfo) {
-                    console.log('No serving info found for size:', item.servingSize);
-                    return null;
-                }
-
-                return {
-                    restaurantId: order.restaurantId,
-                    restaurantName: restaurant.restaurantName,
-                    categoryName,
-                    subCategoryName,
-                    dishId: item.dishId,
-                    dishName: dish.dishName,
-                    servingSize: item.servingSize,
-                    nutritionInfo: servingInfo.servingInfo.nutritionFacts,
-                };
-            }).filter(Boolean);
-        });
-
-        if (allDishDetails.length === 0) {
-            return res.status(404).json({
-                status: false,
-                message: 'No valid dishes found in the order'
-            });
-        }
-
-        const cartDocument = {
-            userId,
-            orders,
-            dishDetails: allDishDetails,
-            createdAt: new Date(),
-            status: true,
-            message: 'Cart stored and dish details retrieved successfully'
-        };
-
-        await cartCollection.insertOne(cartDocument);
-
-        return res.status(200).json({
-            status: true,
-            message: 'Cart stored and dish details retrieved successfully',
-            dishes: allDishDetails
-        });
-
-    } catch (error) {
-        console.error('Error in addToCart:', error);
-        return res.status(500).json({
-            status: false,
-            message: 'Internal server error'
-        });
-    } finally {
-        await client.close();
-    }
-};
-
-const removeCart = async (req, res) => {
-    const { userId } = req.body
-    if (!userId) {
-        return res.status(400).json({
-            status: false,
-            message: 'userId required'
-        })
-    }
-    try {
-        await client.connect();
-        const db = client.db(process.env.DB_NAME)
-        const cartCollection = db.collection("cartDetails")
-        
-        // Use deleteOne instead of updateOne to remove the entire document
-        const result = await cartCollection.deleteOne({ userId })
-
-        if (result.deletedCount > 0) {
-            res.status(200).json({
-                status: true,
-                message: 'Cart removed successfully'
-            })
-        } else {
-            res.status(404).json({
-                status: false,
-                message: 'Cart not found for this user'
-            })
-        }
-    } catch (error) {
-        console.error("Error removing cart:", error);
-        res.status(500).json({ message: "Internal server error" });
-    } finally {
-        await client.close();
-    }
-}
-module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood, addUnknownFood, getConsumedFoodByDate, deleteDishFromMeal, searchRestaurant, suggestions, addToCart, removeCart }
+module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood, addUnknownFood, getConsumedFoodByDate, deleteDishFromMeal, searchRestaurant, suggestions, }
