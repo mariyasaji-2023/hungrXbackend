@@ -49,7 +49,7 @@ router.get('/nearby',mapboxController.getNearbyRestaurants)
 router.get('/suggestions',restaurantController.suggestions)
 router.post('/getMenu',menuController.getMenu)
 router.post('/addToCart',cartController.addToCart)
-router.post('/removeCart',cartController.removeCart)
+router.post('/consumeCartFood',cartController.consumeCartFood)
 router.post('/getCart',cartController.getCart)
 
 module.exports = router;
