@@ -121,12 +121,12 @@ const addToCart = async (req, res) => {
 };
 
 
-const consumeCartFood = async (req, res) => {
-    const { userId ,mealtype} = req.body
-    if (!userId || !mealtype) {
+const removeCart = async (req, res) => {
+    const { userId } = req.body
+    if (!userId) {
         return res.status(400).json({
             status: false,
-            message: 'userId and mealtype required'
+            message: 'userId required'
         })
     }
     try {
@@ -155,45 +155,53 @@ const consumeCartFood = async (req, res) => {
     }
 }
 
+
 const getCart = async (req, res) => {
     const { userId } = req.body;
-    
     try {
+        // First check if user exists
         await client.connect();
-        const db = client.db(process.env.DB_NAME);
-        const cartCollection = db.collection("cartDetails");
+        const db = client.db(process.env.DB_NAME)
+        const cartCollection = db.collection("cartDetails")
+        // const user = await User.findById(userId);
+        // if (!user) {
+        //     return res.status(404).json({
+        //         success: false,
+        //         message: 'User not found'
+        //     });
+        // }
+
+        // Find cart for the specific user
+        const cart = await cartCollection.findOne({ userId: userId });
         
-        // Using find() instead of findOne() to get all matching documents
-        const carts = await cartCollection.find({ userId: userId }).toArray();
-        
-        if (!carts.length) {
+        if (!cart) {
             return res.status(404).json({
                 success: true,
-                message: 'No carts found for this user',
+                message: 'Cart is empty',
                 data: null
             });
         }
-        
-        // Return all cart documents
+
         res.status(200).json({
             success: true,
-            message: 'Carts fetched successfully',
-            data: carts.map(cart => ({
+            message: 'Cart fetched successfully',
+            data: {
                 cartId: cart._id,
                 orders: cart.orders,
                 dishDetails: cart.dishDetails,
                 createdAt: cart.createdAt
-            }))
+            }
         });
-        
+
     } catch (error) {
-        console.error('Error fetching carts:', error);
+        console.error('Error fetching cart:', error);
         res.status(500).json({
             success: false,
-            message: 'Error fetching carts',
+            message: 'Error fetching cart',
             error: error.message
         });
     }
 };
 
-module.exports = { addToCart, consumeCartFood,getCart }
+
+module.exports = { addToCart, removeCart,getCart }
