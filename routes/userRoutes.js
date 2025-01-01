@@ -51,5 +51,6 @@ router.post('/getMenu',menuController.getMenu)
 router.post('/addToCart',cartController.addToCart)
 router.post('/removeCart',cartController.removeCart)
 router.post('/getCart',cartController.getCart)
+router.delete('/removeOneItem',cartController.removeOneItem)
 
 module.exports = router;

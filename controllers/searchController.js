@@ -7,7 +7,6 @@ require('dotenv').config();
 
 const uri = process.env.MONGODB_URI || 'mongodb+srv://hungrx001:hungrxmongo@cluster0.ynchc4e.mongodb.net/hungerX';
 
-// Search history schema
 const searchHistorySchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, required: true },
     query: { type: String, required: true },
