@@ -223,15 +223,17 @@ const getCart = async (req, res) => {
         // Convert Map to regular object
         const dailyConsumption = user?.dailyConsumptionStats ? 
             Object.fromEntries(user.dailyConsumptionStats) : {};
-            
-        console.log(user, dailyConsumption, "///////////////");
+            const value = Object.values(dailyConsumption)[0]||0
+        const dailyCalorieGoal = user?.dailyCalorieGoal  
+        const remaining = dailyCalorieGoal - value
+        console.log(value,dailyCalorieGoal,remaining, "///////////////");
         
         if (!carts.length) {
             return res.status(404).json({
                 success: true,
                 message: 'No carts found for this user',
                 data: null,
-                dailyConsumption: dailyConsumption
+                remaining
             });
         }
         
@@ -245,7 +247,7 @@ const getCart = async (req, res) => {
                 dishDetails: cart.dishDetails,
                 createdAt: cart.createdAt
             })),
-            dailyConsumption: dailyConsumption
+            remaining
         });
         
     } catch (error) {
