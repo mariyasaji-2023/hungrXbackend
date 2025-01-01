@@ -2,7 +2,6 @@ const { MongoClient } = require('mongodb');
 const client = new MongoClient(process.env.DB_URI);
 const User = require('../models/userModel');
 
-
 const addToCart = async (req, res) => {
     const { userId, orders } = req.body;
 
@@ -92,22 +91,76 @@ const addToCart = async (req, res) => {
             });
         }
 
-        const cartDocument = {
-            userId,
-            orders,
-            dishDetails: allDishDetails,
-            createdAt: new Date(),
-            status: true,
-            message: 'Cart stored and dish details retrieved successfully'
-        };
+        // Find existing cart for the user
+        const existingCart = await cartCollection.findOne({ userId });
 
-        await cartCollection.insertOne(cartDocument);
+        if (existingCart) {
+            // Merge existing and new orders
+            const mergedOrders = [...existingCart.orders];
+            
+            orders.forEach(newOrder => {
+                const existingOrderIndex = mergedOrders.findIndex(
+                    order => order.restaurantId === newOrder.restaurantId
+                );
 
-        return res.status(200).json({
-            status: true,
-            message: 'Cart stored and dish details retrieved successfully',
-            dishes: allDishDetails
-        });
+                if (existingOrderIndex !== -1) {
+                    // Restaurant exists in cart, append new items
+                    mergedOrders[existingOrderIndex].items = [
+                        ...mergedOrders[existingOrderIndex].items,
+                        ...newOrder.items
+                    ];
+                } else {
+                    // New restaurant, add entire order
+                    mergedOrders.push(newOrder);
+                }
+            });
+
+            // Merge dish details
+            const mergedDishDetails = [
+                ...existingCart.dishDetails,
+                ...allDishDetails
+            ];
+
+            // Update existing cart with merged data
+            const updatedCart = {
+                userId,
+                orders: mergedOrders,
+                dishDetails: mergedDishDetails,
+                updatedAt: new Date(),
+                status: true,
+                message: 'Cart updated successfully'
+            };
+
+            await cartCollection.updateOne(
+                { userId },
+                { $set: updatedCart }
+            );
+
+            return res.status(200).json({
+                status: true,
+                message: 'Cart updated successfully',
+                dishes: mergedDishDetails
+            });
+        } else {
+            // Create new cart if none exists
+            const newCart = {
+                userId,
+                orders,
+                dishDetails: allDishDetails,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                status: true,
+                message: 'Cart created successfully'
+            };
+
+            await cartCollection.insertOne(newCart);
+
+            return res.status(200).json({
+                status: true,
+                message: 'Cart created successfully',
+                dishes: allDishDetails
+            });
+        }
 
     } catch (error) {
         console.error('Error in addToCart:', error);
@@ -119,7 +172,6 @@ const addToCart = async (req, res) => {
         await client.close();
     }
 };
-
 
 const removeCart = async (req, res) => {
     const { userId } = req.body
@@ -155,6 +207,7 @@ const removeCart = async (req, res) => {
     }
 }
 
+
 const getCart = async (req, res) => {
     const { userId } = req.body;
     
@@ -165,12 +218,20 @@ const getCart = async (req, res) => {
         
         // Using find() instead of findOne() to get all matching documents
         const carts = await cartCollection.find({ userId: userId }).toArray();
+        const user = await User.findOne({_id: userId});
+
+        // Convert Map to regular object
+        const dailyConsumption = user?.dailyConsumptionStats ? 
+            Object.fromEntries(user.dailyConsumptionStats) : {};
+            
+        console.log(user, dailyConsumption, "///////////////");
         
         if (!carts.length) {
             return res.status(404).json({
                 success: true,
                 message: 'No carts found for this user',
-                data: null
+                data: null,
+                dailyConsumption: dailyConsumption
             });
         }
         
@@ -183,7 +244,8 @@ const getCart = async (req, res) => {
                 orders: cart.orders,
                 dishDetails: cart.dishDetails,
                 createdAt: cart.createdAt
-            }))
+            })),
+            dailyConsumption: dailyConsumption
         });
         
     } catch (error) {
@@ -193,6 +255,8 @@ const getCart = async (req, res) => {
             message: 'Error fetching carts',
             error: error.message
         });
+    } finally {
+        await client.close();
     }
 };
 
