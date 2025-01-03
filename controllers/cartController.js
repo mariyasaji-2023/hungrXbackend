@@ -333,7 +333,6 @@ const removeCart = async (req, res) => {
     }
 };
 
-
 const getCart = async (req, res) => {
     const { userId } = req.body;
 
@@ -345,12 +344,15 @@ const getCart = async (req, res) => {
         const carts = await cartCollection.find({ userId: userId }).toArray();
         const user = await User.findOne({ _id: userId });
 
-        // Generate today's date in the format that matches your dailyConsumptionStats keys
-        const today = new Date().toISOString().split('T')[0]; // Format: 'YYYY-MM-DD'
+        // Generate today's date in DD/MM/YYYY format
+        const today = new Date().toLocaleDateString('en-GB');
         
-        const dailyConsumption = user?.dailyConsumptionStats ?
-            Object.fromEntries(user.dailyConsumptionStats) : {};
-        const value = dailyConsumption[today] || 0;
+        // Access Map value using get() method
+        const value = user?.dailyConsumptionStats?.get(today) || 0;
+        
+        console.log('Today\'s date:', today);
+        console.log('Daily consumption stats:', user?.dailyConsumptionStats);
+        
         const dailyCalorieGoal = user?.dailyCalorieGoal;
         const remaining = dailyCalorieGoal - value;
         console.log(value, dailyCalorieGoal, remaining, "///////////////");
@@ -364,7 +366,6 @@ const getCart = async (req, res) => {
             });
         }
 
-        // Return all cart documents
         res.status(200).json({
             success: true,
             message: 'Carts fetched successfully',
@@ -388,7 +389,6 @@ const getCart = async (req, res) => {
         await client.close();
     }
 };
-
 
 const removeOneItem = async (req, res) => {
     const { cartId, restaurantId, dishId } = req.body;
