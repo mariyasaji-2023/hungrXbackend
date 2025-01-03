@@ -174,39 +174,165 @@ const addToCart = async (req, res) => {
     }
 };
 
+
 const removeCart = async (req, res) => {
-    const { userId } = req.body
+    const { userId, mealType } = req.body;
+
     if (!userId) {
         return res.status(400).json({
             status: false,
             message: 'userId required'
-        })
+        });
     }
+
+    if (!mealType) {
+        return res.status(400).json({
+            status: false,
+            message: 'mealType required'
+        });
+    }
+
     try {
         await client.connect();
-        const db = client.db(process.env.DB_NAME)
-        const cartCollection = db.collection("cartDetails")
+        const db = client.db(process.env.DB_NAME);
+        const cartCollection = db.collection("cartDetails");
+        const users = db.collection("users");
 
-        const result = await cartCollection.deleteOne({ userId })
+        // Get cart items before deletion
+        const cart = await cartCollection.findOne({ userId });
+        if (!cart || !cart.orders || !cart.dishDetails || cart.dishDetails.length === 0) {
+            return res.status(404).json({
+                status: false,
+                message: 'Cart not found or empty'
+            });
+        }
+
+        // Valid meal type check
+        const validMealIds = {
+            'breakfast': '6746a024a45e4d9e5d58ea12',
+            'lunch': '6746a024a45e4d9e5d58ea13',
+            'dinner': '6746a024a45e4d9e5d58ea14',
+            'snacks': '6746a024a45e4d9e5d58ea15'
+        };
+
+        if (!validMealIds[mealType.toLowerCase()]) {
+            return res.status(400).json({ error: 'Invalid meal type' });
+        }
+
+        // Get current date in required format
+        const today = new Date();
+        const date = today.toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        }).replace(/\//g, '/');
+
+        // Prepare update operations for user's consumed food
+        const dateKey = `consumedFood.dates.${date}`;
+        const statsDateKey = `dailyConsumptionStats.${date}`;
+
+        // Get current user for calorie calculations
+        const currentUser = await users.findOne({ _id: new ObjectId(userId) });
+        if (!currentUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const currentDayData = currentUser.consumedFood?.dates?.[date];
+        if (!currentDayData?.[mealType.toLowerCase()]) {
+            await users.updateOne(
+                { _id: new ObjectId(userId) },
+                {
+                    $set: {
+                        [`${dateKey}.${mealType.toLowerCase()}`]: {
+                            mealId: validMealIds[mealType.toLowerCase()],
+                            foods: []
+                        }
+                    }
+                }
+            );
+        }
+
+        let totalNewCalories = 0;
+        const foodEntries = [];
+
+        for (const dish of cart.dishDetails) {
+            const foodEntry = {
+                servingSize: dish.servingSize,
+                selectedMeal: validMealIds[mealType.toLowerCase()],
+                dishId: new ObjectId(dish.dishId),
+                totalCalories: Number(dish.nutritionInfo.calories.value),
+                timestamp: today,
+                name: dish.dishName.trim(),
+                brandName: dish.restaurantName,
+                // image: dish.image || null,
+                nutritionFacts: {
+                    calories: Number(dish.nutritionInfo.calories.value),
+                    protein: Number(dish.nutritionInfo.protein.value),
+                    carbs: Number(dish.nutritionInfo.carbs.value),
+                    fat: Number(dish.nutritionInfo.totalFat.value)
+                },
+                servingInfo: {
+                    size: dish.servingSize,
+                    unit: dish.nutritionInfo.calories.unit
+                },
+                foodId: new ObjectId()
+            };
+
+            foodEntries.push(foodEntry);
+            totalNewCalories += Number(dish.nutritionInfo.calories.value);
+        }
+
+        const currentCalories = currentUser.dailyConsumptionStats?.[date] || 0;
+        const newTotalCalories = currentCalories + totalNewCalories;
+        const dailyCalorieGoal = currentUser.dailyCalorieGoal || 0;
+        const newCaloriesToReachGoal = dailyCalorieGoal - newTotalCalories;
+
+        await users.updateOne(
+            { _id: new ObjectId(userId) },
+            {
+                $push: {
+                    [`${dateKey}.${mealType.toLowerCase()}.foods`]: { $each: foodEntries }
+                },
+                $set: {
+                    [statsDateKey]: newTotalCalories,
+                    caloriesToReachGoal: newCaloriesToReachGoal
+                }
+            }
+        );
+
+        const result = await cartCollection.deleteOne({ userId });
 
         if (result.deletedCount > 0) {
+            const updatedUser = await users.findOne({ _id: new ObjectId(userId) });
+            const updatedMeal = updatedUser.consumedFood.dates[date][mealType.toLowerCase()];
+            const dailyCalories = updatedUser.dailyConsumptionStats[date];
+
             res.status(200).json({
                 status: true,
-                message: 'Cart removed successfully'
-            })
+                message: 'Cart items added to consumed food and cart removed successfully',
+                date: date,
+                updatedMeal: updatedMeal,
+                dailyCalories: dailyCalories,
+                updatedCalories: {
+                    remaining: dailyCalorieGoal - dailyCalories,
+                    consumed: dailyCalories,
+                    caloriesToReachGoal: newCaloriesToReachGoal
+                }
+            });
         } else {
             res.status(404).json({
                 status: false,
                 message: 'Cart not found for this user'
-            })
+            });
         }
     } catch (error) {
-        console.error("Error removing cart:", error);
+        console.error("Error processing cart removal:", error);
         res.status(500).json({ message: "Internal server error" });
     } finally {
         await client.close();
     }
-}
+};
+
 
 const getCart = async (req, res) => {
     const { userId } = req.body;
@@ -216,16 +342,17 @@ const getCart = async (req, res) => {
         const db = client.db(process.env.DB_NAME);
         const cartCollection = db.collection("cartDetails");
 
-        // Using find() instead of findOne() to get all matching documents
         const carts = await cartCollection.find({ userId: userId }).toArray();
         const user = await User.findOne({ _id: userId });
 
-        // Convert Map to regular object
+        // Generate today's date in the format that matches your dailyConsumptionStats keys
+        const today = new Date().toISOString().split('T')[0]; // Format: 'YYYY-MM-DD'
+        
         const dailyConsumption = user?.dailyConsumptionStats ?
             Object.fromEntries(user.dailyConsumptionStats) : {};
-        const value = Object.values(dailyConsumption)[0] || 0
-        const dailyCalorieGoal = user?.dailyCalorieGoal
-        const remaining = dailyCalorieGoal - value
+        const value = dailyConsumption[today] || 0;
+        const dailyCalorieGoal = user?.dailyCalorieGoal;
+        const remaining = dailyCalorieGoal - value;
         console.log(value, dailyCalorieGoal, remaining, "///////////////");
 
         if (!carts.length) {
@@ -265,46 +392,39 @@ const getCart = async (req, res) => {
 
 const removeOneItem = async (req, res) => {
     const { cartId, restaurantId, dishId } = req.body;
-    
+
     try {
         await client.connect();
         const db = client.db(process.env.DB_NAME);
         const cartCollection = db.collection("cartDetails");
-
-        // Find the cart
-        const cart = await cartCollection.findOne({ 
-            _id: new ObjectId(cartId) 
+        const cart = await cartCollection.findOne({
+            _id: new ObjectId(cartId)
         });
 
         if (!cart) {
-            return res.status(404).json({ 
-                status: false, 
-                message: "Cart not found" 
+            return res.status(404).json({
+                status: false,
+                message: "Cart not found"
             });
         }
-
-        // Update orders array
         const updatedOrders = cart.orders.map(order => {
             if (order.restaurantId === restaurantId) {
                 // Filter out the specified dish
-                order.items = order.items.filter(item => 
+                order.items = order.items.filter(item =>
                     item.dishId !== dishId
                 );
             }
             return order;
         });
 
-        // Remove empty restaurant orders
-        const filteredOrders = updatedOrders.filter(order => 
+        const filteredOrders = updatedOrders.filter(order =>
             order.items.length > 0
         );
 
-        // Update dishDetails array
-        const updatedDishDetails = cart.dishDetails.filter(dish => 
+        const updatedDishDetails = cart.dishDetails.filter(dish =>
             dish.dishId !== dishId
         );
 
-        // Update the cart in database
         const result = await cartCollection.updateOne(
             { _id: new ObjectId(cartId) },
             {
@@ -340,4 +460,4 @@ const removeOneItem = async (req, res) => {
     }
 };
 
-module.exports = { addToCart, removeCart, getCart ,removeOneItem}
+module.exports = { addToCart, removeCart, getCart, removeOneItem }
