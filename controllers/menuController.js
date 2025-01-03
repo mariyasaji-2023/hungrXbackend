@@ -46,7 +46,12 @@ const getMenu = async (req, res) => {
             });
         }
 
-        // Ensure categories array exists and process each category
+        // Get today's date in DD/MM/YYYY format
+        const today = new Date().toLocaleDateString('en-GB');
+        
+        // Get today's consumption value
+        const todayConsumption = user.dailyConsumptionStats?.[today] || 0;
+
         const processedMenu = {
             ...menu,
             categories: menu.categories?.map(category => ({
@@ -60,7 +65,7 @@ const getMenu = async (req, res) => {
             menu: processedMenu,
             userStats: {
                 dailyCalorieGoal: user.dailyCalorieGoal,
-                dailyConsumptionStats: user.dailyConsumptionStats
+                todayConsumption
             }
         });
 
