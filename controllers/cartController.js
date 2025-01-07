@@ -81,6 +81,7 @@ const addToCart = async (req, res) => {
                     dishName: dish.dishName,
                     servingSize: item.servingSize,
                     nutritionInfo: servingInfo.servingInfo.nutritionFacts,
+                    url:servingInfo.servingInfo.Url
                 };
             }).filter(Boolean);
         });
