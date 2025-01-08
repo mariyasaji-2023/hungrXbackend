@@ -934,14 +934,16 @@ const suggestions = async (req, res) => {
             address: 1,
             coordinates: 1,
             distance: 1,
-            _id: 1
+            _id: 1,
+            logo:1
         }).toArray();
         const formattedRestaurants = restaurants.map(restaurant => ({
             name: restaurant.restaurantName || null,
             address: restaurant.address || null,
             coordinates: restaurant.coordinates || null,
             distance: restaurant.distance || null,
-            _id: restaurant._id || null
+            _id: restaurant._id || null,
+            logo:restaurant.logo || null
         }));
         return res.status(200).json({
             status: true,

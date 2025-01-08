@@ -9,7 +9,9 @@ const DEFAULT_CATEGORIES = {
     'coffee': 'Coffee shop',
     'restaurant': 'Restaurant',
     'Tacobell': 'Tacobell',
-    'Chipotle': 'Chipotle'
+    'Chipotle': 'Chipotle',
+    "Wendys":"Wendys",
+    "Mcdonalds":"McDonald's"
 };
 
 const generateSessionToken = () => {
