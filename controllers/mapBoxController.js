@@ -186,13 +186,31 @@ const getNearbyRestaurants = async (req, res) => {
                 findRestaurantInDatabase(restaurant.name, Restaurant)
                     .then(dbRestaurant => {
                         if (dbRestaurant && (category === 'all' || dbRestaurant.category === category)) {
-                            console.log('Matched restaurant:', restaurant.name,"/////////////////");
+                            console.log('Matched restaurant:', restaurant.name);
+                            
+                            // Handle logo based on what's in the database
+                            let logoUrl;
+                            if (dbRestaurant.logo) {
+                                if (dbRestaurant.logo.startsWith('http://') || dbRestaurant.logo.startsWith('https://')) {
+                                    logoUrl = dbRestaurant.logo; // Use the full URL directly
+                                } else {
+                                    logoUrl = `${process.env.BASE_URL}/public${dbRestaurant.logo}`; // Construct URL for local files
+                                }
+                            } else {
+                                logoUrl = '/restaurant-default-logo/restaurantdefaultlogo.webp';
+                            }
+
                             return {
-                                ...dbRestaurant,
+                                _id: dbRestaurant._id,
+                                restaurantName: dbRestaurant.restaurantName,
+                                logo: logoUrl,
+                                categories: dbRestaurant.categories || [],
+                                createdAt: dbRestaurant.createdAt,
+                                updatedAt: dbRestaurant.updatedAt,
+                                __v: dbRestaurant.__v,
                                 address: restaurant.address,
                                 distance: restaurant.distance,
-                                mapboxCategories: restaurant.category,
-                                logo: dbRestaurant.logo || '/restaurant-default-logo/restaurantdefaultlogo.webp'
+                                mapboxCategories: restaurant.category
                             };
                         }
                         return null;
@@ -225,7 +243,6 @@ const getNearbyRestaurants = async (req, res) => {
         }
     }
 };
-
 module.exports = {
     getNearbyRestaurants
 };
