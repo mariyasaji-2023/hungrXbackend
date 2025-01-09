@@ -10,7 +10,7 @@ const profileController = require('../controllers/profileController')
 const mapboxController = require('../controllers/mapBoxController')
 const menuController = require('../controllers/menuController')
 const cartController = require ('../controllers/cartController')
-
+const commonfoodController = require('../controllers/commonfoodController')
 
 router.post('/signup/email', userController.signupWithEmail);
 router.post('/login/email', userController.loginWithEmail)
@@ -52,5 +52,7 @@ router.post('/addToCart',cartController.addToCart)
 router.post('/removeCart',cartController.removeCart)
 router.post('/getCart',cartController.getCart)
 router.delete('/removeOneItem',cartController.removeOneItem)
+router.post('/searchCommonfood',commonfoodController.searchCommonfood)
+
 
 module.exports = router;

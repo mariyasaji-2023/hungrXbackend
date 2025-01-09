@@ -6,7 +6,6 @@ const { getDBInstance } = require('../config/db');
 
 const { MongoClient } = require("mongodb");
 const { ObjectId } = require('mongodb');
-// const client = new MongoClient("mongodb+srv://hungrx001:hungrxmongo@cluster0.ynchc4e.mongodb.net/hungerX");
 const client = new MongoClient(process.env.DB_URI);
 
 const basicInfo = async (req, res) => {

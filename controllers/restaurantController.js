@@ -164,6 +164,7 @@ const getMeal = async (req, res) => {
         })
     }
 }
+
 const searchGroceries = async (req, res) => {
     const { name } = req.body;
 

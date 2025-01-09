@@ -93,11 +93,9 @@ const addToCart = async (req, res) => {
             });
         }
 
-        // Find existing cart for the user
         const existingCart = await cartCollection.findOne({ userId });
 
         if (existingCart) {
-            // Merge existing and new orders
             const mergedOrders = [...existingCart.orders];
 
             orders.forEach(newOrder => {
@@ -106,24 +104,20 @@ const addToCart = async (req, res) => {
                 );
 
                 if (existingOrderIndex !== -1) {
-                    // Restaurant exists in cart, append new items
                     mergedOrders[existingOrderIndex].items = [
                         ...mergedOrders[existingOrderIndex].items,
                         ...newOrder.items
                     ];
                 } else {
-                    // New restaurant, add entire order
                     mergedOrders.push(newOrder);
                 }
             });
 
-            // Merge dish details
             const mergedDishDetails = [
                 ...existingCart.dishDetails,
                 ...allDishDetails
             ];
 
-            // Update existing cart with merged data
             const updatedCart = {
                 userId,
                 orders: mergedOrders,

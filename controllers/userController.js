@@ -448,6 +448,33 @@ const calculateUserMetrics = async (req, res) => {
         };
         const TDEE = BMR * (activityMultiplier[activityLevel] || 1.2);
 
+        // Calculate daily water intake
+        const calculateWaterIntake = () => {
+            // Base water intake (30ml per kg of body weight)
+            let baseWaterIntake = weight * 30;
+            
+            // Activity level adjustment
+            const activityWaterMultiplier = {
+                'sedentary': 1.0,
+                'lightly active': 1.1,
+                'moderately active': 1.2,
+                'very active': 1.3,
+                'extra active': 1.4,
+            };
+            
+            baseWaterIntake *= activityWaterMultiplier[activityLevel] || 1.0;
+            
+            // Age adjustment (older adults might need more due to reduced thirst sensation)
+            if (age > 55) {
+                baseWaterIntake *= 1.1;
+            }
+            
+            // Convert to liters and return
+            return (baseWaterIntake / 1000).toFixed(2);
+        };
+
+        const waterIntake = calculateWaterIntake();
+
         const BMI = weight / (height ** 2);
 
         const dailyCalorieAdjustment = (weightGainRate * 7700) / 7;
@@ -476,6 +503,7 @@ const calculateUserMetrics = async (req, res) => {
         user.dailyCalorieGoal = dailyCalorieGoal.toFixed(2);
         user.caloriesToReachGoal = caloriesToReachGoal.toFixed(2);
         user.daysToReachGoal = daysToReachGoal;
+        user.dailyWaterIntake = waterIntake;
 
         await user.save();
 
@@ -493,6 +521,7 @@ const calculateUserMetrics = async (req, res) => {
                 caloriesToReachGoal: caloriesToReachGoal.toFixed(2),
                 goalPace: `${weightGainRate} kg per week`,
                 daysToReachGoal,
+                dailyWaterIntake: `${waterIntake} L`
             },
         });
     } catch (error) {
@@ -505,6 +534,7 @@ const calculateUserMetrics = async (req, res) => {
         });
     }
 };
+
 
 const home = async (req, res) => {
     const { userId } = req.body;

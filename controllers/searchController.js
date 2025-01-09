@@ -5,7 +5,7 @@ const { MongoClient } = require('mongodb');
 const mongoose = require('mongoose');
 require('dotenv').config();
 
-const uri = process.env.MONGODB_URI || 'mongodb+srv://hungrx001:hungrxmongo@cluster0.ynchc4e.mongodb.net/hungerX';
+const uri = process.env.DB_URI;
 
 const searchHistorySchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, required: true },

@@ -106,6 +106,9 @@ const userSchema = new mongoose.Schema({
     mobile: {
         type: String
     },
+    dailyWaterIntake:{
+        type:String
+    },
     dailyConsumptionStats: {
         type: Map,
         of: Number,
