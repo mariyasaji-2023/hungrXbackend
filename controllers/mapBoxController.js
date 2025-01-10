@@ -204,13 +204,13 @@ const getNearbyRestaurants = async (req, res) => {
                                 _id: dbRestaurant._id,
                                 restaurantName: dbRestaurant.restaurantName,
                                 logo: logoUrl,
-                                categories: dbRestaurant.categories || [],
+                                // categories: dbRestaurant.categories || [],
                                 createdAt: dbRestaurant.createdAt,
                                 updatedAt: dbRestaurant.updatedAt,
                                 __v: dbRestaurant.__v,
                                 address: restaurant.address,
                                 distance: restaurant.distance,
-                                mapboxCategories: restaurant.category
+                                // mapboxCategories: restaurant.category
                             };
                         }
                         return null;
