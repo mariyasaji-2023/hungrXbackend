@@ -39,17 +39,19 @@ const getBoundingBox = (lat, lon, radius) => {
         maxLat.toFixed(6)
     ].join(',');
 };
-
 const fetchRestaurants = async (longitude, latitude, radius) => {
     try {
         const searchUrl = `https://api.mapbox.com/search/v1/suggest/restaurant`;
         const sessionToken = generateSessionToken();
         
+        const bbox = getBoundingBox(latitude, longitude, radius);
         console.log('Making Mapbox API request with params:', {
             longitude,
             latitude,
             radius,
-            bbox: getBoundingBox(latitude, longitude, radius)
+            bbox,
+            sessionToken,
+            url: searchUrl
         });
 
         const response = await axios.get(searchUrl, {
@@ -59,15 +61,25 @@ const fetchRestaurants = async (longitude, latitude, radius) => {
                 types: 'poi',
                 limit: 50,
                 language: 'en',
-                bbox: getBoundingBox(latitude, longitude, radius),
+                bbox: bbox,
                 session_token: sessionToken
             }
         });
 
-        console.log('Total Mapbox suggestions received:', response.data?.suggestions?.length || 0);
+        // Log the full response for debugging
+        console.log('Mapbox API Response:', {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers,
+            data: JSON.stringify(response.data, null, 2)
+        });
 
-        // Log all raw suggestions first
-        console.log('Raw suggestions:', JSON.stringify(response.data?.suggestions, null, 2));
+        if (!response.data?.suggestions) {
+            console.error('No suggestions in response:', response.data);
+            return [];
+        }
+
+        console.log('Total Mapbox suggestions received:', response.data.suggestions.length);
 
         const restaurants = response.data.suggestions
             .filter(suggestion => {
@@ -101,37 +113,47 @@ const fetchRestaurants = async (longitude, latitude, radius) => {
         return restaurants;
 
     } catch (error) {
-        console.error('Error fetching restaurants:', error);
+        console.error('Error fetching restaurants:', {
+            message: error.message,
+            stack: error.stack,
+            response: error.response?.data
+        });
         throw error;
     }
-};
+}
+
 
 const findRestaurantInDatabase = async (restaurantName, Restaurant) => {
-    // Step 1: Initial sanitization
+    // Step 1: Initial sanitization - keep more special characters for better matching
     const sanitizedName = restaurantName
         .trim()
         .toLowerCase()
         .normalize('NFD')
-        .replace(/\p{Diacritic}/gu, '')
-        .replace(/[^a-z0-9\s]/g, '')
-        .replace(/\s+/g, ' ');
+        .replace(/\p{Diacritic}/gu, '');
 
     console.log('Looking for restaurant:', {
         original: restaurantName,
         sanitized: sanitizedName
     });
 
-    // Step 2: Common chain name mappings
+    // Step 2: Chain name mappings (expanded with more variations)
     const chainMappings = {
         'mcdonalds': 'McDonald\'s',
         'mcdonald\'s': 'McDonald\'s',
         'chipotle mexican grill': 'Chipotle Mexican Grill',
         'chipotle': 'Chipotle Mexican Grill',
         'starbucks coffee': 'Starbucks',
-        'starbucks': 'Starbucks'
+        'starbucks': 'Starbucks',
+        'wendys': 'Wendys',
+        'wendy\'s': 'Wendys',
+        'dominos': 'Dominos',
+        'domino\'s': 'Dominos',
+        'popeyes': 'Popeyes',
+        'popeye\'s': 'Popeyes',
+        'taco bell': 'Taco Bell'
     };
 
-    // Check if it's a known chain
+    // Check for chain matches first
     const mappedName = chainMappings[sanitizedName];
     if (mappedName) {
         const chainMatch = await Restaurant.findOne({
@@ -157,27 +179,16 @@ const findRestaurantInDatabase = async (restaurantName, Restaurant) => {
         return dbRestaurant;
     }
 
-    // Step 4: Try matching without special characters
-    const strippedName = restaurantName
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, '')
+    // Step 4: Try matching with minimal character stripping
+    const minimallyStrippedName = sanitizedName
+        .replace(/['"]/g, '') // Only remove quotes
         .trim();
 
     dbRestaurant = await Restaurant.findOne({
-        $or: [
-            {
-                restaurantName: {
-                    $regex: strippedName,
-                    $options: 'i'
-                }
-            },
-            {
-                restaurantName: {
-                    $regex: strippedName.split(' ')[0],
-                    $options: 'i'
-                }
-            }
-        ]
+        restaurantName: {
+            $regex: `^${minimallyStrippedName}$`,
+            $options: 'i'
+        }
     });
 
     if (dbRestaurant) {
@@ -185,29 +196,43 @@ const findRestaurantInDatabase = async (restaurantName, Restaurant) => {
         return dbRestaurant;
     }
 
-    // Step 5: Try partial match with main words
-    const significantWords = sanitizedName.split(' ')
-        .filter(word => word.length > 2)
-        .filter(word => !['the', 'and', 'restaurant', 'cafe', 'coffee', 'shop'].includes(word));
+    // Step 5: Try a more strict partial match
+    const words = sanitizedName.split(' ').filter(word => 
+        word.length > 2 && 
+        !['the', 'and', 'restaurant', 'cafe', 'coffee', 'shop', 'grill', 'bar', 'kitchen'].includes(word)
+    );
 
-    if (significantWords.length > 0) {
+    if (words.length > 0) {
+        // Create a regex that requires all significant words to be present in order
+        const wordRegex = words
+            .map(word => `(?=.*\\b${word}\\b)`) // Require word boundaries
+            .join('');
+
         const partialMatches = await Restaurant.find({
             restaurantName: {
-                $regex: significantWords.map(word => `(?=.*${word})`).join(''),
+                $regex: wordRegex,
                 $options: 'i'
             }
         }).toArray();
 
-        if (partialMatches.length > 0) {
-            // Get the closest match by length
-            dbRestaurant = partialMatches.reduce((closest, current) => {
-                const closestDiff = Math.abs(closest.restaurantName.length - restaurantName.length);
-                const currentDiff = Math.abs(current.restaurantName.length - restaurantName.length);
-                return currentDiff < closestDiff ? current : closest;
+        if (partialMatches.length === 1) {
+            // Only return a partial match if it's unique
+            console.log('Found unique partial match:', partialMatches[0].restaurantName);
+            return partialMatches[0];
+        } else if (partialMatches.length > 1) {
+            // If multiple matches, use Levenshtein distance to find the closest match
+            const closestMatch = partialMatches.reduce((closest, current) => {
+                const currentDist = levenshteinDistance(current.restaurantName.toLowerCase(), sanitizedName);
+                const closestDist = levenshteinDistance(closest.restaurantName.toLowerCase(), sanitizedName);
+                return currentDist < closestDist ? current : closest;
             });
-            
-            console.log('Found partial match:', dbRestaurant.restaurantName);
-            return dbRestaurant;
+
+            // Only return if the Levenshtein distance is below a threshold
+            const distance = levenshteinDistance(closestMatch.restaurantName.toLowerCase(), sanitizedName);
+            if (distance <= Math.min(5, sanitizedName.length * 0.3)) {
+                console.log('Found closest partial match:', closestMatch.restaurantName);
+                return closestMatch;
+            }
         }
     }
 
@@ -215,21 +240,74 @@ const findRestaurantInDatabase = async (restaurantName, Restaurant) => {
     return null;
 };
 
+// Helper function to calculate Levenshtein distance
+function levenshteinDistance(str1, str2) {
+    const m = str1.length;
+    const n = str2.length;
+    const dp = Array(m + 1).fill().map(() => Array(n + 1).fill(0));
+
+    for (let i = 0; i <= m; i++) dp[i][0] = i;
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+    for (let i = 1; i <= m; i++) {
+        for (let j = 1; j <= n; j++) {
+            if (str1[i - 1] === str2[j - 1]) {
+                dp[i][j] = dp[i - 1][j - 1];
+            } else {
+                dp[i][j] = 1 + Math.min(
+                    dp[i - 1][j],     // deletion
+                    dp[i][j - 1],     // insertion
+                    dp[i - 1][j - 1]  // substitution
+                );
+            }
+        }
+    }
+
+    return dp[m][n];
+}
+
 const getNearbyRestaurants = async (req, res) => {
     let isConnected = false;
     try {
+        console.log('Attempting to connect to MongoDB...');
         await client.connect();
         isConnected = true;
+        console.log('Successfully connected to MongoDB');
         
         const db = client.db(process.env.DB_NAME);
         const Restaurant = db.collection("restaurants");
         
+        // Verify DB connection
+        const dbStats = await db.stats();
+        console.log('Database stats:', dbStats);
+        
         const { longitude, latitude, radius = 30000, category = 'all' } = req.query;
 
-        console.log('Starting search with params:', { longitude, latitude, radius, category });
+        console.log('Starting search with params:', { 
+            longitude, 
+            latitude, 
+            radius, 
+            category,
+            dbName: process.env.DB_NAME,
+            collectionName: "restaurants"
+        });
+
+        // Verify collection exists and has documents
+        const count = await Restaurant.countDocuments();
+        console.log(`Restaurant collection has ${count} documents`);
 
         const mapboxRestaurants = await fetchRestaurants(longitude, latitude, radius);
         console.log(`Retrieved ${mapboxRestaurants.length} restaurants from Mapbox`);
+
+        if (mapboxRestaurants.length === 0) {
+            console.log('No restaurants found from Mapbox API');
+            return res.status(200).json({ 
+                success: true, 
+                data: [],
+                total: 0,
+                message: 'No restaurants found in the specified area'
+            });
+        }
 
         const matchedRestaurants = [];
         const batchSize = 10;
@@ -237,13 +315,17 @@ const getNearbyRestaurants = async (req, res) => {
         for (let i = 0; i < mapboxRestaurants.length; i += batchSize) {
             const batch = mapboxRestaurants.slice(i, i + batchSize);
             console.log(`Processing batch ${i/batchSize + 1} of ${Math.ceil(mapboxRestaurants.length/batchSize)}`);
+            console.log('Current batch restaurants:', batch.map(r => r.name));
             
             const batchPromises = batch.map(restaurant => 
                 findRestaurantInDatabase(restaurant.name, Restaurant)
                     .then(dbRestaurant => {
                         if (dbRestaurant && (category === 'all' || dbRestaurant.category === category)) {
-                            console.log('Successfully matched and included:', restaurant.name);
-                            // ... rest of the processing
+                            console.log('Successfully matched and included:', {
+                                mapboxName: restaurant.name,
+                                dbName: dbRestaurant.restaurantName,
+                                category: dbRestaurant.category
+                            });
                             return {
                                 _id: dbRestaurant._id,
                                 restaurantName: dbRestaurant.restaurantName,
@@ -274,7 +356,11 @@ const getNearbyRestaurants = async (req, res) => {
 
         console.log('Final results:', {
             totalFound: matchedRestaurants.length,
-            restaurants: matchedRestaurants.map(r => r.restaurantName)
+            restaurants: matchedRestaurants.map(r => ({
+                name: r.restaurantName,
+                category: r.category,
+                distance: r.distance
+            }))
         });
 
         const sortedRestaurants = matchedRestaurants.sort((a, b) => a.distance - b.distance);
@@ -285,15 +371,20 @@ const getNearbyRestaurants = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error in getNearbyRestaurants:', error);
-        throw error;
+        console.error('Error in getNearbyRestaurants:', {
+            message: error.message,
+            stack: error.stack
+        });
+        return res.status(500).json({
+            success: false,
+            error: error.message
+        });
     } finally {
         if (isConnected) {
             await client.close().catch(console.error);
         }
     }
 };
-
 module.exports = {
     getNearbyRestaurants
 };
