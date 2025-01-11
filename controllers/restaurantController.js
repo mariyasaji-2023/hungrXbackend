@@ -186,6 +186,14 @@ const searchGroceries = async (req, res) => {
             {
                 $match: {
                     $or: [
+                        // Combined brand and product name match
+                        {
+                            $and: [
+                                { brandName: { $regex: new RegExp(searchWords[0], 'i') } },
+                                { name: { $regex: new RegExp(searchWords.slice(1).join('\\s+'), 'i') } }
+                            ]
+                        },
+                        // Word-by-word matching
                         ...searchWords.map(word => ({
                             $or: [
                                 { name: { $regex: new RegExp(word, 'i') } },
@@ -219,9 +227,72 @@ const searchGroceries = async (req, res) => {
                     }
                 }
             },
-            // Stage 3: Calculate matches and scores
+            // Stage 3: Calculate matches and scores with updated priority
             {
                 $addFields: {
+                    // 1. Phrase match in name (highest priority)
+                    phraseMatch: {
+                        $cond: [
+                            { 
+                                $regexMatch: { 
+                                    input: "$normalizedName", 
+                                    regex: new RegExp(searchWords.slice(1).join('\\s+'), 'i') 
+                                } 
+                            },
+                            200,
+                            0
+                        ]
+                    },
+                    // 2. Brand match (second priority)
+                    brandMatch: {
+                        $cond: [
+                            { 
+                                $regexMatch: { 
+                                    input: "$normalizedBrandName", 
+                                    regex: new RegExp(`^${searchWords[0]}s?$`, 'i') 
+                                } 
+                            },
+                            100,
+                            0
+                        ]
+                    },
+                    // 3. Exact combined match (third priority)
+                    exactCombinedMatch: {
+                        $cond: [
+                            {
+                                $and: [
+                                    { 
+                                        $regexMatch: { 
+                                            input: "$normalizedBrandName", 
+                                            regex: new RegExp(`^${searchWords[0]}s?$`, 'i') 
+                                        } 
+                                    },
+                                    { 
+                                        $regexMatch: { 
+                                            input: "$normalizedName", 
+                                            regex: new RegExp(`^${searchWords.slice(1).join('\\s+')}$`, 'i') 
+                                        } 
+                                    }
+                                ]
+                            },
+                            50,
+                            0
+                        ]
+                    },
+                    // 4. Partial match (fourth priority)
+                    partialMatch: {
+                        $cond: [
+                            { 
+                                $regexMatch: { 
+                                    input: "$combinedText", 
+                                    regex: new RegExp(searchTerm.replace(/\s+/g, "\\s+"), 'i') 
+                                } 
+                            },
+                            25,
+                            0
+                        ]
+                    },
+                    // 5. Word matches (lowest priority)
                     wordMatches: {
                         $sum: searchWords.map(word => ({
                             $cond: [
@@ -235,45 +306,6 @@ const searchGroceries = async (req, res) => {
                                 0
                             ]
                         }))
-                    },
-                    // Exact product name match (highest priority)
-                    exactProductMatch: {
-                        $cond: [
-                            {
-                                $and: [
-                                    { $eq: ["$normalizedName", "milk chocolate bar"] },
-                                    { $regexMatch: { input: "$normalizedBrandName", regex: new RegExp("hershey", 'i') } }
-                                ]
-                            },
-                            50,  // Highest score for exact product match
-                            0
-                        ]
-                    },
-                    // Brand match score
-                    brandMatch: {
-                        $cond: [
-                            {
-                                $regexMatch: {
-                                    input: "$normalizedBrandName",
-                                    regex: new RegExp("hershey", 'i')
-                                }
-                            },
-                            10,
-                            0
-                        ]
-                    },
-                    // Regular phrase match
-                    phraseMatch: {
-                        $cond: [
-                            { 
-                                $regexMatch: { 
-                                    input: "$combinedText", 
-                                    regex: new RegExp(searchTerm.replace(/\s+/g, "\\s+"), 'i') 
-                                } 
-                            },
-                            5,
-                            0
-                        ]
                     }
                 }
             },
@@ -282,10 +314,11 @@ const searchGroceries = async (req, res) => {
                 $addFields: {
                     relevanceScore: {
                         $add: [
-                            "$exactProductMatch",
-                            "$brandMatch",
-                            "$phraseMatch",
-                            { $multiply: ["$wordMatches", 2] }
+                            "$phraseMatch",           // Highest priority
+                            "$brandMatch",            // Second priority
+                            "$exactCombinedMatch",    // Third priority
+                            "$partialMatch",          // Fourth priority
+                            { $multiply: ["$wordMatches", 2] }  // Lowest priority
                         ]
                     }
                 }

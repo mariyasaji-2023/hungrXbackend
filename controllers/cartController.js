@@ -361,10 +361,8 @@ const getCart = async (req, res) => {
         const carts = await cartCollection.find({ userId: userId }).toArray();
         const user = await User.findOne({ _id: userId });
 
-        // Generate today's date in DD/MM/YYYY format
         const today = new Date().toLocaleDateString('en-GB');
-        
-        // Access Map value using get() method
+    
         const value = user?.dailyConsumptionStats?.get(today) || 0;
         
         console.log('Today\'s date:', today);
