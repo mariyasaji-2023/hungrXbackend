@@ -165,6 +165,7 @@ const getMeal = async (req, res) => {
     }
 }
 
+
 const searchGroceries = async (req, res) => {
     const { name } = req.body;
 
@@ -360,7 +361,7 @@ const addConsumedFood = async (req, res) => {
     try {
         const db = getDBInstance();
         const users = db.collection("users");
-        const groceries = db.collection("grocerys");
+        const groceries = db.collection("products");
 
         const {
             userId,
