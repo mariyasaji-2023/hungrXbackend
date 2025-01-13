@@ -2,19 +2,26 @@ const axios = require('axios');
 const { MongoClient } = require('mongodb');
 const client = new MongoClient(process.env.DB_URI);
 
+// Updated DEFAULT_CATEGORIES to include new categories
 const DEFAULT_CATEGORIES = {
     'fast-food': 'Fast food restaurant',
     'pizza': 'Pizza restaurant',
     'burger': 'Burger restaurant',
     'coffee': 'Coffee shop',
     'restaurant': 'Restaurant',
+    'cafe': 'Cafe',
+    'ice-cream': 'Ice cream shop',
     'Taco Bell': 'Taco Bell',
     'Chipotle': 'Chipotle',
-    "Wendys":"Wendys",
-    "McDonald's":"McDonald's",
-    "Popeyes":"Popeyes",
-    "Dominos":"Dominos"
+    "Wendys": "Wendys",
+    "McDonald's": "McDonald's",
+    "Popeyes": "Popeyes",
+    "Dominos": "Dominos",
+    "Pizza Hut": "Pizza Hut",
+    "Panera Bread": "Panera Bread",
+    "Dunkin": "Dunkin"
 };
+
 
 const generateSessionToken = () => {
     return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -41,76 +48,94 @@ const getBoundingBox = (lat, lon, radius) => {
 };
 const fetchRestaurants = async (longitude, latitude, radius) => {
     try {
-        const searchUrl = `https://api.mapbox.com/search/v1/suggest/restaurant`;
-        const sessionToken = generateSessionToken();
+        const searchTerms = [
+            'Fast food restaurant',
+            'Cafe',
+            'Ice cream shop',
+            'Mexican restaurant',
+            'Chicken restaurant',
+            'Pizza restaurant'
+        ];
         
+        let allRestaurants = [];
+        const sessionToken = generateSessionToken();
         const bbox = getBoundingBox(latitude, longitude, radius);
-        console.log('Making Mapbox API request with params:', {
-            longitude,
-            latitude,
-            radius,
-            bbox,
-            sessionToken,
-            url: searchUrl
-        });
 
-        const response = await axios.get(searchUrl, {
-            params: {
-                access_token: process.env.MAPBOX_ACCESS_TOKEN,
-                proximity: `${longitude},${latitude}`,
-                types: 'poi',
-                limit: 50,
-                language: 'en',
-                bbox: bbox,
-                session_token: sessionToken
+        // Make parallel requests for each search term
+        const searchPromises = searchTerms.map(async (term) => {
+            const searchUrl = `https://api.mapbox.com/search/v1/suggest/${encodeURIComponent(term)}`;
+            
+            console.log('Making Mapbox API request with params:', {
+                term,
+                longitude,
+                latitude,
+                radius,
+                bbox,
+                sessionToken,
+                url: searchUrl
+            });
+
+            const response = await axios.get(searchUrl, {
+                params: {
+                    access_token: process.env.MAPBOX_ACCESS_TOKEN,
+                    proximity: `${longitude},${latitude}`,
+                    types: 'poi',
+                    limit: 50,
+                    language: 'en',
+                    bbox: bbox,
+                    session_token: sessionToken
+                }
+            });
+
+            if (!response.data?.suggestions) {
+                console.error(`No suggestions in response for term: ${term}`, response.data);
+                return [];
             }
-        });
 
-        // Log the full response for debugging
-        console.log('Mapbox API Response:', {
-            status: response.status,
-            statusText: response.statusText,
-            headers: response.headers,
-            data: JSON.stringify(response.data, null, 2)
-        });
+            console.log(`Total Mapbox suggestions received for ${term}:`, response.data.suggestions.length);
 
-        if (!response.data?.suggestions) {
-            console.error('No suggestions in response:', response.data);
-            return [];
-        }
-
-        console.log('Total Mapbox suggestions received:', response.data.suggestions.length);
-
-        const restaurants = response.data.suggestions
-            .filter(suggestion => {
-                const keep = suggestion.feature_name && suggestion.description;
-                console.log('Filtering suggestion:', {
-                    name: suggestion.feature_name,
-                    description: suggestion.description,
-                    kept: keep,
-                    reason: !keep ? (
-                        !suggestion.feature_name ? 'Missing name' :
-                        !suggestion.description ? 'Missing description' :
-                        'Unknown'
-                    ) : 'Kept'
-                });
-                return keep;
-            })
-            .map(suggestion => {
-                const restaurant = {
+            return response.data.suggestions
+                .filter(suggestion => {
+                    const keep = suggestion.feature_name && suggestion.description;
+                    console.log('Filtering suggestion:', {
+                        term,
+                        name: suggestion.feature_name,
+                        description: suggestion.description,
+                        kept: keep,
+                        reason: !keep ? (
+                            !suggestion.feature_name ? 'Missing name' :
+                            !suggestion.description ? 'Missing description' :
+                            'Unknown'
+                        ) : 'Kept'
+                    });
+                    return keep;
+                })
+                .map(suggestion => ({
                     name: suggestion.feature_name,
                     address: suggestion.description,
                     distance: suggestion.distance || 0,
                     category: suggestion.poi_category || [],
                     mapboxId: suggestion.mapbox_id || '',
-                    context: suggestion.context || {}
-                };
-                console.log('Mapped restaurant:', restaurant);
-                return restaurant;
-            });
+                    context: suggestion.context || {},
+                    searchTerm: term // Add the search term to track which query found this result
+                }));
+        });
 
-        console.log(`Found ${restaurants.length} valid restaurants after filtering`);
-        return restaurants;
+        // Wait for all searches to complete
+        const results = await Promise.all(searchPromises);
+        
+        // Combine and deduplicate results based on mapboxId
+        allRestaurants = Array.from(
+            results.flat().reduce((map, restaurant) => {
+                if (!map.has(restaurant.mapboxId)) {
+                    map.set(restaurant.mapboxId, restaurant);
+                }
+                return map;
+            }, new Map())
+        ).map(([_, restaurant]) => restaurant);
+
+        console.log(`Found ${allRestaurants.length} unique restaurants after combining all search terms`);
+        return allRestaurants;
 
     } catch (error) {
         console.error('Error fetching restaurants:', {
@@ -121,7 +146,6 @@ const fetchRestaurants = async (longitude, latitude, radius) => {
         throw error;
     }
 }
-
 
 const findRestaurantInDatabase = async (restaurantName, Restaurant) => {
     // Step 1: Initial sanitization - keep more special characters for better matching
@@ -150,7 +174,9 @@ const findRestaurantInDatabase = async (restaurantName, Restaurant) => {
         'domino\'s': 'Dominos',
         'popeyes': 'Popeyes',
         'popeye\'s': 'Popeyes',
-        'taco bell': 'Taco Bell'
+        'taco bell': 'Taco Bell',
+        "Pizza Hut":"Pizza Hut",
+        "Panera Bread":"Panera Bread"
     };
 
     // Check for chain matches first
