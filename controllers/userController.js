@@ -405,9 +405,9 @@ const calculateUserMetrics = async (req, res) => {
             gender,
             age,
             activityLevel,
-            goal,
             targetWeight,
-            weightGainRate = 0.5,
+            weightGainRate = 0.25,
+            goal
         } = user;
 
         if (!age || !gender || (!weightInKg && !weightInLbs)) {
@@ -450,10 +450,7 @@ const calculateUserMetrics = async (req, res) => {
 
         // Calculate daily water intake
         const calculateWaterIntake = () => {
-            // Base water intake (30ml per kg of body weight)
             let baseWaterIntake = weight * 30;
-            
-            // Activity level adjustment
             const activityWaterMultiplier = {
                 'sedentary': 1.0,
                 'lightly active': 1.1,
@@ -461,42 +458,49 @@ const calculateUserMetrics = async (req, res) => {
                 'very active': 1.3,
                 'extra active': 1.4,
             };
-            
             baseWaterIntake *= activityWaterMultiplier[activityLevel] || 1.0;
-            
-            // Age adjustment (older adults might need more due to reduced thirst sensation)
             if (age > 55) {
                 baseWaterIntake *= 1.1;
             }
-            
-            // Convert to liters and return
             return (baseWaterIntake / 1000).toFixed(2);
         };
 
         const waterIntake = calculateWaterIntake();
-
         const BMI = weight / (height ** 2);
+        
+        // Calculate weight change with direction
+        const weightChange = targetWeight ? (Number(targetWeight) - weight) : 0;
+        
+        // Calculate daily calories and adjustments
+        const minCalories = gender === 'male' ? 1500 : 1200;
 
-        const dailyCalorieAdjustment = (weightGainRate * 7700) / 7;
+        // Set weekly rate based on goal
+        let weeklyRate = 0; // Default to 0 for maintain
+        if (goal === 'gain weight' || goal === 'lose weight') {
+            weeklyRate = weightGainRate || 0.25; // Use provided rate or default to 0.25
+        }
+
+        const dailyCalorieAdjustment = (weeklyRate * 7700) / 7;
+
+        // Set daily calorie goal based on goal direction
         let dailyCalorieGoal = TDEE;
         if (goal === 'gain weight') {
             dailyCalorieGoal += dailyCalorieAdjustment;
         } else if (goal === 'lose weight') {
             dailyCalorieGoal -= dailyCalorieAdjustment;
         }
-
-        const minCalories = gender === 'male' ? 1500 : 1200;
+        
+        // Ensure minimum calories
         dailyCalorieGoal = Math.max(dailyCalorieGoal, minCalories);
 
-        const totalWeightChange = targetWeight ? Math.abs(targetWeight - weight) : 0;
-        const caloriesToReachGoal = totalWeightChange * 7700;
-
-        const weeklyCaloricChange = weightGainRate * 7700;
-        const daysToReachGoal = totalWeightChange > 0
-            ? Math.ceil((caloriesToReachGoal / weeklyCaloricChange) * 7)
+        // Calculate goal-related metrics
+        const caloriesToReachGoal = Math.abs(weightChange * 7700);
+        const weeklyCaloricChange = weeklyRate * 7700;
+        const daysToReachGoal = weightChange !== 0 && weeklyRate !== 0
+            ? Math.ceil((caloriesToReachGoal / weeklyCaloricChange) * 7) 
             : 0;
 
-        // Update user metrics and save to DB
+        // Update user metrics
         user.BMI = BMI.toFixed(2);
         user.BMR = BMR.toFixed(2);
         user.TDEE = TDEE.toFixed(2);
@@ -507,6 +511,7 @@ const calculateUserMetrics = async (req, res) => {
 
         await user.save();
 
+        // Return consistent response format
         res.status(200).json({
             status: true,
             data: {
@@ -519,7 +524,7 @@ const calculateUserMetrics = async (req, res) => {
                 TDEE: TDEE.toFixed(2),
                 dailyCalorieGoal: dailyCalorieGoal.toFixed(2),
                 caloriesToReachGoal: caloriesToReachGoal.toFixed(2),
-                goalPace: `${weightGainRate} kg per week`,
+                goalPace: `${weeklyRate} kg per week`,
                 daysToReachGoal,
                 dailyWaterIntake: `${waterIntake} L`
             },

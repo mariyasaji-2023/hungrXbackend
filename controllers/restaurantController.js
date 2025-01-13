@@ -59,7 +59,7 @@ const eatScreenSearchName = async (req, res) => {
     const { name } = req.body;
     try {
         await client.connect();
-        const grocery = client.db("hungerX").collection("grocerys");
+        const grocery = client.db("hungerX").collection("products");
 
         const results = await grocery.aggregate([
             {
@@ -620,7 +620,7 @@ const addToHistory = async (req, res) => {
         });
     }
     try {
-        const grocery = mongoose.connection.db.collection("grocerys");
+        const grocery = mongoose.connection.db.collection("products");
         const users = mongoose.connection.db.collection("users");
         const user = await users.findOne({ _id: new ObjectId(userId) });
         if (!user) {
