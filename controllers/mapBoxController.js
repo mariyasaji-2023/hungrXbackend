@@ -48,14 +48,6 @@ const getBoundingBox = (lat, lon, radius) => {
 };
 const fetchRestaurants = async (longitude, latitude, radius) => {
     try {
-        const searchTerms = [
-            'Fast food restaurant',
-            'Cafe',
-            'Ice cream shop',
-            'Mexican restaurant',
-            'Chicken restaurant',
-            'Pizza restaurant'
-        ];
         
         let allRestaurants = [];
         const sessionToken = generateSessionToken();
@@ -63,7 +55,7 @@ const fetchRestaurants = async (longitude, latitude, radius) => {
 
         // Make parallel requests for each search term
         const searchPromises = searchTerms.map(async (term) => {
-            const searchUrl = `https://api.mapbox.com/search/v1/suggest/${encodeURIComponent(term)}`;
+            const searchUrl = `https://api.mapbox.com/search/v1/suggest/${encodeURIComponent(searchTerm)}`;
             
             console.log('Making Mapbox API request with params:', {
                 term,

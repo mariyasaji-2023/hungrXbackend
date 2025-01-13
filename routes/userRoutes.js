@@ -53,6 +53,7 @@ router.post('/removeCart',cartController.removeCart)
 router.post('/getCart',cartController.getCart)
 router.delete('/removeOneItem',cartController.removeOneItem)
 router.post('/searchCommonfood',commonfoodController.searchCommonfood)
+router.post('/reqrestaurant',restaurantController.reqrestaurant)
 
 
 module.exports = router;

@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const profileModel = require('../models/profileModel')
 const mealModel = require('../models/mealModel')
 const { getDBInstance } = require('../config/db');
+const reqrestaurantModel = require('../models/reqRestaurantModel')
 
 const { MongoClient } = require("mongodb");
 const { ObjectId } = require('mongodb');
@@ -941,5 +942,33 @@ const suggestions = async (req, res) => {
 };
 
 
+const reqrestaurant = async(req,res)=>{
+    const {userId,restaurantName,restaurantType,area} = req.body
+    try {
+        if(!userId || !restaurantName || !restaurantType ||  !area){
+            return res.status(404).json({
+                status:false,
+                message:'missing restaurant details'
+            })
+        }
+        const reqrestaurant = new reqrestaurantModel({userId,restaurantName,restaurantType,area})
+        await reqrestaurant.save()
+        return res.status(201).json({
+            status:true,
+            data:{
+                message:'Submitted successfull',
+                reqrestaurant
+            }
+        })
+    } catch (error) {
+        console.error('Error submitting restaurant:', error)
+        return res.status(500).json({
+            status:false,
+            message:'Internal server error'
+        })
+        
+    }
+}
 
-module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood, addUnknownFood, getConsumedFoodByDate, deleteDishFromMeal, searchRestaurant, suggestions,  }
+
+module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood, addUnknownFood, getConsumedFoodByDate, deleteDishFromMeal, searchRestaurant, suggestions, reqrestaurant }
