@@ -194,7 +194,7 @@ const updateBasicInfo = async (req, res) => {
 };
 
 const profileScreen = async (req, res) => {
-    const { userId } = req.body; // Only pass userId from the request body
+    const { userId } = req.body;
 
     try {
         // Find the user in the database
@@ -206,23 +206,52 @@ const profileScreen = async (req, res) => {
             });
         }
 
-        const { name, isMetric, weightInKg, weightInLbs, TDEE, targetWeight, BMI } = user;
+        // Get today's date in the format DD/MM/YYYY
+        const today = new Date().toLocaleDateString('en-GB');
+
+        const { 
+            name, 
+            isMetric, 
+            weightInKg, 
+            weightInLbs, 
+            TDEE, 
+            targetWeight, 
+            BMI, 
+            gender, 
+            dailyCalorieGoal,
+            dailyConsumptionStats = {} // Provide default empty object
+        } = user;
+
         const weight = isMetric ? weightInKg : weightInLbs;
+        
+        // Convert dailyConsumptionStats to regular object if it's a Map
+        const consumptionStats = dailyConsumptionStats instanceof Map 
+            ? Object.fromEntries(dailyConsumptionStats)
+            : dailyConsumptionStats;
+
+        const todayConsumption = consumptionStats[today] || 0;
+        console.log(user,"////////////////////////");
+        
+        console.log('Daily Consumption Stats:', consumptionStats);
+        console.log('Today\'s Date:', today);
+        console.log('Today\'s Consumption:', todayConsumption);
 
         const userDetails = {
             TDEE,
-            Weight: weight,
+            weight,
             isMetric,
             targetWeight,
             BMI,
             name,
-            profilephoto: null
+            profilephoto: null,
+            gender,
+            dailyCalorieGoal,
+            todayConsumption
         };
 
         return res.status(200).json({
             status: true,
-            data: userDetails,
-
+            data: userDetails
         });
     } catch (error) {
         return res.status(500).json({
@@ -232,6 +261,7 @@ const profileScreen = async (req, res) => {
         });
     }
 };
+
 
 const goalGetting = async (req, res) => {
     const { userId } = req.body
