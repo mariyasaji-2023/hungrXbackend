@@ -47,14 +47,19 @@ router.post('/searchRestaurant',restaurantController.searchRestaurant)
 router.get('/nearby',mapboxController.getNearbyRestaurants)
 router.get('/suggestions',restaurantController.suggestions)
 router.post('/getMenu',menuController.getMenu)
+
+//============================ Cart Screen Route ============================
 router.post('/addToCart',cartController.addToCart)
 router.post('/removeCart',cartController.removeCart)
 router.post('/getCart',cartController.getCart)
 router.delete('/removeOneItem',cartController.removeOneItem)
+
+//============================ Common Food Route ============================
+
 router.post('/searchCommonfood',commonfoodController.searchCommonfood)
 router.post('/reqrestaurant',restaurantController.reqrestaurant)
 
-//============================ Water screen ============================
+//============================ Water screen Route ============================
 
 router.post('/addWater',waterController.addWaterIntake)
 router.post('/getWaterIntakeData',waterController.getWaterIntakeData)

@@ -69,7 +69,7 @@ const addWaterIntake = async (req, res) => {
 
 const getWaterIntakeData = async (req, res) => {
     try {
-        const { userId } = req.body; // Assuming you have authentication middleware
+        const { userId, date } = req.body;
 
         const user = await User.findById(userId);
         if (!user) {
@@ -79,26 +79,28 @@ const getWaterIntakeData = async (req, res) => {
             });
         }
 
-        let waterHistory = user.waterIntakeHistory;
-
-        // Calculate today's statistics
-        const today = new Date().toLocaleDateString('en-GB');
-        const todayIntake = waterHistory.get(today) || {
+        // Get data from Map using get() method
+        const dateIntake = user.waterIntakeHistory.get(date) || {
             totalIntake: 0,
             entries: [],
-            remaining: user.dailyWaterIntake * 1000 // Convert to ml
+            remaining: Math.round(user.dailyWaterIntake * 1000)
         };
+
+        // Calculate remaining water
+        const remaining = dateIntake.totalIntake ? 
+            Math.round(user.dailyWaterIntake * 1000) - dateIntake.totalIntake : 
+            Math.round(user.dailyWaterIntake * 1000);
 
         res.status(200).json({
             success: true,
             data: {
-                dailyWaterIntake: user.dailyWaterIntake, // Target in liters
-                waterIntakeHistory: Object.fromEntries(waterHistory), // Convert Map to Object for response
-                todayStats: {
-                    date: today,
-                    totalIntake: todayIntake.totalIntake,
-                    remaining: todayIntake.remaining,
-                    targetAchievedPercentage: ((todayIntake.totalIntake / (user.dailyWaterIntake * 1000)) * 100).toFixed(1)
+                dailyWaterIntake: user.dailyWaterIntake,
+                dateStats: {
+                    date: date,
+                    totalIntake: dateIntake.totalIntake || 0,
+                    remaining: remaining,
+                    entries: dateIntake.entries || [],
+                    // targetAchievedPercentage: ((dateIntake.totalIntake || 0) / (user.dailyWaterIntake * 1000) * 100).toFixed(1)
                 }
             }
         });
