@@ -27,7 +27,6 @@ router.post('/feedback', feedbackController.submitFeedback)
 router.post('/checkUser', userController.checkUser)
 router.post('/searchDishesForUser', searchController.searchDishesForUser)
 router.post('/eatPage', restaurantController.getEatPage)
-router.post('/initialize', waterController.initializeWaterTracking)
 router.post('/eatScreenSearch', restaurantController.eatScreenSearchName)
 router.get('/getMeals', restaurantController.getMeal)
 router.post('/searchGrocery', restaurantController.searchGroceries)
@@ -54,6 +53,12 @@ router.post('/getCart',cartController.getCart)
 router.delete('/removeOneItem',cartController.removeOneItem)
 router.post('/searchCommonfood',commonfoodController.searchCommonfood)
 router.post('/reqrestaurant',restaurantController.reqrestaurant)
+
+//============================ Water screen ============================
+
+router.post('/addWater',waterController.addWaterIntake)
+router.post('/getWaterIntakeData',waterController.getWaterIntakeData)
+
 
 
 module.exports = router;

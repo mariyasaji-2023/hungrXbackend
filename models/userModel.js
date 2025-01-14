@@ -109,11 +109,26 @@ const userSchema = new mongoose.Schema({
     dailyWaterIntake:{
         type:String
     },
+    waterIntakeHistory: {
+        type: Map,
+        of: {
+            totalIntake: { type: Number, default: 0 },
+            entries: [
+                {
+                    amount: { type: Number },
+                    timestamp: { type: Date },
+                },
+            ],
+            remaining: { type: Number },
+        },
+        default: new Map(),
+    },
     dailyConsumptionStats: {
         type: Map,
         of: Number,
         default: new Map()
-    }
+    },
+    
 });
 
 const User = mongoose.model('User', userSchema);
