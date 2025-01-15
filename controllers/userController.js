@@ -609,6 +609,8 @@ console.log(caloriesToReachGoal,dailyCalorieGoal,"??????????????????????????????
         } else {
             goalHeading = 'Calorie Goal';
         }
+        console.log(caloriesToReachGoal,"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        
 
         return res.status(200).json({
             status: true,
