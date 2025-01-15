@@ -301,7 +301,6 @@ const removeCart = async (req, res) => {
         const currentCalories = currentUser.dailyConsumptionStats?.[date] || 0;
         const newTotalCalories = currentCalories + totalNewCalories;
         const dailyCalorieGoal = currentUser.dailyCalorieGoal || 0;
-        const newCaloriesToReachGoal = dailyCalorieGoal - newTotalCalories;
 
         await users.updateOne(
             { _id: new ObjectId(userId) },
@@ -310,8 +309,7 @@ const removeCart = async (req, res) => {
                     [`${dateKey}.${mealType.toLowerCase()}.foods`]: { $each: foodEntries }
                 },
                 $set: {
-                    [statsDateKey]: newTotalCalories,
-                    caloriesToReachGoal: newCaloriesToReachGoal
+                    [statsDateKey]: newTotalCalories
                 }
             }
         );
@@ -331,8 +329,7 @@ const removeCart = async (req, res) => {
                 dailyCalories: dailyCalories,
                 updatedCalories: {
                     remaining: dailyCalorieGoal - dailyCalories,
-                    consumed: dailyCalories,
-                    caloriesToReachGoal: newCaloriesToReachGoal
+                    consumed: dailyCalories
                 }
             });
         } else {
@@ -348,7 +345,6 @@ const removeCart = async (req, res) => {
         await client.close();
     }
 };
-
 
 const getCart = async (req, res) => {
     const { userId } = req.body;
