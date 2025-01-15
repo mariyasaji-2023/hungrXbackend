@@ -440,6 +440,7 @@ const addConsumedFood = async (req, res) => {
         const dailyCalorieGoal = currentUser.dailyCalorieGoal || 0;
         const newCaloriesToReachGoal = dailyCalorieGoal - newTotalCalories;
 
+        // Updated to use proper field path for caloriesToReachGoal
         const result = await users.updateOne(
             { _id: new mongoose.Types.ObjectId(userId) },
             {
@@ -448,7 +449,7 @@ const addConsumedFood = async (req, res) => {
                 },
                 $set: {
                     [statsDateKey]: newTotalCalories,
-                    caloriesToReachGoal: newCaloriesToReachGoal
+                    [`dailyConsumptionStats.caloriesToReachGoal`]: newCaloriesToReachGoal  // Updated field path
                 }
             }
         );
@@ -460,6 +461,7 @@ const addConsumedFood = async (req, res) => {
         const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         const updatedMeal = updatedUser.consumedFood.dates[date][mealType.toLowerCase()];
         const dailyCalories = updatedUser.dailyConsumptionStats[date];
+        const updatedCaloriesToReachGoal = updatedUser.dailyConsumptionStats.caloriesToReachGoal;  // Get from correct path
 
         res.status(200).json({
             success: true,
@@ -477,7 +479,7 @@ const addConsumedFood = async (req, res) => {
             updatedCalories: {
                 remaining: dailyCalorieGoal - dailyCalories,
                 consumed: dailyCalories,
-                caloriesToReachGoal: newCaloriesToReachGoal
+                caloriesToReachGoal: updatedCaloriesToReachGoal  // Use the value from correct path
             }
         });
     } catch (error) {
