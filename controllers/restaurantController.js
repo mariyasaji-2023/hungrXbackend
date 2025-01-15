@@ -438,9 +438,7 @@ const addConsumedFood = async (req, res) => {
         const newTotalCalories = currentCalories + Number(totalCalories);
 
         const dailyCalorieGoal = currentUser.dailyCalorieGoal || 0;
-        const newCaloriesToReachGoal = dailyCalorieGoal - newTotalCalories;
 
-        // Updated to use proper field path for caloriesToReachGoal
         const result = await users.updateOne(
             { _id: new mongoose.Types.ObjectId(userId) },
             {
@@ -448,8 +446,7 @@ const addConsumedFood = async (req, res) => {
                     [`${dateKey}.${mealType.toLowerCase()}.foods`]: foodEntry
                 },
                 $set: {
-                    [statsDateKey]: newTotalCalories,
-                    [`dailyConsumptionStats.caloriesToReachGoal`]: newCaloriesToReachGoal  // Updated field path
+                    [statsDateKey]: newTotalCalories
                 }
             }
         );
@@ -461,7 +458,7 @@ const addConsumedFood = async (req, res) => {
         const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         const updatedMeal = updatedUser.consumedFood.dates[date][mealType.toLowerCase()];
         const dailyCalories = updatedUser.dailyConsumptionStats[date];
-        const updatedCaloriesToReachGoal = updatedUser.dailyConsumptionStats.caloriesToReachGoal;  // Get from correct path
+        const updatedCaloriesToReachGoal = updatedUser.caloriesToReachGoal;
 
         res.status(200).json({
             success: true,
@@ -571,7 +568,7 @@ const addUnknownFood = async (req, res) => {
         const currentCalories = currentUser.dailyConsumptionStats?.[date] || 0;
         const newTotalCalories = currentCalories + Number(calories);
         const dailyCalorieGoal = currentUser.dailyCalorieGoal || 0;
-        const newCaloriesToReachGoal = dailyCalorieGoal - newTotalCalories;
+
         await users.updateOne(
             { _id: new mongoose.Types.ObjectId(userId) },
             {
@@ -579,8 +576,7 @@ const addUnknownFood = async (req, res) => {
                     [`${dateKey}.${mealTypeName}.foods`]: foodEntry
                 },
                 $set: {
-                    [statsDateKey]: newTotalCalories,
-                    caloriesToReachGoal: newCaloriesToReachGoal
+                    [statsDateKey]: newTotalCalories
                 }
             }
         );
@@ -602,8 +598,7 @@ const addUnknownFood = async (req, res) => {
             dailyCalories: dailyCalories,
             updatedCalories: {
                 remaining: dailyCalorieGoal - dailyCalories,
-                consumed: dailyCalories,
-                caloriesToReachGoal: newCaloriesToReachGoal
+                consumed: dailyCalories
             }
         });
     } catch (error) {
@@ -611,7 +606,6 @@ const addUnknownFood = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
-
 
 const addToHistory = async (req, res) => {
     const { userId, productId } = req.body;
