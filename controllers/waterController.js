@@ -113,5 +113,77 @@ const getWaterIntakeData = async (req, res) => {
     }
 };
 
+const removeWaterEntry = async (req, res) => {
+    try {
+        const { userId, date, entryId } = req.body;
 
-module.exports = { addWaterIntake, getWaterIntakeData }
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'User not found'
+            });
+        }
+
+        // Get the date's water intake data using Map.get()
+        const dateIntake = user.waterIntakeHistory.get(date);
+        
+        if (!dateIntake) {
+            return res.status(404).json({
+                success: false,
+                message: 'No water intake records found for this date'
+            });
+        }
+
+        // Find the entry to remove
+        const entryIndex = dateIntake.entries.findIndex(
+            entry => entry._id.toString() === entryId
+        );
+
+        if (entryIndex === -1) {
+            return res.status(404).json({
+                success: false,
+                message: 'Entry not found'
+            });
+        }
+
+        // Get the amount of water to subtract
+        const amountToSubtract = dateIntake.entries[entryIndex].amount;
+
+        // Remove the entry and update totals
+        dateIntake.entries.splice(entryIndex, 1);
+        dateIntake.totalIntake -= amountToSubtract;
+        dateIntake.remaining = Math.round(user.dailyWaterIntake * 1000) - dateIntake.totalIntake;
+
+        // If no entries left, delete the date entry using Map.delete()
+        if (dateIntake.entries.length === 0) {
+            user.waterIntakeHistory.delete(date);
+        } else {
+            // Update the existing entry in the Map
+            user.waterIntakeHistory.set(date, dateIntake);
+        }
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message: 'Water intake entry removed successfully',
+            data: {
+                date,
+                remainingEntries: dateIntake.entries.length,
+                updatedTotalIntake: dateIntake.totalIntake,
+                updatedRemaining: dateIntake.remaining
+            }
+        });
+
+    } catch (error) {
+        console.error('Error removing water intake entry:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+
+module.exports = { addWaterIntake, getWaterIntakeData ,removeWaterEntry}
