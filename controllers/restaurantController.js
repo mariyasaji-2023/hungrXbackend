@@ -966,5 +966,47 @@ const reqrestaurant = async(req,res)=>{
     }
 }
 
+const progressBar = async (req, res) => {
+    const { userId } = req.body;
 
-module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood, addUnknownFood, getConsumedFoodByDate, deleteDishFromMeal, searchRestaurant, suggestions, reqrestaurant }
+    try {
+        // Find user by ID
+        const user = await userModel.findById({ _id: userId });
+        if (!user) {
+            return res.status(404).json({ 
+                status: false, 
+                data: { message: 'User not found' } 
+            });
+        }
+
+        const { dailyCalorieGoal, dailyConsumptionStats } = user;
+
+        // Get today's date in 'dd/mm/yyyy' format
+        const today = new Date().toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        }).replace(/\//g, '/');
+
+        // Get today's consumed calories from dailyConsumptionStats Map
+        const totalCaloriesConsumed = Number(dailyConsumptionStats.get(today) || 0);
+
+        // Return the results
+        return res.status(200).json({
+            status: true,
+            data: {
+                dailyCalorieGoal,
+                totalCaloriesConsumed
+            }
+        });
+    } catch (error) {
+        console.error('Error fetching user progress:', error);
+        return res.status(500).json({
+            status: false,
+            data: { message: 'Internal server error' }
+        });
+    }
+};
+
+
+module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood, addUnknownFood, getConsumedFoodByDate, deleteDishFromMeal, searchRestaurant, suggestions, reqrestaurant,progressBar }

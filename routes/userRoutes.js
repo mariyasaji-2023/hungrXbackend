@@ -46,6 +46,7 @@ router.post('/addConsumedFood', restaurantController.addConsumedFood)
 router.post('/addUnknown', restaurantController.addUnknownFood)
 router.post('/getConsumedFoodByDate', restaurantController.getConsumedFoodByDate)
 router.post('/deleteDishFromMeal', restaurantController.deleteDishFromMeal)
+router.post('/progressBar',restaurantController.progressBar)
 
 //============================ Feedback Screen Route ============================
 
