@@ -299,6 +299,7 @@ const goalGetting = async (req, res) => {
     }
 }
 
+
 const updateGoalSetting = async (req, res) => {
     const { userId, targetWeight, weightGainRate, activityLevel, mealsPerDay, goal } = req.body;
 

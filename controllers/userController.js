@@ -575,6 +575,7 @@ const home = async (req, res) => {
                 }
             });
         }
+console.log(caloriesToReachGoal,dailyCalorieGoal,"???????????????????????????????//");
 
         // Get today's date in the correct format
         const today = new Date().toLocaleDateString('en-GB', {
@@ -592,10 +593,12 @@ const home = async (req, res) => {
         // Calculate remaining calories
         const parsedDailyGoal = Number(dailyCalorieGoal);
         const remainingCalories = Number((parsedDailyGoal - totalCaloriesConsumed).toFixed(2));
-        const updatedCaloriesToReachGoal = Number((caloriesToReachGoal - totalCaloriesConsumed).toFixed(2));
+        // console.log(remainingCalories,"rrrrrrrrrrrrrrrrrr");
+        
+        // const updatedCaloriesToReachGoal = Number((caloriesToReachGoal - totalCaloriesConsumed).toFixed(2));
 
         const weight = isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`;
-
+       
         let goalHeading;
         if (goal === 'lose weight') {
             goalHeading = 'Calorie to burn';
@@ -613,7 +616,7 @@ const home = async (req, res) => {
                 username: name,
                 goalHeading,
                 weight,
-                caloriesToReachGoal: updatedCaloriesToReachGoal,
+                caloriesToReachGoal,
                 dailyCalorieGoal: parsedDailyGoal,
                 daysToReachGoal,
                 profilePhoto,
