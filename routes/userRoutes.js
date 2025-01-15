@@ -26,6 +26,7 @@ router.put('/createProfile', upload.single('profilePhoto'), userController.creat
 router.post('/calculate-metrics', userController.calculateUserMetrics)
 router.post('/trackuser', userController.trackUser)
 router.post('/checkUser', userController.checkUser)
+router.post('/getCalorieMetrics',userController.getCalorieMetrics)
 router.post('/home', userController.home)
 
 //============================ Weight Screen Route ============================

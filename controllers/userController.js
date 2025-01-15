@@ -879,6 +879,93 @@ const checkUser = async (req, res) => {
     }
 }
 
+const getCalorieMetrics = async (req, res) => {
+    const { userId } = req.body;
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, createProfile, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory, checkUser };
+    try {
+        const user = await User.findById({ _id: userId });
+        if (!user) {
+            return res.status(404).json({ status: false, data: { message: 'User not found' } });
+        }
+
+        const {
+            goal,
+            dailyCalorieGoal,
+            dailyConsumptionStats,
+            weightGainRate,
+            daysToReachGoal
+        } = user;
+
+        // Calculate yesterday's date
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayFormatted = yesterday.toLocaleDateString('en-GB');
+
+        // Get yesterday's consumed calories
+        const consumedCalories = user.get(`dailyConsumptionStats.${yesterdayFormatted}`) || 0;
+        const targetCalories = parseFloat(dailyCalorieGoal);
+
+        // Rest of your code remains the same...
+        const remainingCalories = targetCalories - consumedCalories;
+
+        let weightChangeRatio;
+        if (goal === 'gain weight') {
+            weightChangeRatio = (consumedCalories - targetCalories) / targetCalories;
+        } else if (goal === 'lose weight') {
+            weightChangeRatio = (targetCalories - consumedCalories) / targetCalories;
+        } else {
+            weightChangeRatio = 0;
+        }
+
+        const responseData = {
+            consumedCalories,
+            dailyTargetCalories: targetCalories,
+            remainingCalories: Math.max(0, remainingCalories),
+            weightChangeRatio: weightChangeRatio.toFixed(2),
+            weightChangeRate: `${weightGainRate || 0} kg per week`,
+            daysLeft: daysToReachGoal || 0,
+            goal,
+            date: yesterdayFormatted, // Added this to show which date the data is for
+            calorieStatus: remainingCalories > 0 ? 'under target' : 'over target',
+            message: generateStatusMessage(goal, remainingCalories, daysToReachGoal)
+        };
+
+        res.status(200).json({
+            status: true,
+            data: responseData
+        });
+
+    } catch (error) {
+        console.error('Error calculating calorie metrics:', error);
+        res.status(500).json({
+            status: false,
+            data: {
+                message: 'Internal server error'
+            }
+        });
+    }
+};
+
+// Helper function to generate status message
+const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
+    const absRemaining = Math.abs(remainingCalories);
+    
+    if (goal === 'gain weight') {
+        if (remainingCalories > 0) {
+            return `You still need to eat ${absRemaining.toFixed(0)} calories to reach your daily goal. ${daysLeft} days remaining to reach target weight.`;
+        } else {
+            return `You have exceeded your daily goal by ${absRemaining.toFixed(0)} calories. ${daysLeft} days remaining to reach target weight.`;
+        }
+    } else if (goal === 'lose weight') {
+        if (remainingCalories > 0) {
+            return `You can still eat ${absRemaining.toFixed(0)} calories to stay within your daily goal. ${daysLeft} days remaining to reach target weight.`;
+        } else {
+            return `You have exceeded your daily calorie limit by ${absRemaining.toFixed(0)} calories. ${daysLeft} days remaining to reach target weight.`;
+        }
+    }
+    return `You have ${absRemaining.toFixed(0)} calories remaining for today.`;
+};
+
+
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, createProfile, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory, checkUser ,getCalorieMetrics };
 
