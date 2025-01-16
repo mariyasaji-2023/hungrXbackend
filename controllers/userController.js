@@ -478,7 +478,10 @@ const calculateUserMetrics = async (req, res) => {
         const BMI = weight / (height ** 2);
 
         // Calculate weight change with direction
-        const weightChange = targetWeight ? (Number(targetWeight) - weight) : 0;
+        // const weightChange = targetWeight ? (Number(targetWeight) - weight) : 0;/
+        const weightChange = targetWeight 
+    ? (Number(targetWeight) * (isMetric ? 1 : 0.453592) - weight) 
+    : 0;
 
         // Calculate daily calories and adjustments
         const minCalories = gender === 'male' ? 1500 : 1200;
