@@ -362,7 +362,7 @@ const addConsumedFood = async (req, res) => {
     try {
         const db = getDBInstance();
         const users = db.collection("users");
-        const groceries = db.collection("products");
+        const groceries = db.collection("commonfoods");
 
         const {
             userId,

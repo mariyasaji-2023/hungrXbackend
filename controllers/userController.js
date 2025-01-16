@@ -587,7 +587,7 @@ const home = async (req, res) => {
                 }
             });
         }
-        console.log(caloriesToReachGoal, dailyCalorieGoal, "???????????????????????????????//");
+        // console.log(caloriesToReachGoal, dailyCalorieGoal, "???????????????????????????????//");
 
         // Get today's date in the correct format
         const today = new Date().toLocaleDateString('en-GB', {
@@ -621,7 +621,7 @@ const home = async (req, res) => {
         } else {
             goalHeading = 'Calorie Goal';
         }
-        console.log(caloriesToReachGoal, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+        // console.log(caloriesToReachGoal, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
 
 
         return res.status(200).json({
