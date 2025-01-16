@@ -142,13 +142,22 @@ const serviceSid = process.env.TWILIO_SERVICE_SID;  // Twilio Verify Service SID
 
 const client = twilio(accountSid, authToken);
 
+console.log('AccountSid first 4 chars:', accountSid?.substring(0, 4));
+console.log('AuthToken length:', authToken?.length);
+console.log('ServiceSid first 4 chars:', serviceSid?.substring(0, 4));
+
 
 const sendOTP = async (req, res) => {
     const { mobile } = req.body;
 
     if (!accountSid || !authToken || !serviceSid) {
         console.error("Twilio credentials are missing. Ensure TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_SERVICE_SID are set.");
-        process.exit(1);
+        return res.status(500).json({
+            status: false,
+            data: {
+                message: "Server configuration error"
+            }
+        });
     }
 
     if (!mobile) {
@@ -161,24 +170,24 @@ const sendOTP = async (req, res) => {
     }
 
     try {
+        const verification = await client.verify.v2
+            .services(serviceSid)
+            .verifications.create({ 
+                to: `+${mobile}`, 
+                channel: 'sms' 
+            });
 
-        client.verify.v2.services(serviceSid)
-            .verifications.create({ to: `+${mobile}`, channel: 'sms' })
-            .then(verification => {
-                res.status(200).json({
-                    data: {
-                        message: 'OTP sent', verificationSid: verification.sid
-                    }
-                });
-            })
-            .catch(error => res.status(500).json({
-                data: {
-                    error: error.message
-                }
-            }));
+        return res.status(200).json({
+            status: true,
+            data: {
+                message: 'OTP sent',
+                verificationSid: verification.sid
+            }
+        });
 
     } catch (error) {
-        res.status(500).json({
+        console.error('Twilio API Error:', error);
+        return res.status(500).json({
             status: false,
             data: {
                 message: error.message
@@ -186,7 +195,6 @@ const sendOTP = async (req, res) => {
         });
     }
 };
-
 
 const verifyOTP = async (req, res) => {
     const { mobile, otp } = req.body;
