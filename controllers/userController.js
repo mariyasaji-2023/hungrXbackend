@@ -262,8 +262,6 @@ const verifyOTP = async (req, res) => {
 };
 
 
-
-
 const loginWithGoogle = async (req, res) => {
     const { googleId, email, name } = req.body;
 
@@ -732,17 +730,31 @@ const updateWeight = async (req, res) => {
             user.weightInLbs = newWeight;
         }
 
+        // Convert measurements to metric for calculations
+        let heightInM;
+        let weightInKg;
+        
+        if (user.isMetric) {
+            heightInM = user.heightInCm / 100;
+            weightInKg = newWeight;
+        } else {
+            // Convert feet and inches to meters
+            const heightInInches = (user.heightInFeet * 12) + user.heightInInches;
+            heightInM = heightInInches * 0.0254;
+            
+            // Convert pounds to kilograms
+            weightInKg = newWeight * 0.453592;
+        }
+
         // Recalculate BMI
-        const heightInM = user.heightInCm / 100;
-        const weightInKg = user.isMetric ? newWeight : newWeight * 0.453592;
         user.BMI = (weightInKg / (heightInM * heightInM)).toFixed(2);
 
         // Recalculate BMR using Mifflin-St Jeor Equation
         const bmrMultiplier = user.gender === 'female' ? -161 : 5;
         user.BMR = (
             10 * weightInKg +
-            6.25 * user.heightInCm -
-            5 * user.age +
+            6.25 * (heightInM * 100) + // Convert height to cm for BMR calculation
+            -5 * user.age +
             bmrMultiplier
         ).toFixed(2);
 
@@ -757,17 +769,20 @@ const updateWeight = async (req, res) => {
         const activityMultiplier = activityMultipliers[user.activityLevel] || 1.2;
         user.TDEE = (parseFloat(user.BMR) * activityMultiplier).toFixed(2);
 
-        // Recalculate calories and days to reach goal
-        const targetWeightInKg = parseFloat(user.targetWeight);
+        // Convert target weight to kg if necessary
+        const targetWeightInKg = user.isMetric ? 
+            parseFloat(user.targetWeight) : 
+            parseFloat(user.targetWeight) * 0.453592;
+
         const weightDifference = Math.abs(weightInKg - targetWeightInKg);
         const weeklyRate = user.weightGainRate || 0.5; // kg per week
-        const caloriesPerKg = user.goal === 'lose weight' ? 7700 : 7700; // calories per kg
+        const caloriesPerKg = 7700; // calories per kg
 
         user.caloriesToReachGoal = (weightDifference * caloriesPerKg).toFixed(2);
         user.daysToReachGoal = Math.ceil((weightDifference / weeklyRate) * 7);
 
         // Adjust daily calorie goal based on goal type
-        const dailyCalorieAdjustment = (weeklyRate * 7700) / 7;
+        const dailyCalorieAdjustment = (weeklyRate * caloriesPerKg) / 7;
         user.dailyCalorieGoal = user.goal === 'lose weight'
             ? (parseFloat(user.TDEE) - dailyCalorieAdjustment).toFixed(2)
             : user.goal === 'gain weight'
@@ -809,7 +824,6 @@ const updateWeight = async (req, res) => {
         });
     }
 };
-
 
 
 const getWeightHistory = async (req, res) => {
