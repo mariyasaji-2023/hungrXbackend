@@ -902,7 +902,6 @@ const searchRestaurant = async (req, res) => {
     }
 };
 
-
 const suggestions = async (req, res) => {
     try {
         await client.connect();
@@ -936,7 +935,6 @@ const suggestions = async (req, res) => {
         });
     }
 };
-
 
 const reqrestaurant = async(req,res)=>{
     const {userId,restaurantName,restaurantType,area} = req.body
@@ -1007,6 +1005,5 @@ const progressBar = async (req, res) => {
         });
     }
 };
-
 
 module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood, addUnknownFood, getConsumedFoodByDate, deleteDishFromMeal, searchRestaurant, suggestions, reqrestaurant,progressBar }

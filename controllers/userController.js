@@ -893,7 +893,8 @@ const getCalorieMetrics = async (req, res) => {
             dailyCalorieGoal,
             dailyConsumptionStats,
             weightGainRate,
-            daysToReachGoal
+            daysToReachGoal,
+            caloriesToReachGoal
         } = user;
 
         // Calculate yesterday's date
@@ -907,6 +908,11 @@ const getCalorieMetrics = async (req, res) => {
 
         // Rest of your code remains the same...
         const remainingCalories = targetCalories - consumedCalories;
+        const weightrateInGrams = weightGainRate*1000
+        const dailyWeightLoss = (weightrateInGrams*7.7)/7
+        const ratio = dailyWeightLoss/dailyCalorieGoal
+console.log(dailyWeightLoss,ratio,"///////////////////////////");
+
 
         let weightChangeRatio;
         if (goal === 'gain weight') {
@@ -921,13 +927,16 @@ const getCalorieMetrics = async (req, res) => {
             consumedCalories,
             dailyTargetCalories: targetCalories,
             remainingCalories: Math.max(0, remainingCalories),
-            weightChangeRatio: weightChangeRatio.toFixed(2),
+            // weightChangeRatio: weightChangeRatio.toFixed(2),
             weightChangeRate: `${weightGainRate || 0} kg per week`,
             daysLeft: daysToReachGoal || 0,
             goal,
             date: yesterdayFormatted, // Added this to show which date the data is for
             calorieStatus: remainingCalories > 0 ? 'under target' : 'over target',
-            message: generateStatusMessage(goal, remainingCalories, daysToReachGoal)
+            message: generateStatusMessage(goal, remainingCalories, daysToReachGoal),
+            dailyWeightLoss,
+            ratio,
+            caloriesToReachGoal
         };
 
         res.status(200).json({

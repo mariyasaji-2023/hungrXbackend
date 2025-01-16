@@ -24,9 +24,9 @@ router.post('/sendOTP', userController.sendOTP)
 
 router.put('/createProfile', upload.single('profilePhoto'), userController.createProfile)
 router.post('/calculate-metrics', userController.calculateUserMetrics)
+router.post('/getCalorieMetrics',userController.getCalorieMetrics)
 router.post('/trackuser', userController.trackUser)
 router.post('/checkUser', userController.checkUser)
-router.post('/getCalorieMetrics',userController.getCalorieMetrics)
 router.post('/home', userController.home)
 
 //============================ Weight Screen Route ============================
