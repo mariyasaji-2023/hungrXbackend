@@ -172,9 +172,9 @@ const sendOTP = async (req, res) => {
     try {
         const verification = await client.verify.v2
             .services(serviceSid)
-            .verifications.create({ 
-                to: `+${mobile}`, 
-                channel: 'sms' 
+            .verifications.create({
+                to: `+${mobile}`,
+                channel: 'sms'
             });
 
         return res.status(200).json({
@@ -226,6 +226,7 @@ const verifyOTP = async (req, res) => {
                     isVerified: true // Mark as verified since OTP is confirmed
                 });
                 await user.save();
+                
             } else {
 
                 user.isVerified = true;
@@ -237,7 +238,9 @@ const verifyOTP = async (req, res) => {
                 data: {
                     message: 'OTP verified successfully. User has been created/updated.',
                     userId: user._id,
-                    user,
+                    mobile: user.mobile,
+                    isVerified: user.isVerified,
+                    isMetric: user.isMetric,
                 }
             });
         } else {
@@ -475,10 +478,10 @@ const calculateUserMetrics = async (req, res) => {
 
         const waterIntake = calculateWaterIntake();
         const BMI = weight / (height ** 2);
-        
+
         // Calculate weight change with direction
         const weightChange = targetWeight ? (Number(targetWeight) - weight) : 0;
-        
+
         // Calculate daily calories and adjustments
         const minCalories = gender === 'male' ? 1500 : 1200;
 
@@ -497,7 +500,7 @@ const calculateUserMetrics = async (req, res) => {
         } else if (goal === 'lose weight') {
             dailyCalorieGoal -= dailyCalorieAdjustment;
         }
-        
+
         // Ensure minimum calories
         dailyCalorieGoal = Math.max(dailyCalorieGoal, minCalories);
 
@@ -505,7 +508,7 @@ const calculateUserMetrics = async (req, res) => {
         const caloriesToReachGoal = Math.abs(weightChange * 7700);
         const weeklyCaloricChange = weeklyRate * 7700;
         const daysToReachGoal = weightChange !== 0 && weeklyRate !== 0
-            ? Math.ceil((caloriesToReachGoal / weeklyCaloricChange) * 7) 
+            ? Math.ceil((caloriesToReachGoal / weeklyCaloricChange) * 7)
             : 0;
 
         // Update user metrics
@@ -583,7 +586,7 @@ const home = async (req, res) => {
                 }
             });
         }
-console.log(caloriesToReachGoal,dailyCalorieGoal,"???????????????????????????????//");
+        console.log(caloriesToReachGoal, dailyCalorieGoal, "???????????????????????????????//");
 
         // Get today's date in the correct format
         const today = new Date().toLocaleDateString('en-GB', {
@@ -602,11 +605,11 @@ console.log(caloriesToReachGoal,dailyCalorieGoal,"??????????????????????????????
         const parsedDailyGoal = Number(dailyCalorieGoal);
         const remainingCalories = Number((parsedDailyGoal - totalCaloriesConsumed).toFixed(2));
         // console.log(remainingCalories,"rrrrrrrrrrrrrrrrrr");
-        
+
         // const updatedCaloriesToReachGoal = Number((caloriesToReachGoal - totalCaloriesConsumed).toFixed(2));
 
         const weight = isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`;
-       
+
         let goalHeading;
         if (goal === 'lose weight') {
             goalHeading = 'Calorie to burn';
@@ -617,8 +620,8 @@ console.log(caloriesToReachGoal,dailyCalorieGoal,"??????????????????????????????
         } else {
             goalHeading = 'Calorie Goal';
         }
-        console.log(caloriesToReachGoal,"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        
+        console.log(caloriesToReachGoal, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
+
 
         return res.status(200).json({
             status: true,
@@ -916,10 +919,10 @@ const getCalorieMetrics = async (req, res) => {
 
         // Rest of your code remains the same...
         const remainingCalories = targetCalories - consumedCalories;
-        const weightrateInGrams = weightGainRate*1000
-        const dailyWeightLoss = (weightrateInGrams*7.7)/7
-        const ratio = dailyWeightLoss/dailyCalorieGoal
-console.log(dailyWeightLoss,ratio,"///////////////////////////");
+        const weightrateInGrams = weightGainRate * 1000
+        const dailyWeightLoss = (weightrateInGrams * 7.7) / 7
+        const ratio = dailyWeightLoss / dailyCalorieGoal
+        console.log(dailyWeightLoss, ratio, "///////////////////////////");
 
 
         let weightChangeRatio;
@@ -966,7 +969,7 @@ console.log(dailyWeightLoss,ratio,"///////////////////////////");
 // Helper function to generate status message
 const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
     const absRemaining = Math.abs(remainingCalories);
-    
+
     if (goal === 'gain weight') {
         if (remainingCalories > 0) {
             return `You still need to eat ${absRemaining.toFixed(0)} calories to reach your daily goal. ${daysLeft} days remaining to reach target weight.`;
@@ -984,5 +987,5 @@ const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
 };
 
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, createProfile, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory, checkUser ,getCalorieMetrics };
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, createProfile, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory, checkUser, getCalorieMetrics };
 
