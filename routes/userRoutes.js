@@ -86,6 +86,8 @@ router.post('/getCart',cartController.getCart)
 //============================ Common Food Route ============================
 
 router.post('/searchCommonfood',commonfoodController.searchCommonfood)
+router.post('/addConsumedCommonFood',commonfoodController.addConsumedCommonFood)
+router.post('/addCommonFoodToHistory',commonfoodController.addCommonFoodToHistory)
 
 //============================ Water screen Route ============================
 
