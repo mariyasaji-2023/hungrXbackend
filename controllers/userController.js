@@ -840,26 +840,25 @@ const getWeightHistory = async (req, res) => {
                 message: 'User not found',
             });
         }
-        console.log(user);
 
         const currentWeight = user.isMetric ? user.weightInKg : user.weightInLbs;
-        console.log(currentWeight);
-
         const weightHistory = await Weight.find({ userId }).sort({ timestamp: -1 });
 
-        if (!weightHistory.length) {
-            return res.status(404).json({
-                status: false,
-                message: 'No weight records found',
-            });
-        }
+        // Initialize history array with current weight
+        let history = [{
+            weight: currentWeight,
+            date: null
+        }];
 
-        const history = [
-            ...weightHistory.map((entry) => ({
-                weight: entry.weight,
-                date: entry.timestamp.toISOString().split('T')[0].split('-').reverse().join('-'),
-            })),
-        ];
+        // Add historical records if they exist
+        if (weightHistory.length > 0) {
+            history = [
+                ...weightHistory.map((entry) => ({
+                    weight: entry.weight,
+                    date: entry.timestamp.toISOString().split('T')[0].split('-').reverse().join('-'),
+                })),
+            ];
+        }
 
         res.status(200).json({
             status: true,
@@ -876,7 +875,6 @@ const getWeightHistory = async (req, res) => {
         });
     }
 };
-
 const checkUser = async (req, res) => {
     const { userId } = req.body
     try {
