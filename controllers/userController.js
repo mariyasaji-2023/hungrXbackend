@@ -527,6 +527,8 @@ const calculateUserMetrics = async (req, res) => {
         res.status(200).json({
             status: true,
             data: {
+                goal,
+                activityLevel,
                 height: isMetric
                     ? `${(height * 100).toFixed(2)} cm`
                     : `${heightInFeet} ft ${heightInInches} in`,
