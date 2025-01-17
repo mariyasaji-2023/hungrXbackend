@@ -700,6 +700,7 @@ const getUserHistory = async (req, res) => {
         return res.status(200).json({
             status: true,
             count: sortedHistory.length,
+            commonfood:true,
             data: sortedHistory
         });
     } catch (error) {

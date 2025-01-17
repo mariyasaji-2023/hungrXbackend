@@ -138,6 +138,7 @@ const searchCommonfood = async(req, res) => {
 
         return res.status(200).json({
             status: true,
+            commonfood:true,
             count: results.length,
             data: results
         });
