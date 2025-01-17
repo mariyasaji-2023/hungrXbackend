@@ -73,7 +73,6 @@ const basicInfo = async (req, res) => {
         });
     }
 };
-
 const updateBasicInfo = async (req, res) => {
     const {
         userId,
@@ -101,6 +100,7 @@ const updateBasicInfo = async (req, res) => {
                 message: 'User does not exist'
             });
         }
+
         if (email && !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
             return res.status(400).json({
                 status: false,
@@ -111,7 +111,7 @@ const updateBasicInfo = async (req, res) => {
         // Create update object with only provided fields
         let updatedData = {};
 
-        // Only add fields that are provided in the request
+        // Basic info updates
         if (name) updatedData.name = name;
         if (gender) updatedData.gender = gender;
         if (mobile) updatedData.mobile = mobile;
@@ -135,35 +135,112 @@ const updateBasicInfo = async (req, res) => {
             updatedData.weightInLbs = weightInLbs;
         }
 
-        // Handle target weight (always in kg as per your basicInfo function)
         if (targetWeight) {
             updatedData.targetWeight = targetWeight;
         }
 
-        // Update user with provided data
+        // Calculate metrics using updated values
+        const newIsMetric = typeof isMetric === 'boolean' ? isMetric : user.isMetric;
+        
+        // Calculate weight in kg for calculations
+        const weightForCalc = newIsMetric 
+            ? (weightInKg || user.weightInKg)
+            : ((weightInLbs || user.weightInLbs) * 0.453592);
+
+        // Calculate height in meters for calculations
+        const heightForCalc = newIsMetric
+            ? ((heightInCm || user.heightInCm) / 100)
+            : (((heightInFeet || user.heightInFeet) * 12 + (heightInInches || user.heightInInches)) * 0.0254);
+
+        // Calculate BMI
+        if (weightForCalc && heightForCalc) {
+            updatedData.BMI = (weightForCalc / (heightForCalc ** 2)).toFixed(2);
+        }
+
+        // Calculate BMR
+        if (weightForCalc && heightForCalc && (age || user.age) && (gender || user.gender)) {
+            const calcAge = age || user.age;
+            const calcGender = gender || user.gender;
+            
+            updatedData.BMR = calcGender === 'male'
+                ? (10 * weightForCalc + 6.25 * (heightForCalc * 100) - 5 * calcAge + 5).toFixed(2)
+                : (10 * weightForCalc + 6.25 * (heightForCalc * 100) - 5 * calcAge - 161).toFixed(2);
+
+            // Calculate TDEE
+            const activityMultiplier = {
+                'sedentary': 1.2,
+                'lightly active': 1.375,
+                'moderately active': 1.55,
+                'very active': 1.725,
+                'extra active': 1.9,
+            };
+            
+            updatedData.TDEE = (updatedData.BMR * (activityMultiplier[user.activityLevel] || 1.2)).toFixed(2);
+
+            // Calculate daily water intake
+            let baseWaterIntake = weightForCalc * 30;
+            const activityWaterMultiplier = {
+                'sedentary': 1.0,
+                'lightly active': 1.1,
+                'moderately active': 1.2,
+                'very active': 1.3,
+                'extra active': 1.4,
+            };
+            baseWaterIntake *= activityWaterMultiplier[user.activityLevel] || 1.0;
+            if (calcAge > 55) {
+                baseWaterIntake *= 1.1;
+            }
+            updatedData.dailyWaterIntake = (baseWaterIntake / 1000).toFixed(2);
+
+            // Calculate weight-related goals
+            const newTargetWeight = targetWeight || user.targetWeight;
+            if (newTargetWeight) {
+                const weightChange = (Number(newTargetWeight) * (newIsMetric ? 1 : 0.453592) - weightForCalc);
+                const weeklyRate = user.weightGainRate || 0.25;
+                
+                updatedData.caloriesToReachGoal = Math.abs(weightChange * 7700).toFixed(2);
+                
+                // Calculate daily calorie goal
+                let dailyCalorieGoal = Number(updatedData.TDEE);
+                const dailyCalorieAdjustment = (weeklyRate * 7700) / 7;
+
+                if (user.goal === 'gain weight') {
+                    dailyCalorieGoal += dailyCalorieAdjustment;
+                } else if (user.goal === 'lose weight') {
+                    dailyCalorieGoal -= dailyCalorieAdjustment;
+                }
+
+                // Ensure minimum calories
+                const minCalories = (gender || user.gender) === 'male' ? 1500 : 1200;
+                dailyCalorieGoal = Math.max(dailyCalorieGoal, minCalories);
+                
+                updatedData.dailyCalorieGoal = dailyCalorieGoal.toFixed(2);
+                
+                // Calculate days to reach goal
+                if (weightChange !== 0 && weeklyRate !== 0) {
+                    updatedData.daysToReachGoal = Math.ceil((updatedData.caloriesToReachGoal / (weeklyRate * 7700)) * 7);
+                }
+            }
+        }
+
+        // Update user with provided data and calculations
         const updatedUser = await userModel.findByIdAndUpdate(
             userId,
             { $set: updatedData },
             { new: true }
         );
 
+        // Format response
         const weight = updatedUser.isMetric
-            ? updatedUser.weightInKg
-                ? `${updatedUser.weightInKg} kg`
-                : null
-            : updatedUser.weightInLbs
-                ? `${updatedUser.weightInLbs} lbs`
-                : null;
+            ? updatedUser.weightInKg ? `${updatedUser.weightInKg} kg` : null
+            : updatedUser.weightInLbs ? `${updatedUser.weightInLbs} lbs` : null;
 
         const height = updatedUser.isMetric
-            ? updatedUser.heightInCm
-                ? `${updatedUser.heightInCm} cm`
-                : null
+            ? updatedUser.heightInCm ? `${updatedUser.heightInCm} cm` : null
             : updatedUser.heightInFeet && updatedUser.heightInInches
                 ? `${updatedUser.heightInFeet} ft ${updatedUser.heightInInches} in`
                 : null;
 
-        // Format response data
         const formattedUser = {
             name: updatedUser.name || null,
             email: updatedUser.email || null,
@@ -174,12 +251,20 @@ const updateBasicInfo = async (req, res) => {
             weight,
             targetWeight: updatedUser.targetWeight ? `${updatedUser.targetWeight} kg` : null,
             goal: updatedUser.goal || null,
-            isMetric: updatedUser.isMetric || false
+            isMetric: updatedUser.isMetric || false,
+            // Add calculated metrics to response
+            BMI: updatedUser.BMI || null,
+            BMR: updatedUser.BMR || null,
+            TDEE: updatedUser.TDEE || null,
+            dailyCalorieGoal: updatedUser.dailyCalorieGoal || null,
+            caloriesToReachGoal: updatedUser.caloriesToReachGoal || null,
+            daysToReachGoal: updatedUser.daysToReachGoal || null,
+            dailyWaterIntake: updatedUser.dailyWaterIntake || null
         };
 
         return res.status(200).json({
             status: true,
-            message: 'User details updated successfully',
+            message: 'User details and calculations updated successfully',
             data: formattedUser
         });
 
