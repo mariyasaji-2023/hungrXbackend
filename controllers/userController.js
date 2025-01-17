@@ -1001,6 +1001,41 @@ const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
     return `You have ${absRemaining.toFixed(0)} calories remaining for today.`;
 };
 
+const changecaloriesToReachGoal = async(req, res) => {
+    const { userId, calorie } = req.body;
+    try {
+        const user = await User.findOne({ _id: userId });
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User not found'
+            });
+        }
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, createProfile, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory, checkUser, getCalorieMetrics };
+        // Calculate new value
+        const caloriesToReachGoal = user.caloriesToReachGoal - calorie;
+        
+        // Assign the new value to the user object
+        user.caloriesToReachGoal = caloriesToReachGoal;
+        
+        // Save the updated user object
+        await user.save();
+
+        return res.status(200).json({
+            status: true,
+            data: {
+                userId,
+                caloriesToReachGoal
+            }
+        });
+    } catch (error) {
+        console.error('Error updating calories to reach goal:', error);
+        res.status(500).json({
+            status: false,
+            message: 'Internal server error'
+        });
+    }
+};
+
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, createProfile, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory, checkUser, getCalorieMetrics,changecaloriesToReachGoal };
 
