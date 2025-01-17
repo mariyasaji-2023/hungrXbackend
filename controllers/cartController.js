@@ -423,6 +423,7 @@ const getCart = async (req, res) => {
             success: true,
             message: 'Carts fetched successfully',
             data: carts.map(cart => ({
+                quantity:cart.quantity,
                 cartId: cart._id,
                 orders: cart.orders,
                 dishDetails: cart.dishDetails,

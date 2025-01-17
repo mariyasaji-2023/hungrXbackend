@@ -299,7 +299,6 @@ const goalGetting = async (req, res) => {
     }
 }
 
-
 const updateGoalSetting = async (req, res) => {
     const { userId, targetWeight, weightGainRate, activityLevel, mealsPerDay, goal } = req.body;
 
@@ -318,32 +317,123 @@ const updateGoalSetting = async (req, res) => {
         if (weightGainRate) updateDetails.weightGainRate = weightGainRate;
         if (activityLevel) updateDetails.activityLevel = activityLevel;
         if (mealsPerDay) updateDetails.mealsPerDay = mealsPerDay;
-        if (goal) updateDetails.goal = goal
+        if (goal) updateDetails.goal = goal;
 
-        await userModel.findByIdAndUpdate(
-            userId,
-            { $set: updateDetails },
-            { new: true } 
-        );
+        // Get all necessary user data for calculations
+        const weight = user.isMetric ? user.weightInKg : user.weightInLbs * 0.453592;
+        const height = user.isMetric
+            ? user.heightInCm / 100
+            : ((user.heightInFeet * 12) + user.heightInInches) * 0.0254;
 
-        const response = {
-            userId,
-            targetWeight: updateDetails.targetWeight || user.targetWeight,
-            weightGainRate: updateDetails.weightGainRate || user.weightGainRate,
-            activityLevel: updateDetails.activityLevel || user.activityLevel,
-            mealsPerDay: updateDetails.mealsPerDay || user.mealsPerDay,
-            goal: updateDetails.goal || user.goal
+        // Calculate BMR
+        const BMR = user.gender === 'male'
+            ? 10 * weight + 6.25 * (height * 100) - 5 * user.age + 5
+            : 10 * weight + 6.25 * (height * 100) - 5 * user.age - 161;
+
+        // Calculate TDEE
+        const activityMultiplier = {
+            'sedentary': 1.2,
+            'lightly active': 1.375,
+            'moderately active': 1.55,
+            'very active': 1.725,
+            'extra active': 1.9,
+        };
+        const newActivityLevel = updateDetails.activityLevel || user.activityLevel;
+        const TDEE = BMR * (activityMultiplier[newActivityLevel] || 1.2);
+
+        // Calculate water intake
+        const calculateWaterIntake = () => {
+            let baseWaterIntake = weight * 30;
+            const activityWaterMultiplier = {
+                'sedentary': 1.0,
+                'lightly active': 1.1,
+                'moderately active': 1.2,
+                'very active': 1.3,
+                'extra active': 1.4,
+            };
+            baseWaterIntake *= activityWaterMultiplier[newActivityLevel] || 1.0;
+            if (user.age > 55) {
+                baseWaterIntake *= 1.1;
+            }
+            return (baseWaterIntake / 1000).toFixed(2);
         };
 
-        // Send a success response
+        // Calculate BMI
+        const BMI = (weight / (height ** 2)).toFixed(2);
+
+        // Calculate weight change with direction
+        const newTargetWeight = updateDetails.targetWeight || user.targetWeight;
+        const weightChange = newTargetWeight 
+            ? (Number(newTargetWeight) * (user.isMetric ? 1 : 0.453592) - weight) 
+            : 0;
+
+        // Calculate daily calories and adjustments
+        const minCalories = user.gender === 'male' ? 1500 : 1200;
+        const newGoal = updateDetails.goal || user.goal;
+        const newWeightGainRate = updateDetails.weightGainRate || user.weightGainRate || 0.25;
+
+        // Set weekly rate based on goal
+        let weeklyRate = 0;
+        if (newGoal === 'gain weight' || newGoal === 'lose weight') {
+            weeklyRate = newWeightGainRate;
+        }
+
+        const dailyCalorieAdjustment = (weeklyRate * 7700) / 7;
+
+        // Set daily calorie goal based on goal direction
+        let dailyCalorieGoal = TDEE;
+        if (newGoal === 'gain weight') {
+            dailyCalorieGoal += dailyCalorieAdjustment;
+        } else if (newGoal === 'lose weight') {
+            dailyCalorieGoal -= dailyCalorieAdjustment;
+        }
+
+        // Ensure minimum calories
+        dailyCalorieGoal = Math.max(dailyCalorieGoal, minCalories);
+
+        // Calculate goal-related metrics
+        const caloriesToReachGoal = Math.abs(weightChange * 7700);
+        const weeklyCaloricChange = weeklyRate * 7700;
+        const daysToReachGoal = weightChange !== 0 && weeklyRate !== 0
+            ? Math.ceil((caloriesToReachGoal / weeklyCaloricChange) * 7)
+            : 0;
+
+        // Add calculated metrics to update details
+        updateDetails.BMI = BMI;
+        updateDetails.BMR = BMR.toFixed(2);
+        updateDetails.TDEE = TDEE.toFixed(2);
+        updateDetails.dailyCalorieGoal = dailyCalorieGoal.toFixed(2);
+        updateDetails.caloriesToReachGoal = caloriesToReachGoal.toFixed(2);
+        updateDetails.daysToReachGoal = daysToReachGoal;
+        updateDetails.dailyWaterIntake = calculateWaterIntake();
+
+        // Update user with new values and calculations
+        const updatedUser = await userModel.findByIdAndUpdate(
+            userId,
+            { $set: updateDetails },
+            { new: true }
+        );
+
         return res.status(200).json({
             status: true,
-            message: 'Goal settings updated successfully',
-            data: response,
+            message: 'Goal settings and calculations updated successfully',
+            data: {
+                targetWeight: updatedUser.targetWeight,
+                weightGainRate: updatedUser.weightGainRate,
+                activityLevel: updatedUser.activityLevel,
+                mealsPerDay: updatedUser.mealsPerDay,
+                goal: updatedUser.goal,
+                BMI: updatedUser.BMI,
+                BMR: updatedUser.BMR,
+                TDEE: updatedUser.TDEE,
+                dailyCalorieGoal: updatedUser.dailyCalorieGoal,
+                caloriesToReachGoal: updatedUser.caloriesToReachGoal,
+                daysToReachGoal: updatedUser.daysToReachGoal,
+                dailyWaterIntake: updatedUser.dailyWaterIntake
+            }
         });
 
     } catch (error) {
-        // Handle any errors
         console.error('Error updating goal settings:', error);
         return res.status(500).json({
             status: false,
