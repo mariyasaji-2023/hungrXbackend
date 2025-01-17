@@ -80,8 +80,9 @@ const addToCart = async (req, res) => {
                     dishId: item.dishId,
                     dishName: dish.dishName,
                     servingSize: item.servingSize,
+                    quantity: item.quantity || 1, // Default to 1 if quantity not provided
                     nutritionInfo: servingInfo.servingInfo.nutritionFacts,
-                    url:servingInfo.servingInfo.Url
+                    url: servingInfo.servingInfo.Url
                 };
             }).filter(Boolean);
         });
@@ -104,19 +105,54 @@ const addToCart = async (req, res) => {
                 );
 
                 if (existingOrderIndex !== -1) {
-                    mergedOrders[existingOrderIndex].items = [
-                        ...mergedOrders[existingOrderIndex].items,
-                        ...newOrder.items
-                    ];
+                    // Merge items for the same restaurant
+                    newOrder.items.forEach(newItem => {
+                        const existingItemIndex = mergedOrders[existingOrderIndex].items.findIndex(
+                            item => item.dishId === newItem.dishId && item.servingSize === newItem.servingSize
+                        );
+
+                        if (existingItemIndex !== -1) {
+                            // Update quantity if item exists
+                            mergedOrders[existingOrderIndex].items[existingItemIndex].quantity = 
+                                (mergedOrders[existingOrderIndex].items[existingItemIndex].quantity || 1) + 
+                                (newItem.quantity || 1);
+                        } else {
+                            // Add new item
+                            mergedOrders[existingOrderIndex].items.push({
+                                ...newItem,
+                                quantity: newItem.quantity || 1
+                            });
+                        }
+                    });
                 } else {
-                    mergedOrders.push(newOrder);
+                    // Add new restaurant order with quantities
+                    mergedOrders.push({
+                        ...newOrder,
+                        items: newOrder.items.map(item => ({
+                            ...item,
+                            quantity: item.quantity || 1
+                        }))
+                    });
                 }
             });
 
-            const mergedDishDetails = [
-                ...existingCart.dishDetails,
-                ...allDishDetails
-            ];
+            // Merge dish details with quantity handling
+            const mergedDishDetails = [...existingCart.dishDetails];
+            allDishDetails.forEach(newDish => {
+                const existingDishIndex = mergedDishDetails.findIndex(
+                    dish => dish.dishId === newDish.dishId && dish.servingSize === newDish.servingSize
+                );
+
+                if (existingDishIndex !== -1) {
+                    // Update quantity for existing dish
+                    mergedDishDetails[existingDishIndex].quantity = 
+                        (mergedDishDetails[existingDishIndex].quantity || 1) + 
+                        (newDish.quantity || 1);
+                } else {
+                    // Add new dish
+                    mergedDishDetails.push(newDish);
+                }
+            });
 
             const updatedCart = {
                 userId,
@@ -141,7 +177,13 @@ const addToCart = async (req, res) => {
             // Create new cart if none exists
             const newCart = {
                 userId,
-                orders,
+                orders: orders.map(order => ({
+                    ...order,
+                    items: order.items.map(item => ({
+                        ...item,
+                        quantity: item.quantity || 1
+                    }))
+                })),
                 dishDetails: allDishDetails,
                 createdAt: new Date(),
                 updatedAt: new Date(),
