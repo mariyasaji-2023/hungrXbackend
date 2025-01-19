@@ -580,8 +580,7 @@ const home = async (req, res) => {
             profilePhoto,
             dailyConsumptionStats
         } = user;
-
-        if (!caloriesToReachGoal || !dailyCalorieGoal || !daysToReachGoal) {
+        if (!caloriesToReachGoal || !dailyCalorieGoal || (daysToReachGoal === undefined || daysToReachGoal === null)) {
             return res.status(400).json({
                 status: false,
                 data: {
@@ -589,7 +588,6 @@ const home = async (req, res) => {
                 }
             });
         }
-        // console.log(caloriesToReachGoal, dailyCalorieGoal, "???????????????????????????????//");
 
         // Get today's date in the correct format
         const today = new Date().toLocaleDateString('en-GB', {
