@@ -390,6 +390,7 @@ const createProfile = async (req, res) => {
     }
 };
 
+
 const calculateUserMetrics = async (req, res) => {
     const { userId } = req.body;
 
@@ -427,6 +428,14 @@ const calculateUserMetrics = async (req, res) => {
                 }
             });
         }
+
+        // Format current date as DD/MM/YYYY
+        const formatDate = (date) => {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        };
 
         let weight = isMetric ? weightInKg : weightInLbs * 0.453592;
         let height = isMetric
@@ -477,11 +486,9 @@ const calculateUserMetrics = async (req, res) => {
         const waterIntake = calculateWaterIntake();
         const BMI = weight / (height ** 2);
 
-        // Calculate weight change with direction
-        // const weightChange = targetWeight ? (Number(targetWeight) - weight) : 0;/
         const weightChange = targetWeight 
-    ? (Number(targetWeight) * (isMetric ? 1 : 0.453592) - weight) 
-    : 0;
+            ? (Number(targetWeight) * (isMetric ? 1 : 0.453592) - weight) 
+            : 0;
 
         // Calculate daily calories and adjustments
         const minCalories = gender === 'male' ? 1500 : 1200;
@@ -512,7 +519,7 @@ const calculateUserMetrics = async (req, res) => {
             ? Math.ceil((caloriesToReachGoal / weeklyCaloricChange) * 7)
             : 0;
 
-        // Update user metrics
+        // Update user metrics with calculation date
         user.BMI = BMI.toFixed(2);
         user.BMR = BMR.toFixed(2);
         user.TDEE = TDEE.toFixed(2);
@@ -520,6 +527,7 @@ const calculateUserMetrics = async (req, res) => {
         user.caloriesToReachGoal = caloriesToReachGoal.toFixed(2);
         user.daysToReachGoal = daysToReachGoal;
         user.dailyWaterIntake = waterIntake;
+        user.calculationDate = formatDate(new Date()); // Add calculation date
 
         await user.save();
 
@@ -527,6 +535,7 @@ const calculateUserMetrics = async (req, res) => {
         res.status(200).json({
             status: true,
             data: {
+                calculationDate: formatDate(new Date()),
                 goal,
                 activityLevel,
                 height: isMetric
@@ -578,7 +587,8 @@ const home = async (req, res) => {
             weightInKg,
             weightInLbs,
             profilePhoto,
-            dailyConsumptionStats
+            dailyConsumptionStats,
+            calculationDate
         } = user;
         if (!caloriesToReachGoal || !dailyCalorieGoal || (daysToReachGoal === undefined || daysToReachGoal === null)) {
             return res.status(400).json({
@@ -641,7 +651,8 @@ const home = async (req, res) => {
                 daysToReachGoal,
                 profilePhoto,
                 remaining: remainingCalories,
-                consumed: totalCaloriesConsumed
+                consumed: totalCaloriesConsumed,
+                calculationDate
             }
         });
 
