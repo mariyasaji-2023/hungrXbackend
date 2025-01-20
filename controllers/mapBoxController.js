@@ -79,7 +79,7 @@ const fetchRestaurants = async (longitude, latitude, radius) => {
         });
 
         if (!response.data?.suggestions) {
-            console.error('No suggestions in response', response.data);
+            // console.error('No suggestions in response', response.data);
             return [];
         }
 

@@ -622,13 +622,19 @@ const home = async (req, res) => {
             goalHeading = 'Calorie Goal';
         }
         // console.log(caloriesToReachGoal, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-
+        let goalstatus ;
+        if(goalHeading =='maintain weight'){
+            goalstatus = true
+        }else{
+            goalstatus = false
+        }
 
         return res.status(200).json({
             status: true,
             data: {
                 username: name,
                 goalHeading,
+                goalstatus,
                 weight,
                 caloriesToReachGoal,
                 dailyCalorieGoal: parsedDailyGoal,
