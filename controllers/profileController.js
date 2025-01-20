@@ -73,6 +73,7 @@ const basicInfo = async (req, res) => {
         });
     }
 };
+
 const updateBasicInfo = async (req, res) => {
     const {
         userId,
@@ -116,55 +117,68 @@ const updateBasicInfo = async (req, res) => {
         if (gender) updatedData.gender = gender;
         if (mobile) updatedData.mobile = mobile;
         if (email) updatedData.email = email;
-        if (age) updatedData.age = age;
+        if (age) updatedData.age = parseInt(age);
         if (goal) updatedData.goal = goal;
         if (typeof isMetric === 'boolean') updatedData.isMetric = isMetric;
 
         // Handle height based on metric preference
         if (isMetric && heightInCm) {
-            updatedData.heightInCm = heightInCm;
+            updatedData.heightInCm = parseFloat(heightInCm);
         } else if (!isMetric && heightInFeet && heightInInches) {
-            updatedData.heightInFeet = heightInFeet;
-            updatedData.heightInInches = heightInInches;
+            updatedData.heightInFeet = parseFloat(heightInFeet);
+            updatedData.heightInInches = parseFloat(heightInInches);
         }
 
         // Handle weight based on metric preference
         if (isMetric && weightInKg) {
-            updatedData.weightInKg = weightInKg;
+            updatedData.weightInKg = parseFloat(weightInKg);
         } else if (!isMetric && weightInLbs) {
-            updatedData.weightInLbs = weightInLbs;
+            updatedData.weightInLbs = parseFloat(weightInLbs);
         }
 
         if (targetWeight) {
-            updatedData.targetWeight = targetWeight;
+            updatedData.targetWeight = parseFloat(targetWeight);
         }
 
-        // Calculate metrics using updated values
-        const newIsMetric = typeof isMetric === 'boolean' ? isMetric : user.isMetric;
-        
+        // Get final values for calculations by combining updates with existing data
+        const finalData = {
+            isMetric: typeof isMetric === 'boolean' ? isMetric : user.isMetric,
+            age: updatedData.age || user.age,
+            gender: updatedData.gender || user.gender,
+            goal: updatedData.goal || user.goal,
+            weightGainRate: user.weightGainRate || 0.25,
+            activityLevel: user.activityLevel || 'sedentary'
+        };
+
         // Calculate weight in kg for calculations
-        const weightForCalc = newIsMetric 
-            ? (weightInKg || user.weightInKg)
-            : ((weightInLbs || user.weightInLbs) * 0.453592);
+        if (finalData.isMetric) {
+            finalData.weightInKg = updatedData.weightInKg || user.weightInKg;
+        } else {
+            const lbs = updatedData.weightInLbs || user.weightInLbs;
+            finalData.weightInKg = lbs * 0.453592;
+        }
 
         // Calculate height in meters for calculations
-        const heightForCalc = newIsMetric
-            ? ((heightInCm || user.heightInCm) / 100)
-            : (((heightInFeet || user.heightInFeet) * 12 + (heightInInches || user.heightInInches)) * 0.0254);
-
-        // Calculate BMI
-        if (weightForCalc && heightForCalc) {
-            updatedData.BMI = (weightForCalc / (heightForCalc ** 2)).toFixed(2);
+        if (finalData.isMetric) {
+            const cm = updatedData.heightInCm || user.heightInCm;
+            finalData.heightInM = cm / 100;
+        } else {
+            const feet = updatedData.heightInFeet || user.heightInFeet;
+            const inches = updatedData.heightInInches || user.heightInInches;
+            finalData.heightInM = (feet * 12 + inches) * 0.0254;
         }
 
-        // Calculate BMR
-        if (weightForCalc && heightForCalc && (age || user.age) && (gender || user.gender)) {
-            const calcAge = age || user.age;
-            const calcGender = gender || user.gender;
-            
-            updatedData.BMR = calcGender === 'male'
-                ? (10 * weightForCalc + 6.25 * (heightForCalc * 100) - 5 * calcAge + 5).toFixed(2)
-                : (10 * weightForCalc + 6.25 * (heightForCalc * 100) - 5 * calcAge - 161).toFixed(2);
+        // Calculate BMI
+        if (finalData.weightInKg && finalData.heightInM) {
+            updatedData.BMI = (finalData.weightInKg / (finalData.heightInM ** 2)).toFixed(2);
+        }
+
+        // Calculate BMR using Mifflin-St Jeor Equation
+        if (finalData.weightInKg && finalData.heightInM && finalData.age && finalData.gender) {
+            const heightInCm = finalData.heightInM * 100;
+            updatedData.BMR = finalData.gender === 'male'
+                ? (10 * finalData.weightInKg + 6.25 * heightInCm - 5 * finalData.age + 5).toFixed(2)
+                : (10 * finalData.weightInKg + 6.25 * heightInCm - 5 * finalData.age - 161).toFixed(2);
 
             // Calculate TDEE
             const activityMultiplier = {
@@ -172,53 +186,56 @@ const updateBasicInfo = async (req, res) => {
                 'lightly active': 1.375,
                 'moderately active': 1.55,
                 'very active': 1.725,
-                'extra active': 1.9,
+                'extra active': 1.9
             };
             
-            updatedData.TDEE = (updatedData.BMR * (activityMultiplier[user.activityLevel] || 1.2)).toFixed(2);
+            updatedData.TDEE = (updatedData.BMR * (activityMultiplier[finalData.activityLevel] || 1.2)).toFixed(2);
 
-            // Calculate daily water intake
-            let baseWaterIntake = weightForCalc * 30;
+            // Calculate daily water intake (in liters)
+            let baseWaterIntake = finalData.weightInKg * 30; // 30ml per kg
             const activityWaterMultiplier = {
                 'sedentary': 1.0,
                 'lightly active': 1.1,
                 'moderately active': 1.2,
                 'very active': 1.3,
-                'extra active': 1.4,
+                'extra active': 1.4
             };
-            baseWaterIntake *= activityWaterMultiplier[user.activityLevel] || 1.0;
-            if (calcAge > 55) {
+            baseWaterIntake *= activityWaterMultiplier[finalData.activityLevel] || 1.0;
+            if (finalData.age > 55) {
                 baseWaterIntake *= 1.1;
             }
             updatedData.dailyWaterIntake = (baseWaterIntake / 1000).toFixed(2);
 
-            // Calculate weight-related goals
-            const newTargetWeight = targetWeight || user.targetWeight;
-            if (newTargetWeight) {
-                const weightChange = (Number(newTargetWeight) * (newIsMetric ? 1 : 0.453592) - weightForCalc);
-                const weeklyRate = user.weightGainRate || 0.25;
+            // Calculate weight-related goals if target weight exists
+            const targetWeightKg = updatedData.targetWeight || user.targetWeight;
+            if (targetWeightKg) {
+                const targetInKg = finalData.isMetric ? targetWeightKg : targetWeightKg * 0.453592;
+                const weightChange = targetInKg - finalData.weightInKg;
                 
+                // Calculate total calories needed for weight change
                 updatedData.caloriesToReachGoal = Math.abs(weightChange * 7700).toFixed(2);
                 
                 // Calculate daily calorie goal
                 let dailyCalorieGoal = Number(updatedData.TDEE);
-                const dailyCalorieAdjustment = (weeklyRate * 7700) / 7;
+                const dailyCalorieAdjustment = (finalData.weightGainRate * 7700) / 7;
 
-                if (user.goal === 'gain weight') {
+                if (finalData.goal === 'gain weight') {
                     dailyCalorieGoal += dailyCalorieAdjustment;
-                } else if (user.goal === 'lose weight') {
+                } else if (finalData.goal === 'lose weight') {
                     dailyCalorieGoal -= dailyCalorieAdjustment;
                 }
 
-                // Ensure minimum calories
-                const minCalories = (gender || user.gender) === 'male' ? 1500 : 1200;
+                // Ensure minimum healthy calories
+                const minCalories = finalData.gender === 'male' ? 1500 : 1200;
                 dailyCalorieGoal = Math.max(dailyCalorieGoal, minCalories);
                 
                 updatedData.dailyCalorieGoal = dailyCalorieGoal.toFixed(2);
                 
                 // Calculate days to reach goal
-                if (weightChange !== 0 && weeklyRate !== 0) {
-                    updatedData.daysToReachGoal = Math.ceil((updatedData.caloriesToReachGoal / (weeklyRate * 7700)) * 7);
+                if (weightChange !== 0 && finalData.weightGainRate !== 0) {
+                    updatedData.daysToReachGoal = Math.ceil(Math.abs(weightChange / finalData.weightGainRate) * 7);
+                } else {
+                    updatedData.daysToReachGoal = 0;
                 }
             }
         }
@@ -231,28 +248,25 @@ const updateBasicInfo = async (req, res) => {
         );
 
         // Format response
-        const weight = updatedUser.isMetric
-            ? updatedUser.weightInKg ? `${updatedUser.weightInKg} kg` : null
-            : updatedUser.weightInLbs ? `${updatedUser.weightInLbs} lbs` : null;
-
-        const height = updatedUser.isMetric
-            ? updatedUser.heightInCm ? `${updatedUser.heightInCm} cm` : null
-            : updatedUser.heightInFeet && updatedUser.heightInInches
-                ? `${updatedUser.heightInFeet} ft ${updatedUser.heightInInches} in`
-                : null;
-
         const formattedUser = {
             name: updatedUser.name || null,
             email: updatedUser.email || null,
             gender: updatedUser.gender || null,
             mobile: updatedUser.mobile || null,
             age: updatedUser.age ? `${updatedUser.age} years` : null,
-            height,
-            weight,
-            targetWeight: updatedUser.targetWeight ? `${updatedUser.targetWeight} kg` : null,
+            height: updatedUser.isMetric
+                ? updatedUser.heightInCm ? `${updatedUser.heightInCm} cm` : null
+                : (updatedUser.heightInFeet && updatedUser.heightInInches)
+                    ? `${updatedUser.heightInFeet} ft ${updatedUser.heightInInches} in`
+                    : null,
+            weight: updatedUser.isMetric
+                ? updatedUser.weightInKg ? `${updatedUser.weightInKg} kg` : null
+                : updatedUser.weightInLbs ? `${updatedUser.weightInLbs} lbs` : null,
+            targetWeight: updatedUser.targetWeight 
+                ? `${updatedUser.targetWeight} ${updatedUser.isMetric ? 'kg' : 'lbs'}` 
+                : null,
             goal: updatedUser.goal || null,
-            isMetric: updatedUser.isMetric || false,
-            // Add calculated metrics to response
+            isMetric: updatedUser.isMetric,
             BMI: updatedUser.BMI || null,
             BMR: updatedUser.BMR || null,
             TDEE: updatedUser.TDEE || null,
