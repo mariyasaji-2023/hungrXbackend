@@ -142,9 +142,6 @@ const serviceSid = process.env.TWILIO_SERVICE_SID;  // Twilio Verify Service SID
 
 const client = twilio(accountSid, authToken);
 
-console.log('AccountSid first 4 chars:', accountSid?.substring(0, 4));
-console.log('AuthToken length:', authToken?.length);
-console.log('ServiceSid first 4 chars:', serviceSid?.substring(0, 4));
 
 
 const sendOTP = async (req, res) => {
@@ -226,7 +223,7 @@ const verifyOTP = async (req, res) => {
                     isVerified: true // Mark as verified since OTP is confirmed
                 });
                 await user.save();
-                
+
             } else {
 
                 user.isVerified = true;
@@ -328,8 +325,6 @@ const createProfile = async (req, res) => {
         profilePhoto
     } = req.body;
 
-    console.log('Request Body:', req.body);
-
     try {
         const user = await User.findOne({ _id: userId });
         if (!user) {
@@ -367,7 +362,6 @@ const createProfile = async (req, res) => {
             if (activityLevel) user.activityLevel = activityLevel;
 
             await user.save();
-            console.log('Updated User:', user);
         };
         ;
 
@@ -486,8 +480,8 @@ const calculateUserMetrics = async (req, res) => {
         const waterIntake = calculateWaterIntake();
         const BMI = weight / (height ** 2);
 
-        const weightChange = targetWeight 
-            ? (Number(targetWeight) * (isMetric ? 1 : 0.453592) - weight) 
+        const weightChange = targetWeight
+            ? (Number(targetWeight) * (isMetric ? 1 : 0.453592) - weight)
             : 0;
 
         // Calculate daily calories and adjustments
@@ -608,16 +602,8 @@ const home = async (req, res) => {
 
         // Get today's consumed calories from dailyConsumptionStats Map
         const totalCaloriesConsumed = Number(dailyConsumptionStats.get(today) || 0);
-        console.log('Today:', today);
-        console.log('Daily Consumption Stats:', dailyConsumptionStats);
-        console.log('Total Calories Consumed:', totalCaloriesConsumed);
-
-        // Calculate remaining calories
         const parsedDailyGoal = Number(dailyCalorieGoal);
         const remainingCalories = Number((parsedDailyGoal - totalCaloriesConsumed).toFixed(2));
-        // console.log(remainingCalories,"rrrrrrrrrrrrrrrrrr");
-
-        // const updatedCaloriesToReachGoal = Number((caloriesToReachGoal - totalCaloriesConsumed).toFixed(2));
 
         const weight = isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`;
 
@@ -631,11 +617,11 @@ const home = async (req, res) => {
         } else {
             goalHeading = 'Calorie Goal';
         }
-        // console.log(caloriesToReachGoal, "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA");
-        let goalstatus ;
-        if(goalHeading =='maintain weight'){
+
+        let goalstatus;
+        if (goal == 'maintain weight') {
             goalstatus = true
-        }else{
+        } else {
             goalstatus = false
         }
 
@@ -753,7 +739,7 @@ const updateWeight = async (req, res) => {
         // Convert measurements to metric for calculations
         let heightInM;
         let weightInKg;
-        
+
         if (user.isMetric) {
             heightInM = user.heightInCm / 100;
             weightInKg = newWeight;
@@ -761,7 +747,7 @@ const updateWeight = async (req, res) => {
             // Convert feet and inches to meters
             const heightInInches = (user.heightInFeet * 12) + user.heightInInches;
             heightInM = heightInInches * 0.0254;
-            
+
             // Convert pounds to kilograms
             weightInKg = newWeight * 0.453592;
         }
@@ -790,8 +776,8 @@ const updateWeight = async (req, res) => {
         user.TDEE = (parseFloat(user.BMR) * activityMultiplier).toFixed(2);
 
         // Convert target weight to kg if necessary
-        const targetWeightInKg = user.isMetric ? 
-            parseFloat(user.targetWeight) : 
+        const targetWeightInKg = user.isMetric ?
+            parseFloat(user.targetWeight) :
             parseFloat(user.targetWeight) * 0.453592;
 
         const weightDifference = Math.abs(weightInKg - targetWeightInKg);
@@ -954,7 +940,6 @@ const getCalorieMetrics = async (req, res) => {
         const weightrateInGrams = weightGainRate * 1000
         const dailyWeightLoss = (weightrateInGrams * 7.7) / 7
         const ratio = dailyWeightLoss / dailyCalorieGoal
-        console.log(dailyWeightLoss, ratio, "///////////////////////////");
 
 
         let weightChangeRatio;
@@ -1018,7 +1003,7 @@ const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
     return `You have ${absRemaining.toFixed(0)} calories remaining for today.`;
 };
 
-const changecaloriesToReachGoal = async(req, res) => {
+const changecaloriesToReachGoal = async (req, res) => {
     const { userId, calorie } = req.body;
     try {
         const user = await User.findOne({ _id: userId });
@@ -1031,10 +1016,10 @@ const changecaloriesToReachGoal = async(req, res) => {
 
         // Calculate new value
         const caloriesToReachGoal = user.caloriesToReachGoal - calorie;
-        
+
         // Assign the new value to the user object
         user.caloriesToReachGoal = caloriesToReachGoal;
-        
+
         // Save the updated user object
         await user.save();
 
@@ -1054,5 +1039,5 @@ const changecaloriesToReachGoal = async(req, res) => {
     }
 };
 
-module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, createProfile, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory, checkUser, getCalorieMetrics,changecaloriesToReachGoal };
+module.exports = { signupWithEmail, loginWithEmail, verifyToken, sendOTP, verifyOTP, loginWithGoogle, createProfile, calculateUserMetrics, home, trackUser, updateWeight, getWeightHistory, checkUser, getCalorieMetrics, changecaloriesToReachGoal };
 

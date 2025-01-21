@@ -35,7 +35,6 @@ const searchDishesForUser = async (req, res) => {
 
     try {
         await client.connect();
-        console.log("Connected to MongoDB");
         const db = client.db('hungerX');
         const collection = db.collection('restaurants');
         
@@ -51,8 +50,6 @@ const searchDishesForUser = async (req, res) => {
                 $regex: query ? new RegExp(query, 'i') : /.*/ 
             }
         }).toArray();
-        
-        console.log(restaurants, 'rrrrrrrrrrrrrrrrrrrrr');
 
         if (!restaurants || restaurants.length === 0) {
             return res.status(404).json({

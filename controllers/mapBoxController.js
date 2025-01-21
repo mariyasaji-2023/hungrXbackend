@@ -56,15 +56,15 @@ const fetchRestaurants = async (longitude, latitude, radius) => {
         const searchTerm = 'restaurant food OR Pizza restaurant OR Fast food restaurant OR Pizza restaurant OR Cafe'; // Generic search term to get food establishments
         const searchUrl = `https://api.mapbox.com/search/v1/suggest/${encodeURIComponent(searchTerm)}`;
         
-        console.log('Making Mapbox API request with params:', {
-            searchTerm,
-            longitude,
-            latitude,
-            radius,
-            bbox,
-            sessionToken,
-            url: searchUrl
-        });
+        // console.log('Making Mapbox API request with params:', {
+        //     searchTerm,
+        //     longitude,
+        //     latitude,
+        //     radius,
+        //     bbox,
+        //     sessionToken,
+        //     url: searchUrl
+        // });
 
         const response = await axios.get(searchUrl, {
             params: {
@@ -83,21 +83,21 @@ const fetchRestaurants = async (longitude, latitude, radius) => {
             return [];
         }
 
-        console.log('Total Mapbox suggestions received:', response.data.suggestions.length);
+        // console.log('Total Mapbox suggestions received:', response.data.suggestions.length);
 
         const restaurants = response.data.suggestions
             .filter(suggestion => {
                 const keep = suggestion.feature_name && suggestion.description;
-                console.log('Filtering suggestion:', {
-                    name: suggestion.feature_name,
-                    description: suggestion.description,
-                    kept: keep,
-                    reason: !keep ? (
-                        !suggestion.feature_name ? 'Missing name' :
-                        !suggestion.description ? 'Missing description' :
-                        'Unknown'
-                    ) : 'Kept'
-                });
+                // console.log('Filtering suggestion:', {
+                //     name: suggestion.feature_name,
+                //     description: suggestion.description,
+                //     kept: keep,
+                //     reason: !keep ? (
+                //         !suggestion.feature_name ? 'Missing name' :
+                //         !suggestion.description ? 'Missing description' :
+                //         'Unknown'
+                //     ) : 'Kept'
+                // });
                 return keep;
             })
             .map(suggestion => ({
@@ -109,7 +109,7 @@ const fetchRestaurants = async (longitude, latitude, radius) => {
                 context: suggestion.context || {}
             }));
 
-        console.log(`Found ${restaurants.length} restaurants`);
+        // console.log(`Found ${restaurants.length} restaurants`);
         return restaurants;
 
     } catch (error) {
@@ -284,26 +284,26 @@ const getNearbyRestaurants = async (req, res) => {
             
             const batchResults = await Promise.all(
                 batch.map(async restaurant => {
-                    console.log('Processing restaurant:', restaurant.name);
+                    // console.log('Processing restaurant:', restaurant.name);
                     
                     const dbRestaurant = await findRestaurantInDatabase(
                         restaurant.name,
                         Restaurant
                     );
 
-                    console.log('Database match result:', {
-                        searchName: restaurant.name,
-                        found: !!dbRestaurant,
-                        matchedName: dbRestaurant?.restaurantName,
-                        category: dbRestaurant?.category
-                    });
+                    // console.log('Database match result:', {
+                    //     searchName: restaurant.name,
+                    //     found: !!dbRestaurant,
+                    //     matchedName: dbRestaurant?.restaurantName,
+                    //     category: dbRestaurant?.category
+                    // });
 
                     if (!dbRestaurant || (category !== 'all' && dbRestaurant.category !== category)) {
-                        console.log('Restaurant excluded because:', {
-                            reason: !dbRestaurant ? 'Not found in database' : 'Category mismatch',
-                            requestedCategory: category,
-                            restaurantCategory: dbRestaurant?.category
-                        });
+                        // console.log('Restaurant excluded because:', {
+                        //     reason: !dbRestaurant ? 'Not found in database' : 'Category mismatch',
+                        //     requestedCategory: category,
+                        //     restaurantCategory: dbRestaurant?.category
+                        // });
                         return null;
                     }
 

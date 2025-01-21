@@ -403,12 +403,12 @@ const getCart = async (req, res) => {
     
         const value = user?.dailyConsumptionStats?.get(today) || 0;
         
-        console.log('Today\'s date:', today);
-        console.log('Daily consumption stats:', user?.dailyConsumptionStats);
+        // console.log('Today\'s date:', today);
+        // console.log('Daily consumption stats:', user?.dailyConsumptionStats);
         
         const dailyCalorieGoal = user?.dailyCalorieGoal;
         const remaining = dailyCalorieGoal - value;
-        console.log(value, dailyCalorieGoal, remaining, "///////////////");
+        // console.log(value, dailyCalorieGoal, remaining);
 
         if (!carts.length) {
             return res.status(404).json({

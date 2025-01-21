@@ -329,11 +329,6 @@ const profileScreen = async (req, res) => {
             : dailyConsumptionStats;
 
         const todayConsumption = consumptionStats[today] || 0;
-        console.log(user,"////////////////////////");
-        
-        console.log('Daily Consumption Stats:', consumptionStats);
-        console.log('Today\'s Date:', today);
-        console.log('Today\'s Consumption:', todayConsumption);
 
         const userDetails = {
             TDEE,

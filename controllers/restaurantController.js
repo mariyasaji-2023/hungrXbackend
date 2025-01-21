@@ -149,7 +149,6 @@ const getMeal = async (req, res) => {
     try {
 
         const meals = await mealModel.find({})
-        console.log(meals);
 
         res.status(200).json({
             status: true,
