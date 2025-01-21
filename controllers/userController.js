@@ -729,6 +729,16 @@ const updateWeight = async (req, res) => {
             });
         }
 
+        if (user.goal === 'maintain weight') {
+            if (user.isMetric) {
+                user.targetWeight = newWeight;
+                user.weightInKg = newWeight;
+            } else {
+                user.targetWeight = newWeight;
+                user.weightInLbs = newWeight;
+            }
+        }
+        
         // Update weight based on metric preference
         if (user.isMetric) {
             user.weightInKg = newWeight;
