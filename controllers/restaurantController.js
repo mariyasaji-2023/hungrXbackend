@@ -772,6 +772,7 @@ const getConsumedFoodByDate = async (req, res) => {
     }
 };
 
+
 const deleteDishFromMeal = async (req, res) => {
     try {
         const db = getDBInstance();
@@ -780,10 +781,10 @@ const deleteDishFromMeal = async (req, res) => {
             userId,
             date,
             mealId,
-            dishId
+            foodId  // Changed from dishId to foodId
         } = req.body;
 
-        if (!userId || !date || !mealId || !dishId) {
+        if (!userId || !date || !mealId || !foodId) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
@@ -816,11 +817,11 @@ const deleteDishFromMeal = async (req, res) => {
         }
 
         const foodToDelete = currentMeal.foods.find(
-            food => food.dishId?.toString() === dishId || food.foodId?.toString() === dishId
+            food => food.foodId?.toString() === foodId
         );
 
         if (!foodToDelete) {
-            return res.status(404).json({ error: 'Dish not found in the meal' });
+            return res.status(404).json({ error: 'Food item not found in the meal' });
         }
 
         const caloriesToAddBack = Number(foodToDelete.totalCalories) || 0;
@@ -834,10 +835,7 @@ const deleteDishFromMeal = async (req, res) => {
         const updateOperations = {
             $pull: {
                 [`${mealKey}.foods`]: {
-                    $or: [
-                        { dishId: new mongoose.Types.ObjectId(dishId) },
-                        { foodId: new mongoose.Types.ObjectId(dishId) }
-                    ]
+                    foodId: new mongoose.Types.ObjectId(foodId)
                 }
             },
             $set: {
@@ -872,7 +870,7 @@ const deleteDishFromMeal = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: 'Dish deleted successfully',
+            message: 'Food item deleted successfully',
             date: date,
             mealId: mealId,
             mealType: mealType,
@@ -889,10 +887,11 @@ const deleteDishFromMeal = async (req, res) => {
             }
         });
     } catch (error) {
-        console.error('Error deleting dish:', error);
+        console.error('Error deleting food item:', error);
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
 
 const searchRestaurant = async (req, res) => {
     const { name } = req.body;
