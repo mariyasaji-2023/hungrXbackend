@@ -782,40 +782,55 @@ const deleteDishFromMeal = async (req, res) => {
             mealId,
             dishId
         } = req.body;
+
         if (!userId || !date || !mealId || !dishId) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
+
         const mealTypeMapping = {
             '6746a024a45e4d9e5d58ea12': 'breakfast',
             '6746a024a45e4d9e5d58ea13': 'lunch',
             '6746a024a45e4d9e5d58ea14': 'dinner',
             '6746a024a45e4d9e5d58ea15': 'snacks'
         };
+
         const mealType = mealTypeMapping[mealId];
         if (!mealType) {
             return res.status(400).json({ error: 'Invalid meal ID' });
         }
+
         const user = await users.findOne({
             _id: new mongoose.Types.ObjectId(userId)
         });
+
         if (!user) {
             return res.status(404).json({ error: 'User not found' });
         }
+
         const dateKey = `consumedFood.dates.${date}`;
         const mealKey = `${dateKey}.${mealType}`;
         const currentMeal = user.consumedFood?.dates?.[date]?.[mealType];
+
         if (!currentMeal || !currentMeal.foods) {
             return res.status(404).json({ error: 'Meal not found for the specified date' });
         }
+
         const foodToDelete = currentMeal.foods.find(
-            food => food.dishId.toString() === dishId || food.foodId.toString() === dishId
+            food => food.dishId?.toString() === dishId || food.foodId?.toString() === dishId
         );
+
         if (!foodToDelete) {
             return res.status(404).json({ error: 'Dish not found in the meal' });
         }
+
         const caloriesToAddBack = Number(foodToDelete.totalCalories) || 0;
         const currentCaloriesToReachGoal = parseInt(user.caloriesToReachGoal) || 0;
         const newCaloriesToReachGoal = currentCaloriesToReachGoal + caloriesToAddBack;
+
+        // Update dailyConsumptionStats
+        const currentDailyConsumption = user.dailyConsumptionStats?.[date] || 0;
+        const newDailyConsumption = Math.max(0, currentDailyConsumption - caloriesToAddBack);
+
         const updateOperations = {
             $pull: {
                 [`${mealKey}.foods`]: {
@@ -826,21 +841,27 @@ const deleteDishFromMeal = async (req, res) => {
                 }
             },
             $set: {
-                caloriesToReachGoal: newCaloriesToReachGoal
+                caloriesToReachGoal: newCaloriesToReachGoal,
+                [`dailyConsumptionStats.${date}`]: newDailyConsumption
             }
         };
+
         const result = await users.updateOne(
             { _id: new mongoose.Types.ObjectId(userId) },
             updateOperations
         );
+
         if (result.matchedCount === 0) {
             return res.status(404).json({ error: 'User not found' });
         }
+
         const updatedUser = await users.findOne({
             _id: new mongoose.Types.ObjectId(userId)
         });
+
         const updatedMeal = updatedUser.consumedFood?.dates?.[date]?.[mealType];
         let totalDayCalories = 0;
+
         Object.values(updatedUser.consumedFood?.dates?.[date] || {}).forEach(meal => {
             if (meal.foods && Array.isArray(meal.foods)) {
                 meal.foods.forEach(food => {
@@ -848,6 +869,7 @@ const deleteDishFromMeal = async (req, res) => {
                 });
             }
         });
+
         res.status(200).json({
             success: true,
             message: 'Dish deleted successfully',
@@ -862,7 +884,8 @@ const deleteDishFromMeal = async (req, res) => {
             },
             updatedCalories: {
                 caloriesToReachGoal: newCaloriesToReachGoal,
-                deletedCalories: caloriesToAddBack
+                deletedCalories: caloriesToAddBack,
+                dailyConsumption: newDailyConsumption
             }
         });
     } catch (error) {
@@ -870,7 +893,6 @@ const deleteDishFromMeal = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
-
 
 const searchRestaurant = async (req, res) => {
     const { name } = req.body;
