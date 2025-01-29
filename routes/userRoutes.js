@@ -29,6 +29,7 @@ router.post('/trackuser', userController.trackUser)
 router.post('/checkUser', userController.checkUser)
 router.post('/home', userController.home)
 router.post('/changecaloriesToReachGoal',userController.changecaloriesToReachGoal)
+
 //============================ Weight Screen Route ============================
 
 router.post('/getWeightHistory', userController.getWeightHistory)

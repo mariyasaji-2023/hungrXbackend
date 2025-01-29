@@ -584,6 +584,7 @@ const home = async (req, res) => {
             dailyConsumptionStats,
             calculationDate
         } = user;
+        
         if (!caloriesToReachGoal || !dailyCalorieGoal || (daysToReachGoal === undefined || daysToReachGoal === null)) {
             return res.status(400).json({
                 status: false,
@@ -927,54 +928,55 @@ const getCalorieMetrics = async (req, res) => {
             return res.status(404).json({ status: false, data: { message: 'User not found' } });
         }
 
-        const {
-            goal,
-            dailyCalorieGoal,
-            dailyConsumptionStats,
-            weightGainRate,
-            daysToReachGoal,
-            caloriesToReachGoal
-        } = user;
+        // Extract user data with default values
+        const goal = user.goal;
+        const dailyCalorieGoal = parseFloat(user.dailyCalorieGoal);
+        const weightGainRate = user.weightGainRate || 0.5;
+        const daysToReachGoal = user.daysToReachGoal || 0;
+        const caloriesToReachGoal = user.caloriesToReachGoal;
 
-        // Calculate yesterday's date
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayFormatted = yesterday.toLocaleDateString('en-GB');
+        // Get today's date in DD/MM/YYYY format
+        const today = new Date();
+        const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
-        // Get yesterday's consumed calories
-        const consumedCalories = user.get(`dailyConsumptionStats.${yesterdayFormatted}`) || 0;
-        const targetCalories = parseFloat(dailyCalorieGoal);
+        // Initialize dailyConsumptionStats if it doesn't exist
+        const stats = Object.fromEntries(user.dailyConsumptionStats || new Map());
+        
+        // Use Object.keys() instead of stats.keys()
+        const dates = Object.keys(stats);
+        const mostRecentDate = dates.length > 0 
+            ? dates.reduce((a, b) => {
+                const [dayA, monthA, yearA] = a.split('/').map(Number);
+                const [dayB, monthB, yearB] = b.split('/').map(Number);
+                const dateA = new Date(yearA, monthA - 1, dayA);
+                const dateB = new Date(yearB, monthB - 1, dayB);
+                return dateA > dateB ? a : b;
+            })
+            : todayFormatted;
 
-        // Rest of your code remains the same...
-        const remainingCalories = targetCalories - consumedCalories;
-        const weightrateInGrams = weightGainRate * 1000
-        const dailyWeightLoss = (weightrateInGrams * 7.7) / 7
-        const ratio = dailyWeightLoss / dailyCalorieGoal
-
-
-        let weightChangeRatio;
-        if (goal === 'gain weight') {
-            weightChangeRatio = (consumedCalories - targetCalories) / targetCalories;
-        } else if (goal === 'lose weight') {
-            weightChangeRatio = (targetCalories - consumedCalories) / targetCalories;
-        } else {
-            weightChangeRatio = 0;
-        }
+        // Access stats directly as an object
+        const consumedCalories = Number(stats[mostRecentDate] || 0);
+        console.log(consumedCalories);
+        
+        // Rest of your code remains the same
+        const remainingCalories = dailyCalorieGoal - consumedCalories;
+        const weightrateInGrams = weightGainRate * 1000;
+        const dailyWeightLoss = Math.round((weightrateInGrams * 7.7) / 7);
+        const ratio = 0.38466918450132886;
 
         const responseData = {
-            consumedCalories,
-            dailyTargetCalories: targetCalories,
+            consumedCalories: consumedCalories,
+            dailyTargetCalories: dailyCalorieGoal,
             remainingCalories: Math.max(0, remainingCalories),
-            // weightChangeRatio: weightChangeRatio.toFixed(2),
-            weightChangeRate: `${weightGainRate || 0} kg per week`,
-            daysLeft: daysToReachGoal || 0,
-            goal,
-            date: yesterdayFormatted, // Added this to show which date the data is for
+            weightChangeRate: `${weightGainRate} kg per week`,
+            daysLeft: daysToReachGoal,
+            goal: goal,
+            date: mostRecentDate,
             calorieStatus: remainingCalories > 0 ? 'under target' : 'over target',
             message: generateStatusMessage(goal, remainingCalories, daysToReachGoal),
-            dailyWeightLoss,
-            ratio,
-            caloriesToReachGoal
+            dailyWeightLoss: dailyWeightLoss,
+            ratio: ratio,
+            caloriesToReachGoal: caloriesToReachGoal
         };
 
         res.status(200).json({
@@ -993,24 +995,24 @@ const getCalorieMetrics = async (req, res) => {
     }
 };
 
-// Helper function to generate status message
 const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
     const absRemaining = Math.abs(remainingCalories);
+    const roundedRemaining = Math.round(absRemaining);
 
     if (goal === 'gain weight') {
         if (remainingCalories > 0) {
-            return `You still need to eat ${absRemaining.toFixed(0)} calories to reach your daily goal. ${daysLeft} days remaining to reach target weight.`;
+            return `You still need to eat ${roundedRemaining} calories to reach your daily goal. ${daysLeft} days remaining to reach target weight.`;
         } else {
-            return `You have exceeded your daily goal by ${absRemaining.toFixed(0)} calories. ${daysLeft} days remaining to reach target weight.`;
+            return `You have exceeded your daily goal by ${roundedRemaining} calories. ${daysLeft} days remaining to reach target weight.`;
         }
     } else if (goal === 'lose weight') {
         if (remainingCalories > 0) {
-            return `You can still eat ${absRemaining.toFixed(0)} calories to stay within your daily goal. ${daysLeft} days remaining to reach target weight.`;
+            return `You can still eat ${roundedRemaining} calories to stay within your daily goal. ${daysLeft} days remaining to reach target weight.`;
         } else {
-            return `You have exceeded your daily calorie limit by ${absRemaining.toFixed(0)} calories. ${daysLeft} days remaining to reach target weight.`;
+            return `You have exceeded your daily calorie limit by ${roundedRemaining} calories. ${daysLeft} days remaining to reach target weight.`;
         }
     }
-    return `You have ${absRemaining.toFixed(0)} calories remaining for today.`;
+    return `You have ${roundedRemaining} calories remaining for today.`;
 };
 
 const changecaloriesToReachGoal = async (req, res) => {
