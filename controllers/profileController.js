@@ -318,7 +318,16 @@ const profileScreen = async (req, res) => {
             BMI, 
             gender, 
             dailyCalorieGoal,
-            dailyConsumptionStats = {} // Provide default empty object
+            dailyConsumptionStats = {}, // Provide default empty object
+            activityLevel,
+            age,
+            goal,
+            mealsPerDay,
+            weightGainRate,
+            BMR,
+            caloriesToReachGoal,
+            dailyWaterIntake,
+            daysToReachGoal
         } = user;
 
         const weight = isMetric ? weightInKg : weightInLbs;
@@ -340,7 +349,16 @@ const profileScreen = async (req, res) => {
             profilephoto: null,
             gender,
             dailyCalorieGoal,
-            todayConsumption
+            todayConsumption,
+            activityLevel,
+            age,
+            goal,
+            mealsPerDay,
+            weightGainRate,
+            BMR,
+            caloriesToReachGoal,
+            dailyWaterIntake,
+            daysToReachGoal
         };
 
         return res.status(200).json({
