@@ -1,20 +1,27 @@
-const mongoose = require('mongoose')
+const mongoose = require('mongoose');
 
-const weightSchema = new mongoose.Schema({
+const WeightSchema = new mongoose.Schema({
     userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
-        required: true
+        required: true,
+        unique: true
     },
     weight: {
         type: Number,
         required: true
     },
-    timestamp: {
+    weightHistory: [{
+        weight: Number,
+        timestamp: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+    updatedAt: {
         type: Date,
         default: Date.now
     }
-})
+});
 
-const Weight = mongoose.model('Weight', weightSchema);
-module.exports = Weight;
+module.exports = mongoose.model('Weight', WeightSchema);

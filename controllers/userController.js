@@ -335,6 +335,7 @@ const createProfile = async (req, res) => {
                 }
             });
         }
+
         const updateUserDetails = async (user) => {
             if (name) user.name = name;
             if (gender) user.gender = gender;
@@ -362,8 +363,37 @@ const createProfile = async (req, res) => {
             if (activityLevel) user.activityLevel = activityLevel;
 
             await user.save();
+
+            // Store weight in Weight collection
+            if (weightInKg || weightInLbs) {
+                const weightToStore = weightInKg || (weightInLbs * 0.453592); // Convert lbs to kg if needed
+                
+                // Create or update weight record
+                const weightRecord = await Weight.findOne({ userId });
+                
+                if (weightRecord) {
+                    // Update existing record
+                    weightRecord.weight = weightToStore;
+                    weightRecord.weightHistory.push({
+                        weight: weightToStore,
+                        timestamp: new Date()
+                    });
+                    weightRecord.updatedAt = new Date();
+                    await weightRecord.save();
+                } else {
+                    // Create new record
+                    const newWeightRecord = new Weight({
+                        userId,
+                        weight: weightToStore,
+                        weightHistory: [{
+                            weight: weightToStore,
+                            timestamp: new Date()
+                        }]
+                    });
+                    await newWeightRecord.save();
+                }
+            }
         };
-        ;
 
         await updateUserDetails(user);
 
@@ -584,7 +614,7 @@ const home = async (req, res) => {
             dailyConsumptionStats,
             calculationDate
         } = user;
-        
+
         if (!caloriesToReachGoal || !dailyCalorieGoal || (daysToReachGoal === undefined || daysToReachGoal === null)) {
             return res.status(400).json({
                 status: false,
@@ -722,6 +752,7 @@ const updateWeight = async (req, res) => {
     const { userId, newWeight } = req.body;
 
     try {
+        // Find user first
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({
@@ -730,92 +761,88 @@ const updateWeight = async (req, res) => {
             });
         }
 
-        if (user.goal === 'maintain weight') {
-            if (user.isMetric) {
-                user.targetWeight = newWeight;
-                user.weightInKg = newWeight;
-            } else {
-                user.targetWeight = newWeight;
-                user.weightInLbs = newWeight;
-            }
-        }
-        
-        // Update weight based on metric preference
+        // Update user's weight and recalculate stats
         if (user.isMetric) {
             user.weightInKg = newWeight;
         } else {
-            user.weightInLbs = newWeight;
-        }
-
-        // Convert measurements to metric for calculations
-        let heightInM;
-        let weightInKg;
-
-        if (user.isMetric) {
-            heightInM = user.heightInCm / 100;
-            weightInKg = newWeight;
-        } else {
-            // Convert feet and inches to meters
-            const heightInInches = (user.heightInFeet * 12) + user.heightInInches;
-            heightInM = heightInInches * 0.0254;
-
-            // Convert pounds to kilograms
-            weightInKg = newWeight * 0.453592;
+            user.weightInKg = newWeight * 0.453592; // Convert lbs to kg for calculations
         }
 
         // Recalculate BMI
-        user.BMI = (weightInKg / (heightInM * heightInM)).toFixed(2);
+        const heightInM = user.heightInCm / 100;
+        user.BMI = (user.weightInKg / (heightInM * heightInM)).toFixed(2);
 
         // Recalculate BMR using Mifflin-St Jeor Equation
-        const bmrMultiplier = user.gender === 'female' ? -161 : 5;
-        user.BMR = (
-            10 * weightInKg +
-            6.25 * (heightInM * 100) + // Convert height to cm for BMR calculation
-            -5 * user.age +
-            bmrMultiplier
-        ).toFixed(2);
+        let BMR;
+        if (user.gender.toLowerCase() === 'female') {
+            BMR = (10 * user.weightInKg) + (6.25 * user.heightInCm) - (5 * user.age) - 161;
+        } else {
+            BMR = (10 * user.weightInKg) + (6.25 * user.heightInCm) - (5 * user.age) + 5;
+        }
+        user.BMR = BMR.toFixed(2);
 
-        // Recalculate TDEE based on activity level
+        // Calculate TDEE based on activity level
         const activityMultipliers = {
-            'sedentary': 1.2,
-            'lightly active': 1.375,
-            'moderately active': 1.55,
-            'very active': 1.725,
-            'extra active': 1.9
+            sedentary: 1.2,
+            light: 1.375,
+            moderate: 1.55,
+            very: 1.725,
+            extra: 1.9
         };
         const activityMultiplier = activityMultipliers[user.activityLevel] || 1.2;
-        user.TDEE = (parseFloat(user.BMR) * activityMultiplier).toFixed(2);
+        user.TDEE = (BMR * activityMultiplier).toFixed(2);
 
-        // Convert target weight to kg if necessary
-        const targetWeightInKg = user.isMetric ?
-            parseFloat(user.targetWeight) :
-            parseFloat(user.targetWeight) * 0.453592;
+        // Calculate calories and days to reach goal
+        const targetWeight = parseFloat(user.targetWeight);
+        const weightDiff = Math.abs(user.weightInKg - targetWeight);
+        const weightGainRate = user.weightGainRate || 0.5; // kg per week
+        
+        // Calculate days to reach goal (1 week = 7 days)
+        user.daysToReachGoal = Math.ceil((weightDiff / weightGainRate) * 7);
+        
+        // Calculate total calories needed (7700 calories = 1 kg)
+        user.caloriesToReachGoal = (weightDiff * 7700).toFixed(2);
 
-        const weightDifference = Math.abs(weightInKg - targetWeightInKg);
-        const weeklyRate = user.weightGainRate || 0.5; // kg per week
-        const caloriesPerKg = 7700; // calories per kg
+        // Set daily calorie goal based on goal type
+        if (user.goal === 'lose weight') {
+            user.dailyCalorieGoal = Math.max(1200, (parseFloat(user.TDEE) - 500)).toFixed(2);
+        } else if (user.goal === 'gain weight') {
+            user.dailyCalorieGoal = (parseFloat(user.TDEE) + 500).toFixed(2);
+        } else {
+            user.dailyCalorieGoal = user.TDEE;
+        }
 
-        user.caloriesToReachGoal = (weightDifference * caloriesPerKg).toFixed(2);
-        user.daysToReachGoal = Math.ceil((weightDifference / weeklyRate) * 7);
+        // Update calculation date
+        user.calculationDate = new Date().toLocaleDateString('en-GB');
 
-        // Adjust daily calorie goal based on goal type
-        const dailyCalorieAdjustment = (weeklyRate * caloriesPerKg) / 7;
-        user.dailyCalorieGoal = user.goal === 'lose weight'
-            ? (parseFloat(user.TDEE) - dailyCalorieAdjustment).toFixed(2)
-            : user.goal === 'gain weight'
-                ? (parseFloat(user.TDEE) + dailyCalorieAdjustment).toFixed(2)
-                : user.TDEE;
-
-        // Save the updated user information
+        // Save updated user
         await user.save();
 
-        // Create a new weight entry with timestamp
-        const weightEntry = new Weight({
-            userId: user._id,
-            weight: newWeight,
-            timestamp: new Date()
-        });
-        await weightEntry.save();
+        // Handle weight history
+        let weightRecord = await Weight.findOne({ userId });
+        
+        if (weightRecord) {
+            // Update existing record
+            weightRecord.weight = newWeight;
+            weightRecord.weightHistory.push({
+                weight: newWeight,
+                timestamp: new Date()
+            });
+            weightRecord.updatedAt = new Date();
+        } else {
+            // Create new record
+            weightRecord = new Weight({
+                userId,
+                weight: newWeight,
+                weightHistory: [{
+                    weight: newWeight,
+                    timestamp: new Date()
+                }]
+            });
+        }
+
+        // Save weight record
+        await weightRecord.save();
 
         res.status(200).json({
             status: true,
@@ -830,7 +857,8 @@ const updateWeight = async (req, res) => {
                 caloriesToReachGoal: user.caloriesToReachGoal,
                 dailyCalorieGoal: user.dailyCalorieGoal,
                 daysToReachGoal: user.daysToReachGoal,
-                timestamp: weightEntry.timestamp.toISOString().split('T')[0].split('-').reverse().join('-')
+                weightHistory: weightRecord.weightHistory,
+                lastUpdated: weightRecord.updatedAt
             }
         });
     } catch (error) {
@@ -842,53 +870,68 @@ const updateWeight = async (req, res) => {
     }
 };
 
-
 const getWeightHistory = async (req, res) => {
     const { userId } = req.body;
 
     try {
+        // Find user first
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({
                 status: false,
-                message: 'User not found',
+                message: 'User not found'
             });
         }
 
-        const currentWeight = user.isMetric ? user.weightInKg : user.weightInLbs;
-        const weightHistory = await Weight.find({ userId }).sort({ timestamp: -1 });
-
-        // Initialize history array with current weight
-        let history = [{
-            weight: currentWeight,
-            date: null
-        }];
-
-        // Add historical records if they exist
-        if (weightHistory.length > 0) {
-            history = [
-                ...weightHistory.map((entry) => ({
-                    weight: entry.weight,
-                    date: entry.timestamp.toISOString().split('T')[0].split('-').reverse().join('-'),
-                })),
-            ];
+        // Find weight record for the user
+        const weightRecord = await Weight.findOne({ userId });
+        
+        if (!weightRecord) {
+            // If no weight history exists, return current weight only
+            const currentWeight = user.isMetric ? user.weightInKg : user.weightInLbs;
+            return res.status(200).json({
+                status: true,
+                message: 'Weight history retrieved successfully',
+                isMetric: user.isMetric,
+                currentWeight,
+                initialWeight: currentWeight,
+                history: [{
+                    weight: currentWeight,
+                    date: new Date().toISOString().split('T')[0]
+                }]
+            });
         }
+
+        // Format the weight history
+        const history = weightRecord.weightHistory.map(entry => ({
+            weight: entry.weight,
+            date: entry.timestamp.toISOString().split('T')[0]
+        })).sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Get initial weight (first recorded weight)
+        const initialWeight = weightRecord.weightHistory.length > 0 
+            ? weightRecord.weightHistory[0].weight 
+            : weightRecord.weight;
 
         res.status(200).json({
             status: true,
             message: 'Weight history retrieved successfully',
             isMetric: user.isMetric,
-            currentWeight,
+            currentWeight: weightRecord.weight,
+            initialWeight,
             history,
+            lastUpdated: weightRecord.updatedAt
         });
+
     } catch (error) {
         console.error('Error fetching weight history:', error);
         res.status(500).json({
             status: false,
-            message: 'Internal server error',
+            message: 'Internal server error'
         });
     }
 };
+
 const checkUser = async (req, res) => {
     const { userId } = req.body
     try {
@@ -1015,8 +1058,9 @@ const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
     return `You have ${roundedRemaining} calories remaining for today.`;
 };
 
+
 const changecaloriesToReachGoal = async (req, res) => {
-    const { userId, calorie } = req.body;
+    const { userId, calorie ,day} = req.body;
     try {
         const user = await User.findOne({ _id: userId });
         if (!user) {
@@ -1032,6 +1076,9 @@ const changecaloriesToReachGoal = async (req, res) => {
         // Assign the new value to the user object
         user.caloriesToReachGoal = caloriesToReachGoal;
 
+        const daysToReachGoal = user.daysToReachGoal-day
+        console.log(user.daysToReachGoal,"////////");
+        user.daysToReachGoal = daysToReachGoal
         // Save the updated user object
         await user.save();
 
@@ -1039,7 +1086,8 @@ const changecaloriesToReachGoal = async (req, res) => {
             status: true,
             data: {
                 userId,
-                caloriesToReachGoal
+                caloriesToReachGoal,
+                daysToReachGoal
             }
         });
     } catch (error) {
