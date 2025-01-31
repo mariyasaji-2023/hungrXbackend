@@ -688,55 +688,98 @@ const trackUser = async (req, res) => {
     const { userId } = req.body;
 
     try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-
-        const existingActivity = await UserActivity.findOne({
-            userId,
-            date: today,
-        });
-
-        if (!existingActivity) {
-            const activity = new UserActivity({ userId, date: today });
-            await activity.save();
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User not found'
+            });
         }
 
-        // Retrieve all activities
-        const activities = await UserActivity.find({ userId }).sort({ date: 1 });
+        // Get dates from dailyConsumptionStats and convert Map to array
+        const dailyConsumptionStats = user.dailyConsumptionStats || new Map();
+        console.log(dailyConsumptionStats, "//////////");
+        
+        // Convert Map entries to array and filter/sort
+        const consumptionDates = Array.from(dailyConsumptionStats.entries())
+            .filter(([date, value]) => value > 0) // Only include dates with consumption
+            .map(([date]) => date) // Get just the dates
+            .sort((a, b) => {
+                // Convert DD/MM/YYYY to Date objects for proper sorting
+                const [aDay, aMonth, aYear] = a.split('/').map(Number);
+                const [bDay, bMonth, bYear] = b.split('/').map(Number);
+                return new Date(aYear, aMonth - 1, aDay) - new Date(bYear, bMonth - 1, bDay);
+            });
 
-        // Format dates and get unique dates only
-        const uniqueDates = [...new Set(activities.map(activity => {
-            const dateObj = activity.date;
-            return `${dateObj.getDate().toString().padStart(2, '0')}-` +
-                `${(dateObj.getMonth() + 1).toString().padStart(2, '0')}-` +
-                `${dateObj.getFullYear()}`;
-        }))];
+        console.log(consumptionDates, "]]]]]]]]]]]]]]]]]]]");
+ 
+        if (consumptionDates.length === 0) {
+            return res.status(200).json({
+                status: true,
+                message: 'No consumption history found',
+                data: {
+                    userId,
+                    startingDate: null,
+                    expectedEndDate: null,
+                    totalStreak: 0,
+                    daysLeft: user.daysToReachGoal || 0,
+                    dates: [],
+                }
+            });
+        }
 
-        // Use unique dates length for streak calculation
-        const totalStreak = uniqueDates.length;
-        const startingDate = activities[0].date;
-        const user = await User.findById(userId);
+        const totalStreak = consumptionDates.length;
+        const startingDate = consumptionDates[0];
         const goalDays = user.daysToReachGoal || 0;
 
-        const expectedEndDate = new Date(startingDate);
+        // Calculate expected end date
+        const [startDay, startMonth, startYear] = startingDate.split('/').map(Number);
+        const startDateObj = new Date(startYear, startMonth - 1, startDay);
+        const expectedEndDate = new Date(startDateObj);
         expectedEndDate.setDate(expectedEndDate.getDate() + goalDays);
 
-        const formattedEndDate = `${expectedEndDate.getDate().toString().padStart(2, '0')}-` +
-            `${(expectedEndDate.getMonth() + 1).toString().padStart(2, '0')}-` +
+        const formattedEndDate = `${expectedEndDate.getDate().toString().padStart(2, '0')}/` +
+            `${(expectedEndDate.getMonth() + 1).toString().padStart(2, '0')}/` +
             `${expectedEndDate.getFullYear()}`;
 
         const daysLeft = Math.max(goalDays - totalStreak, 0);
+
+        // Calculate continuous streak
+        let currentStreak = 0;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        for (let i = consumptionDates.length - 1; i >= 0; i--) {
+            const [day, month, year] = consumptionDates[i].split('/').map(Number);
+            const currentDate = new Date(year, month - 1, day);
+            
+            if (i === consumptionDates.length - 1) {
+                // Check if the last consumption was today or yesterday
+                const timeDiff = Math.floor((today - currentDate) / (1000 * 60 * 60 * 24));
+                if (timeDiff > 1) break; // Break if last consumption was more than a day ago
+            } else {
+                // Check for consecutive days
+                const prevDate = new Date(year, month - 1, day);
+                prevDate.setDate(prevDate.getDate() + 1);
+                const [nextDay, nextMonth, nextYear] = consumptionDates[i + 1].split('/').map(Number);
+                const nextDate = new Date(nextYear, nextMonth - 1, nextDay);
+                
+                if (prevDate.getTime() !== nextDate.getTime()) break;
+            }
+            currentStreak++;
+        }
 
         res.status(200).json({
             status: true,
             message: 'Activity tracked and retrieved successfully',
             data: {
                 userId,
-                startingDate: uniqueDates[0],
+                startingDate,
                 expectedEndDate: formattedEndDate,
-                totalStreak,
+                totalDays: totalStreak,
+                currentStreak,
                 daysLeft,
-                dates: uniqueDates,
+                dates: consumptionDates,
             },
         });
     } catch (error) {
@@ -744,6 +787,7 @@ const trackUser = async (req, res) => {
         res.status(500).json({
             status: false,
             message: 'Internal server error',
+            error: error.message
         });
     }
 };

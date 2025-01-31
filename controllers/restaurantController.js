@@ -697,6 +697,7 @@ const addToHistory = async (req, res) => {
     }
 };
 
+
 const getUserHistory = async (req, res) => {
     const { userId } = req.body;
     if (!userId) {

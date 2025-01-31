@@ -330,7 +330,7 @@ const addCommonFoodToHistory = async (req, res) => {
         const historyEntry = {
             foodId: new mongoose.Types.ObjectId(dishId),
             name: foodItem.name,
-            brandName: 'Common Food',  // Since it's from common foods
+            brandName: 'Common Food',
             image: foodItem.image,
             nutritionFacts: foodItem.nutritionFacts,
             servingInfo: foodItem.servingInfo,
@@ -340,7 +340,19 @@ const addCommonFoodToHistory = async (req, res) => {
             searchTime: searchTime
         };
 
-        // Update user's food history
+        // First remove any existing entry for this food item
+        await users.updateOne(
+            { _id: new mongoose.Types.ObjectId(userId) },
+            {
+                $pull: {
+                    foodHistory: {
+                        foodId: new mongoose.Types.ObjectId(dishId)
+                    }
+                }
+            }
+        );
+
+        // Then add the new entry and maintain the last 15 items
         const result = await users.updateOne(
             { _id: new mongoose.Types.ObjectId(userId) },
             {
@@ -375,4 +387,5 @@ const addCommonFoodToHistory = async (req, res) => {
         });
     }
 };
+
 module.exports = { searchCommonfood,addConsumedCommonFood,addCommonFoodToHistory }
