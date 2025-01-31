@@ -445,7 +445,7 @@ const getCart = async (req, res) => {
 };
 
 const removeOneItem = async (req, res) => {
-    const { cartId, restaurantId, dishId } = req.body;
+    const { cartId, restaurantId, dishId, servingSize } = req.body; // Added servingSize
 
     try {
         await client.connect();
@@ -461,11 +461,12 @@ const removeOneItem = async (req, res) => {
                 message: "Cart not found"
             });
         }
+
         const updatedOrders = cart.orders.map(order => {
             if (order.restaurantId === restaurantId) {
-                // Filter out the specified dish
+                // Filter out the specified dish with matching serving size
                 order.items = order.items.filter(item =>
-                    item.dishId !== dishId
+                    !(item.dishId === dishId && item.servingSize === servingSize)
                 );
             }
             return order;
@@ -475,8 +476,9 @@ const removeOneItem = async (req, res) => {
             order.items.length > 0
         );
 
+        // Filter dishDetails based on both dishId and servingSize
         const updatedDishDetails = cart.dishDetails.filter(dish =>
-            dish.dishId !== dishId
+            !(dish.dishId === dishId && dish.servingSize === servingSize)
         );
 
         const result = await cartCollection.updateOne(

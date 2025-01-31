@@ -748,6 +748,7 @@ const trackUser = async (req, res) => {
     }
 };
 
+
 const updateWeight = async (req, res) => {
     const { userId, newWeight } = req.body;
 
@@ -761,23 +762,35 @@ const updateWeight = async (req, res) => {
             });
         }
 
-        // Update user's weight and recalculate stats
+        // Store weight in user's preferred unit
         if (user.isMetric) {
             user.weightInKg = newWeight;
         } else {
-            user.weightInKg = newWeight * 0.453592; // Convert lbs to kg for calculations
+            user.weightInLbs = newWeight;
+        }
+
+        // Get weight in kg for calculations
+        const weightInKg = user.isMetric ? newWeight : newWeight * 0.453592;
+
+        // Convert height to meters for BMI calculation
+        let heightInM;
+        if (user.isMetric) {
+            heightInM = user.heightInCm / 100;
+        } else {
+            // Convert feet and inches to meters
+            const heightInInches = (user.heightInFeet * 12) + user.heightInInches;
+            heightInM = heightInInches * 0.0254;
         }
 
         // Recalculate BMI
-        const heightInM = user.heightInCm / 100;
-        user.BMI = (user.weightInKg / (heightInM * heightInM)).toFixed(2);
+        user.BMI = (weightInKg / (heightInM * heightInM)).toFixed(2);
 
         // Recalculate BMR using Mifflin-St Jeor Equation
         let BMR;
         if (user.gender.toLowerCase() === 'female') {
-            BMR = (10 * user.weightInKg) + (6.25 * user.heightInCm) - (5 * user.age) - 161;
+            BMR = (10 * weightInKg) + (6.25 * (heightInM * 100)) - (5 * user.age) - 161;
         } else {
-            BMR = (10 * user.weightInKg) + (6.25 * user.heightInCm) - (5 * user.age) + 5;
+            BMR = (10 * weightInKg) + (6.25 * (heightInM * 100)) - (5 * user.age) + 5;
         }
         user.BMR = BMR.toFixed(2);
 
@@ -794,7 +807,9 @@ const updateWeight = async (req, res) => {
 
         // Calculate calories and days to reach goal
         const targetWeight = parseFloat(user.targetWeight);
-        const weightDiff = Math.abs(user.weightInKg - targetWeight);
+        // Convert target weight to kg if needed
+        const targetWeightKg = user.isMetric ? targetWeight : targetWeight * 0.453592;
+        const weightDiff = Math.abs(weightInKg - targetWeightKg);
         const weightGainRate = user.weightGainRate || 0.5; // kg per week
         
         // Calculate days to reach goal (1 week = 7 days)
