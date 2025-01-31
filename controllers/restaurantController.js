@@ -608,15 +608,19 @@ const addUnknownFood = async (req, res) => {
 
 const addToHistory = async (req, res) => {
     const { userId, productId } = req.body;
+
     if (!userId || !productId) {
         return res.status(400).json({
             status: false,
             message: 'User ID and Product ID are required'
         });
     }
+
     try {
         const grocery = mongoose.connection.db.collection("products");
         const users = mongoose.connection.db.collection("users");
+
+        // Check if user exists
         const user = await users.findOne({ _id: new ObjectId(userId) });
         if (!user) {
             return res.status(404).json({
@@ -624,6 +628,8 @@ const addToHistory = async (req, res) => {
                 message: 'User not found'
             });
         }
+
+        // Check if product exists
         const foodItem = await grocery.findOne({ _id: new ObjectId(productId) });
         if (!foodItem) {
             return res.status(404).json({
@@ -631,9 +637,13 @@ const addToHistory = async (req, res) => {
                 message: 'Food item not found'
             });
         }
+
+        // Prepare timestamp data
         const now = new Date();
         const searchDate = `${now.getDate().toString().padStart(2, '0')}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${now.getFullYear()}`;
         const searchTime = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+
+        // Prepare history entry
         const historyEntry = {
             foodId: new ObjectId(productId),
             name: foodItem.name,
@@ -645,22 +655,38 @@ const addToHistory = async (req, res) => {
             searchDate: searchDate,
             searchTime: searchTime
         };
+
+        // First, pull any existing entry for this food item
+        await users.updateOne(
+            { _id: new ObjectId(userId) },
+            {
+                $pull: {
+                    foodHistory: {
+                        foodId: new ObjectId(productId)
+                    }
+                }
+            }
+        );
+
+        // Then push the new entry and maintain the last 15 items
         const result = await users.updateOne(
             { _id: new ObjectId(userId) },
             {
                 $push: {
                     foodHistory: {
                         $each: [historyEntry],
-                        $slice: -15
+                        $slice: -15  // Keep only the last 15 items
                     }
                 }
             }
         );
+
         return res.status(200).json({
             status: true,
             message: 'Added to history successfully',
             data: historyEntry
         });
+
     } catch (error) {
         console.error("Error adding to history:", error);
         return res.status(500).json({
@@ -670,7 +696,6 @@ const addToHistory = async (req, res) => {
         });
     }
 };
-
 
 const getUserHistory = async (req, res) => {
     const { userId } = req.body;

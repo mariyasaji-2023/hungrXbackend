@@ -11,7 +11,7 @@ const mapboxController = require('../controllers/mapBoxController')
 const menuController = require('../controllers/menuController')
 const cartController = require ('../controllers/cartController')
 const commonfoodController = require('../controllers/commonfoodController')
-
+const contactController = require('../controllers/contactController')
 //============================ Authentication Screen Route ============================
 
 router.post('/signup/google', userController.loginWithGoogle)
@@ -95,5 +95,10 @@ router.post('/addCommonFoodToHistory',commonfoodController.addCommonFoodToHistor
 router.post('/getWaterIntakeData',waterController.getWaterIntakeData)
 router.delete('/removeWaterEntry',waterController.removeWaterEntry)
 router.post('/addWater',waterController.addWaterIntake)
+
+//============================ Help and support screen ============================
+
+router.post('/submitIssue',contactController.submitIssue)
+
 
 module.exports = router;
