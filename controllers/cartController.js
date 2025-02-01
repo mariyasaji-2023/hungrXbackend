@@ -299,44 +299,36 @@ const removeCart = async (req, res) => {
         let totalNewCalories = 0;
         const foodEntries = [];
 
-        // Create a map of dishId to quantity from orderDetails
-        const quantityMap = new Map(
-            orderDetails.map(order => [order.dishId, order.quantity])
-        );
-
-        // Process each dish with its quantity
+        // Process each dish with its quantity from cart.dishDetails
         for (const dish of cart.dishDetails) {
-            const quantity = quantityMap.get(dish.dishId) || 1; // Default to 1 if not specified
+            const quantity = dish.quantity || 1; // Use the quantity from cart.dishDetails
             const caloriesPerServing = Number(dish.nutritionInfo.calories.value);
             const totalCaloriesForDish = caloriesPerServing * quantity;
 
-            // Create food entry for each quantity
-            for (let i = 0; i < quantity; i++) {
-                const foodEntry = {
-                    servingSize: dish.servingSize,
-                    selectedMeal: validMealIds[mealType.toLowerCase()],
-                    dishId: new ObjectId(dish.dishId),
-                    totalCalories: caloriesPerServing,
-                    timestamp: today,
-                    name: dish.dishName.trim(),
-                    brandName: dish.restaurantName,
-                    nutritionFacts: {
-                        calories: caloriesPerServing,
-                        protein: Number(dish.nutritionInfo.protein.value),
-                        carbs: Number(dish.nutritionInfo.carbs.value),
-                        fat: Number(dish.nutritionInfo.totalFat.value)
-                    },
-                    servingInfo: {
-                        size: dish.servingSize,
-                        unit: dish.nutritionInfo.calories.unit,
-                        quantity: quantity
-                    },
-                    foodId: new ObjectId()
-                };
+            // Create a single food entry for the dish with total calories
+            const foodEntry = {
+                servingSize: dish.servingSize,
+                selectedMeal: validMealIds[mealType.toLowerCase()],
+                dishId: new ObjectId(dish.dishId),
+                totalCalories: totalCaloriesForDish, // Total calories for the dish
+                timestamp: today,
+                name: dish.dishName.trim(),
+                brandName: dish.restaurantName,
+                nutritionFacts: {
+                    calories: totalCaloriesForDish, // Total calories for the dish
+                    protein: Number(dish.nutritionInfo.protein.value) * quantity,
+                    carbs: Number(dish.nutritionInfo.carbs.value) * quantity,
+                    fat: Number(dish.nutritionInfo.totalFat.value) * quantity
+                },
+                servingInfo: {
+                    size: dish.servingSize,
+                    unit: dish.nutritionInfo.calories.unit,
+                    quantity: quantity
+                },
+                foodId: new ObjectId()
+            };
 
-                foodEntries.push(foodEntry);
-            }
-
+            foodEntries.push(foodEntry);
             totalNewCalories += totalCaloriesForDish;
         }
 
@@ -387,6 +379,7 @@ const removeCart = async (req, res) => {
         await client.close();
     }
 };
+
 
 const getCart = async (req, res) => {
     const { userId } = req.body;
@@ -443,6 +436,7 @@ const getCart = async (req, res) => {
         await client.close();
     }
 };
+
 
 const removeOneItem = async (req, res) => {
     const { cartId, restaurantId, dishId, servingSize } = req.body; // Added servingSize

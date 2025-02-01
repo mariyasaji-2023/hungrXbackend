@@ -12,6 +12,7 @@ const menuController = require('../controllers/menuController')
 const cartController = require ('../controllers/cartController')
 const commonfoodController = require('../controllers/commonfoodController')
 const contactController = require('../controllers/contactController')
+
 //============================ Authentication Screen Route ============================
 
 router.post('/signup/google', userController.loginWithGoogle)
