@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const AppleAuth = require("apple-signin-auth");
-const User = mongoose.model('User', userSchema);
+const User = require('../models/userModel');
 
 // Generate Apple Client Secret
 const generateClientSecret = () => {
