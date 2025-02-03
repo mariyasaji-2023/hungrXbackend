@@ -21,9 +21,13 @@ const generateClientSecret = () => {
 };
 
 const loginWithApple = async (req, res) => {
+
     const { id_token, code } = req.body;
 
     try {
+        console.log(id_token,">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>");
+        console.log(code,">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        
         // Verify the ID token received from Apple
         const decoded = jwt.decode(id_token, { complete: true });
         if (!decoded) {
