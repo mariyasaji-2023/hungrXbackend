@@ -712,6 +712,7 @@ const trackUser = async (req, res) => {
             });
 
         console.log(consumptionDates,user.daysToReachGoal, "]]]]]]]]]]]]]]]]]]]");
+        console.log(user.calculationDate,".......");
  
         if (consumptionDates.length === 0) {
             return res.status(200).json({
@@ -719,7 +720,7 @@ const trackUser = async (req, res) => {
                 message: 'No consumption history found',
                 data: {
                     userId,
-                    startingDate: null,
+                    startingDate: user.calculationDate,
                     expectedEndDate: null,
                     totalStreak: 0,
                     daysLeft: user.daysToReachGoal || 0,
@@ -729,8 +730,10 @@ const trackUser = async (req, res) => {
         }
 
         const totalStreak = consumptionDates.length;
-        const startingDate = consumptionDates[0];
+        const startingDate = user.calculationDate;
         const goalDays = user.daysToReachGoal || 0;
+       
+        
 
         // Calculate expected end date
         const [startDay, startMonth, startYear] = startingDate.split('/').map(Number);
@@ -768,6 +771,8 @@ const trackUser = async (req, res) => {
             }
             currentStreak++;
         }
+        console.log(startingDate,"sssssssssssss");
+        
 
         res.status(200).json({
             status: true,
