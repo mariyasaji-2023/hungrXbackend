@@ -132,6 +132,8 @@ const userSchema = new mongoose.Schema({
         of: Number,
         default: new Map()
     },
+    appleId: { type: String, unique: true },
+    appleEmail: { type: String, sparse: true },
     
 });
 
