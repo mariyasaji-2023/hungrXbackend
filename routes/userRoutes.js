@@ -12,6 +12,7 @@ const menuController = require('../controllers/menuController')
 const cartController = require ('../controllers/cartController')
 const commonfoodController = require('../controllers/commonfoodController')
 const contactController = require('../controllers/contactController')
+const appleController = require('../controllers/appleController')
 
 //============================ Authentication Screen Route ============================
 
@@ -20,6 +21,7 @@ router.post('/signup/email', userController.signupWithEmail)
 router.post('/login/email', userController.loginWithEmail)
 router.post('/verifyOTP', userController.verifyOTP)
 router.post('/sendOTP', userController.sendOTP)
+router.post('/loginWithApple',appleController.loginWithApple)
 
 //============================ Create Profile Screen Route ============================
 
