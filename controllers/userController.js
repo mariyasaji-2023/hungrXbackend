@@ -711,7 +711,7 @@ const trackUser = async (req, res) => {
                 return new Date(aYear, aMonth - 1, aDay) - new Date(bYear, bMonth - 1, bDay);
             });
 
-        console.log(consumptionDates, "]]]]]]]]]]]]]]]]]]]");
+        console.log(consumptionDates,user.daysToReachGoal, "]]]]]]]]]]]]]]]]]]]");
  
         if (consumptionDates.length === 0) {
             return res.status(200).json({
@@ -778,7 +778,7 @@ const trackUser = async (req, res) => {
                 expectedEndDate: formattedEndDate,
                 totalDays: totalStreak,
                 currentStreak,
-                daysLeft,
+                daysLeft:user.daysToReachGoal,
                 dates: consumptionDates,
             },
         });
