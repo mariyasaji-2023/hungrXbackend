@@ -291,7 +291,6 @@ const updateBasicInfo = async (req, res) => {
         });
     }
 };
-
 const profileScreen = async (req, res) => {
     const { userId } = req.body;
 
@@ -316,7 +315,10 @@ const profileScreen = async (req, res) => {
             TDEE, 
             targetWeight, 
             BMI, 
-            gender, 
+            gender,
+            heightInCm,
+            heightInFeet,
+            heightInInches, 
             dailyCalorieGoal,
             dailyConsumptionStats = {}, // Provide default empty object
             activityLevel,
@@ -332,6 +334,13 @@ const profileScreen = async (req, res) => {
 
         const weight = isMetric ? weightInKg : weightInLbs;
         
+        // Format height based on metric preference
+        const height = isMetric
+            ? heightInCm ? `${heightInCm} cm` : null
+            : (heightInFeet && heightInInches)
+                ? `${heightInFeet} ft ${heightInInches} in`
+                : null;
+
         // Convert dailyConsumptionStats to regular object if it's a Map
         const consumptionStats = dailyConsumptionStats instanceof Map 
             ? Object.fromEntries(dailyConsumptionStats)
@@ -342,6 +351,7 @@ const profileScreen = async (req, res) => {
         const userDetails = {
             TDEE,
             weight,
+            height,
             isMetric,
             targetWeight,
             BMI,
@@ -373,7 +383,6 @@ const profileScreen = async (req, res) => {
         });
     }
 };
-
 
 const goalGetting = async (req, res) => {
     const { userId } = req.body

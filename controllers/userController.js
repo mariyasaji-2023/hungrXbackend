@@ -811,6 +811,7 @@ const updateWeight = async (req, res) => {
             });
         }
 
+        
         // Store weight in user's preferred unit
         if (user.isMetric) {
             user.weightInKg = newWeight;
@@ -830,6 +831,7 @@ const updateWeight = async (req, res) => {
             const heightInInches = (user.heightInFeet * 12) + user.heightInInches;
             heightInM = heightInInches * 0.0254;
         }
+
 
         // Recalculate BMI
         user.BMI = (weightInKg / (heightInM * heightInM)).toFixed(2);
