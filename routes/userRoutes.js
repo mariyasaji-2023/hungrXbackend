@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const upload = require('../middileware/multer')
+
 const userController = require('../controllers/userController');
 const feedbackController = require('../controllers/feedbackController')
 const searchController = require('../controllers/searchController')
@@ -17,11 +18,11 @@ const appleController = require('../controllers/appleController')
 //============================ Authentication Screen Route ============================
 
 router.post('/signup/google', userController.loginWithGoogle)
+router.post('/loginWithApple',appleController.loginWithApple)
 router.post('/signup/email', userController.signupWithEmail)
 router.post('/login/email', userController.loginWithEmail)
 router.post('/verifyOTP', userController.verifyOTP)
 router.post('/sendOTP', userController.sendOTP)
-router.post('/loginWithApple',appleController.loginWithApple)
 
 //============================ Create Profile Screen Route ============================
 
