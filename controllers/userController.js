@@ -367,10 +367,10 @@ const createProfile = async (req, res) => {
             // Store weight in Weight collection
             if (weightInKg || weightInLbs) {
                 const weightToStore = weightInKg || (weightInLbs * 0.453592); // Convert lbs to kg if needed
-                
+
                 // Create or update weight record
                 const weightRecord = await Weight.findOne({ userId });
-                
+
                 if (weightRecord) {
                     // Update existing record
                     weightRecord.weight = weightToStore;
@@ -699,7 +699,7 @@ const trackUser = async (req, res) => {
         // Get dates from dailyConsumptionStats and convert Map to array
         const dailyConsumptionStats = user.dailyConsumptionStats || new Map();
         console.log(dailyConsumptionStats, "//////////");
-        
+
         // Convert Map entries to array and filter/sort
         const consumptionDates = Array.from(dailyConsumptionStats.entries())
             .filter(([date, value]) => value > 0) // Only include dates with consumption
@@ -711,9 +711,9 @@ const trackUser = async (req, res) => {
                 return new Date(aYear, aMonth - 1, aDay) - new Date(bYear, bMonth - 1, bDay);
             });
 
-        console.log(consumptionDates,user.daysToReachGoal, "]]]]]]]]]]]]]]]]]]]");
-        console.log(user.calculationDate,".......");
- 
+        console.log(consumptionDates, user.daysToReachGoal, "]]]]]]]]]]]]]]]]]]]");
+        console.log(user.calculationDate, ".......");
+
         if (consumptionDates.length === 0) {
             return res.status(200).json({
                 status: true,
@@ -732,8 +732,8 @@ const trackUser = async (req, res) => {
         const totalStreak = consumptionDates.length;
         const startingDate = user.calculationDate;
         const goalDays = user.daysToReachGoal || 0;
-       
-        
+
+
 
         // Calculate expected end date
         const [startDay, startMonth, startYear] = startingDate.split('/').map(Number);
@@ -755,7 +755,7 @@ const trackUser = async (req, res) => {
         for (let i = consumptionDates.length - 1; i >= 0; i--) {
             const [day, month, year] = consumptionDates[i].split('/').map(Number);
             const currentDate = new Date(year, month - 1, day);
-            
+
             if (i === consumptionDates.length - 1) {
                 // Check if the last consumption was today or yesterday
                 const timeDiff = Math.floor((today - currentDate) / (1000 * 60 * 60 * 24));
@@ -766,13 +766,13 @@ const trackUser = async (req, res) => {
                 prevDate.setDate(prevDate.getDate() + 1);
                 const [nextDay, nextMonth, nextYear] = consumptionDates[i + 1].split('/').map(Number);
                 const nextDate = new Date(nextYear, nextMonth - 1, nextDay);
-                
+
                 if (prevDate.getTime() !== nextDate.getTime()) break;
             }
             currentStreak++;
         }
-        console.log(startingDate,"sssssssssssss");
-        
+        console.log(startingDate, "sssssssssssss");
+
 
         res.status(200).json({
             status: true,
@@ -783,7 +783,7 @@ const trackUser = async (req, res) => {
                 expectedEndDate: formattedEndDate,
                 totalDays: totalStreak,
                 currentStreak,
-                daysLeft:user.daysToReachGoal,
+                daysLeft: user.daysToReachGoal,
                 dates: consumptionDates,
             },
         });
@@ -860,16 +860,17 @@ const updateWeight = async (req, res) => {
         const targetWeightKg = user.isMetric ? targetWeight : targetWeight * 0.453592;
         const weightDiff = Math.abs(weightInKg - targetWeightKg);
         const weightGainRate = user.weightGainRate || 0.5; // kg per week
-        
+
         // Calculate days to reach goal (1 week = 7 days)
         user.daysToReachGoal = Math.ceil((weightDiff / weightGainRate) * 7);
-        
+
         // Calculate total calories needed (7700 calories = 1 kg)
         user.caloriesToReachGoal = (weightDiff * 7700).toFixed(2);
 
+        const minCalories = user.gender.toLowerCase() === 'female' ? 1200 : 1500;
         // Set daily calorie goal based on goal type
         if (user.goal === 'lose weight') {
-            user.dailyCalorieGoal = Math.max(1200, (parseFloat(user.TDEE) - 500)).toFixed(2);
+            user.dailyCalorieGoal = Math.max(minCalories, (parseFloat(user.TDEE) - 500)).toFixed(2);
         } else if (user.goal === 'gain weight') {
             user.dailyCalorieGoal = (parseFloat(user.TDEE) + 500).toFixed(2);
         } else {
@@ -884,7 +885,7 @@ const updateWeight = async (req, res) => {
 
         // Handle weight history
         let weightRecord = await Weight.findOne({ userId });
-        
+
         if (weightRecord) {
             // Update existing record
             weightRecord.weight = newWeight;
@@ -949,7 +950,7 @@ const getWeightHistory = async (req, res) => {
 
         // Find weight record for the user
         const weightRecord = await Weight.findOne({ userId });
-        
+
         if (!weightRecord) {
             // If no weight history exists, return current weight only
             const currentWeight = user.isMetric ? user.weightInKg : user.weightInLbs;
@@ -973,8 +974,8 @@ const getWeightHistory = async (req, res) => {
         })).sort((a, b) => new Date(b.date) - new Date(a.date));
 
         // Get initial weight (first recorded weight)
-        const initialWeight = weightRecord.weightHistory.length > 0 
-            ? weightRecord.weightHistory[0].weight 
+        const initialWeight = weightRecord.weightHistory.length > 0
+            ? weightRecord.weightHistory[0].weight
             : weightRecord.weight;
 
         res.status(200).json({
@@ -1048,10 +1049,10 @@ const getCalorieMetrics = async (req, res) => {
 
         // Initialize dailyConsumptionStats if it doesn't exist
         const stats = Object.fromEntries(user.dailyConsumptionStats || new Map());
-        
+
         // Use Object.keys() instead of stats.keys()
         const dates = Object.keys(stats);
-        const mostRecentDate = dates.length > 0 
+        const mostRecentDate = dates.length > 0
             ? dates.reduce((a, b) => {
                 const [dayA, monthA, yearA] = a.split('/').map(Number);
                 const [dayB, monthB, yearB] = b.split('/').map(Number);
@@ -1064,7 +1065,7 @@ const getCalorieMetrics = async (req, res) => {
         // Access stats directly as an object
         const consumedCalories = Number(stats[mostRecentDate] || 0);
         console.log(consumedCalories);
-        
+
         // Rest of your code remains the same
         const remainingCalories = dailyCalorieGoal - consumedCalories;
         const weightrateInGrams = weightGainRate * 1000;
@@ -1124,7 +1125,7 @@ const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
 
 
 const changecaloriesToReachGoal = async (req, res) => {
-    const { userId, calorie ,day} = req.body;
+    const { userId, calorie, day } = req.body;
     try {
         const user = await User.findOne({ _id: userId });
         if (!user) {
@@ -1140,8 +1141,8 @@ const changecaloriesToReachGoal = async (req, res) => {
         // Assign the new value to the user object
         user.caloriesToReachGoal = caloriesToReachGoal;
 
-        const daysToReachGoal = user.daysToReachGoal-day
-        console.log(user.daysToReachGoal,"////////");
+        const daysToReachGoal = user.daysToReachGoal - day
+        console.log(user.daysToReachGoal, "////////");
         user.daysToReachGoal = daysToReachGoal
         // Save the updated user object
         await user.save();

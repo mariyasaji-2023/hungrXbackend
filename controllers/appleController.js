@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const AppleAuth = require("apple-signin-auth");
-const User = require('../models/userModel');
+const User = require('../models/userModel')
 
 // Generate Apple Client Secret
 const generateClientSecret = () => {
