@@ -259,11 +259,11 @@ const searchGroceries = async (req, res) => {
                     // Regular phrase match
                     phraseMatch: {
                         $cond: [
-                            { 
-                                $regexMatch: { 
-                                    input: "$combinedText", 
-                                    regex: new RegExp(searchTerm.replace(/\s+/g, "\\s+"), 'i') 
-                                } 
+                            {
+                                $regexMatch: {
+                                    input: "$combinedText",
+                                    regex: new RegExp(searchTerm.replace(/\s+/g, "\\s+"), 'i')
+                                }
                             },
                             5,
                             0
@@ -377,12 +377,20 @@ const addConsumedFood = async (req, res) => {
             return res.status(404).json({ error: 'Food item not found in grocery database' });
         }
 
+        // Create date in IST (UTC+5:30)
         const today = new Date();
-        const date = today.toLocaleDateString('en-GB', {
+        const istTime = new Date(today.getTime() + (5.5 * 60 * 60 * 1000));
+
+        // Format date in Indian format
+        const date = istTime.toLocaleDateString('en-IN', {
             day: '2-digit',
             month: '2-digit',
-            year: 'numeric'
+            year: 'numeric',
+            timeZone: 'Asia/Kolkata'
         }).replace(/\//g, '/');
+
+        // Create ISO timestamp with IST offset
+        const timestamp = new Date(istTime.getTime()).toISOString().replace('Z', '+05:30');
 
         const validMealIds = {
             'breakfast': '6746a024a45e4d9e5d58ea12',
@@ -404,7 +412,7 @@ const addConsumedFood = async (req, res) => {
             selectedMeal: new mongoose.Types.ObjectId(selectedMeal),
             dishId: new mongoose.Types.ObjectId(dishId),
             totalCalories: Number(totalCalories),
-            timestamp: today,
+            timestamp: timestamp,  // Store with IST offset
             name: foodDetails.name,
             brandName: foodDetails.brandName,
             image: foodDetails.image,
@@ -475,7 +483,7 @@ const addConsumedFood = async (req, res) => {
             updatedCalories: {
                 remaining: dailyCalorieGoal - dailyCalories,
                 consumed: dailyCalories,
-                caloriesToReachGoal: updatedCaloriesToReachGoal  // Use the value from correct path
+                caloriesToReachGoal: updatedCaloriesToReachGoal
             }
         });
     } catch (error) {
@@ -495,12 +503,24 @@ const addUnknownFood = async (req, res) => {
             foodName,
             calories
         } = req.body;
-        const today = new Date();
-        const date = today.toLocaleDateString('en-GB', {
+
+        // Create timestamp in IST
+        const now = new Date();
+        // Convert to IST (UTC+5:30)
+        const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
+        const istTime = new Date(now.getTime() + istOffset);
+
+        // Format the IST timestamp with the +05:30 offset
+        const timestamp = istTime.toISOString().replace('Z', '+05:30');
+
+        // Format date for the key (DD/MM/YYYY)
+        const date = istTime.toLocaleDateString('en-IN', {
             day: '2-digit',
             month: '2-digit',
-            year: 'numeric'
-        }).replace(/\//g, '/');
+            year: 'numeric',
+            timeZone: 'Asia/Kolkata'
+        });
+
         const unknownFoodId = new mongoose.Types.ObjectId();
         const mealTypeMapping = {
             '6746a024a45e4d9e5d58ea12': 'breakfast',
@@ -508,12 +528,15 @@ const addUnknownFood = async (req, res) => {
             '6746a024a45e4d9e5d58ea14': 'dinner',
             '6746a024a45e4d9e5d58ea15': 'snacks'
         };
+
         const mealTypeName = mealTypeMapping[mealType];
         if (!mealTypeName) {
             return res.status(400).json({ error: 'Invalid meal type ID' });
         }
+
         const dateKey = `consumedFood.dates.${date}`;
         const statsDateKey = `dailyConsumptionStats.${date}`;
+
         const newGroceryItem = {
             _id: unknownFoodId,
             name: foodName,
@@ -527,13 +550,15 @@ const addUnknownFood = async (req, res) => {
             },
             isCustomFood: true
         };
+
         await groceries.insertOne(newGroceryItem);
+
         const foodEntry = {
             servingSize: 1,
             selectedMeal: new mongoose.Types.ObjectId(mealType),
             dishId: unknownFoodId,
             totalCalories: Number(calories),
-            timestamp: today,
+            timestamp: timestamp,  // Now using IST timestamp with +05:30 offset
             name: foodName,
             brandName: "Custom Food",
             nutritionFacts: {
@@ -546,10 +571,12 @@ const addUnknownFood = async (req, res) => {
             isCustomFood: true,
             foodId: new mongoose.Types.ObjectId()
         };
+
         const currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         if (!currentUser) {
             return res.status(404).json({ error: 'User not found' });
         }
+
         const currentDayData = currentUser.consumedFood?.dates?.[date];
         if (!currentDayData?.[mealTypeName]) {
             await users.updateOne(
@@ -564,6 +591,7 @@ const addUnknownFood = async (req, res) => {
                 }
             );
         }
+
         const currentCalories = currentUser.dailyConsumptionStats?.[date] || 0;
         const newTotalCalories = currentCalories + Number(calories);
         const dailyCalorieGoal = currentUser.dailyCalorieGoal || 0;
@@ -579,9 +607,11 @@ const addUnknownFood = async (req, res) => {
                 }
             }
         );
+
         const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         const updatedMeal = updatedUser.consumedFood.dates[date][mealTypeName];
         const dailyCalories = updatedUser.dailyConsumptionStats[date];
+
         res.status(200).json({
             success: true,
             message: 'Unknown food added successfully',
@@ -725,7 +755,7 @@ const getUserHistory = async (req, res) => {
         return res.status(200).json({
             status: true,
             count: sortedHistory.length,
-            commonfood:true,
+            commonfood: true,
             data: sortedHistory
         });
     } catch (error) {
@@ -960,7 +990,7 @@ const suggestions = async (req, res) => {
             coordinates: 1,
             distance: 1,
             _id: 1,
-            logo:1
+            logo: 1
         }).toArray();
         const formattedRestaurants = restaurants.map(restaurant => ({
             name: restaurant.restaurantName || null,
@@ -968,7 +998,7 @@ const suggestions = async (req, res) => {
             coordinates: restaurant.coordinates || null,
             distance: restaurant.distance || null,
             _id: restaurant._id || null,
-            logo:restaurant.logo || null
+            logo: restaurant.logo || null
         }));
         return res.status(200).json({
             status: true,
@@ -983,31 +1013,31 @@ const suggestions = async (req, res) => {
     }
 };
 
-const reqrestaurant = async(req,res)=>{
-    const {userId,restaurantName,restaurantType,area} = req.body
+const reqrestaurant = async (req, res) => {
+    const { userId, restaurantName, restaurantType, area } = req.body
     try {
-        if(!userId || !restaurantName || !restaurantType ||  !area){
+        if (!userId || !restaurantName || !restaurantType || !area) {
             return res.status(404).json({
-                status:false,
-                message:'missing restaurant details'
+                status: false,
+                message: 'missing restaurant details'
             })
         }
-        const reqrestaurant = new reqrestaurantModel({userId,restaurantName,restaurantType,area})
+        const reqrestaurant = new reqrestaurantModel({ userId, restaurantName, restaurantType, area })
         await reqrestaurant.save()
         return res.status(201).json({
-            status:true,
-            data:{
-                message:'Submitted successfull',
+            status: true,
+            data: {
+                message: 'Submitted successfull',
                 reqrestaurant
             }
         })
     } catch (error) {
         console.error('Error submitting restaurant:', error)
         return res.status(500).json({
-            status:false,
-            message:'Internal server error'
+            status: false,
+            message: 'Internal server error'
         })
-        
+
     }
 }
 
@@ -1018,9 +1048,9 @@ const progressBar = async (req, res) => {
         // Find user by ID
         const user = await userModel.findById({ _id: userId });
         if (!user) {
-            return res.status(404).json({ 
-                status: false, 
-                data: { message: 'User not found' } 
+            return res.status(404).json({
+                status: false,
+                data: { message: 'User not found' }
             });
         }
 
@@ -1053,4 +1083,4 @@ const progressBar = async (req, res) => {
     }
 };
 
-module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood, addUnknownFood, getConsumedFoodByDate, deleteDishFromMeal, searchRestaurant, suggestions, reqrestaurant,progressBar }
+module.exports = { getEatPage, eatScreenSearchName, getMeal, searchGroceries, addToHistory, getUserHistory, addConsumedFood, addUnknownFood, getConsumedFoodByDate, deleteDishFromMeal, searchRestaurant, suggestions, reqrestaurant, progressBar }

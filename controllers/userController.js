@@ -586,8 +586,6 @@ const calculateUserMetrics = async (req, res) => {
         });
     }
 };
-
-
 const home = async (req, res) => {
     const { userId } = req.body;
 
@@ -601,6 +599,7 @@ const home = async (req, res) => {
                 }
             });
         }
+
         const {
             name,
             goal,
@@ -624,37 +623,50 @@ const home = async (req, res) => {
             });
         }
 
-        // Get today's date in the correct format
-        const today = new Date().toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        }).replace(/\//g, '/');
+        // Get current date in IST
+        const userTimezone = 'Asia/Kolkata';
+        const istNow = new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
+        
+        // Format date helper function
+        const formatDate = (date) => {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        };
 
-        // Get today's consumed calories from dailyConsumptionStats Map
-        const totalCaloriesConsumed = Number(dailyConsumptionStats.get(today) || 0);
+        // Use current date (no cutoff time check)
+        const dateToUse = formatDate(istNow);
+
+        // Handle the case where dailyConsumptionStats might be a Map or an Object
+        let totalCaloriesConsumed = 0;
+        if (dailyConsumptionStats instanceof Map) {
+            totalCaloriesConsumed = dailyConsumptionStats.get(dateToUse) || 0;
+        } else if (typeof dailyConsumptionStats === 'object') {
+            totalCaloriesConsumed = dailyConsumptionStats[dateToUse] || 0;
+        }
+
+        // Ensure we're working with numbers
+        totalCaloriesConsumed = Number(totalCaloriesConsumed);
         const parsedDailyGoal = Number(dailyCalorieGoal);
         const remainingCalories = Number((parsedDailyGoal - totalCaloriesConsumed).toFixed(2));
 
         const weight = isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`;
 
-        let goalHeading;
-        if (goal === 'lose weight') {
-            goalHeading = 'Calorie to burn';
-        } else if (goal === 'maintain weight') {
-            goalHeading = "Maintain";
-        } else if (goal === 'gain weight') {
-            goalHeading = 'Calorie to consume';
-        } else {
-            goalHeading = 'Calorie Goal';
+        let goalHeading = 'Calorie Goal';
+        switch(goal) {
+            case 'lose weight':
+                goalHeading = 'Calorie to burn';
+                break;
+            case 'maintain weight':
+                goalHeading = "Maintain";
+                break;
+            case 'gain weight':
+                goalHeading = 'Calorie to consume';
+                break;
         }
 
-        let goalstatus;
-        if (goal == 'maintain weight') {
-            goalstatus = true
-        } else {
-            goalstatus = false
-        }
+        const goalstatus = goal === 'maintain weight';
 
         return res.status(200).json({
             status: true,
@@ -669,7 +681,9 @@ const home = async (req, res) => {
                 profilePhoto,
                 remaining: remainingCalories,
                 consumed: totalCaloriesConsumed,
-                calculationDate
+                calculationDate,
+                debugDate: dateToUse,
+                dateToUse
             }
         });
 
@@ -1104,6 +1118,8 @@ const getCalorieMetrics = async (req, res) => {
         });
     }
 };
+
+
 
 const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
     const absRemaining = Math.abs(remainingCalories);
