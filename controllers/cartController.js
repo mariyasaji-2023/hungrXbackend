@@ -113,8 +113,8 @@ const addToCart = async (req, res) => {
 
                         if (existingItemIndex !== -1) {
                             // Update quantity if item exists
-                            mergedOrders[existingOrderIndex].items[existingItemIndex].quantity = 
-                                (mergedOrders[existingOrderIndex].items[existingItemIndex].quantity || 1) + 
+                            mergedOrders[existingOrderIndex].items[existingItemIndex].quantity =
+                                (mergedOrders[existingOrderIndex].items[existingItemIndex].quantity || 1) +
                                 (newItem.quantity || 1);
                         } else {
                             // Add new item
@@ -145,8 +145,8 @@ const addToCart = async (req, res) => {
 
                 if (existingDishIndex !== -1) {
                     // Update quantity for existing dish
-                    mergedDishDetails[existingDishIndex].quantity = 
-                        (mergedDishDetails[existingDishIndex].quantity || 1) + 
+                    mergedDishDetails[existingDishIndex].quantity =
+                        (mergedDishDetails[existingDishIndex].quantity || 1) +
                         (newDish.quantity || 1);
                 } else {
                     // Add new dish
@@ -264,12 +264,16 @@ const removeCart = async (req, res) => {
         }
 
         // Get current date in required format
+        // Fix for removeCart
         const today = new Date();
-        const date = today.toLocaleDateString('en-GB', {
+        const istTime = new Date(today.getTime() + (5.5 * 60 * 60 * 1000));
+        const date = istTime.toLocaleDateString('en-IN', {
             day: '2-digit',
             month: '2-digit',
-            year: 'numeric'
+            year: 'numeric',
+            timeZone: 'Asia/Kolkata'
         }).replace(/\//g, '/');
+        const timestamp = new Date(istTime.getTime()).toISOString().replace('Z', '+05:30');
 
         // Prepare update operations for user's consumed food
         const dateKey = `consumedFood.dates.${date}`;
@@ -311,7 +315,7 @@ const removeCart = async (req, res) => {
                 selectedMeal: validMealIds[mealType.toLowerCase()],
                 dishId: new ObjectId(dish.dishId),
                 totalCalories: totalCaloriesForDish, // Total calories for the dish
-                timestamp: today,
+                timestamp: timestamp,
                 name: dish.dishName.trim(),
                 brandName: dish.restaurantName,
                 nutritionFacts: {
@@ -393,12 +397,12 @@ const getCart = async (req, res) => {
         const user = await User.findOne({ _id: userId });
 
         const today = new Date().toLocaleDateString('en-GB');
-    
+
         const value = user?.dailyConsumptionStats?.get(today) || 0;
-        
+
         // console.log('Today\'s date:', today);
         // console.log('Daily consumption stats:', user?.dailyConsumptionStats);
-        
+
         const dailyCalorieGoal = user?.dailyCalorieGoal;
         const remaining = dailyCalorieGoal - value;
         // console.log(value, dailyCalorieGoal, remaining);
@@ -416,7 +420,7 @@ const getCart = async (req, res) => {
             success: true,
             message: 'Carts fetched successfully',
             data: carts.map(cart => ({
-                quantity:cart.quantity,
+                quantity: cart.quantity,
                 cartId: cart._id,
                 orders: cart.orders,
                 dishDetails: cart.dishDetails,

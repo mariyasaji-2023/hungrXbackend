@@ -8,7 +8,7 @@ const mongoose = require("mongoose")
 //         await client.connect();
 //         const db = client.db();
 //         const commonfood = db.collection("commonfoods");
-        
+
 //         const categories = await commonfood.aggregate([
 //             { $unwind: "$category.sub" },
 //             { 
@@ -50,10 +50,10 @@ const mongoose = require("mongoose")
 //     }
 // }
 
-const searchCommonfood = async(req, res) => {
+const searchCommonfood = async (req, res) => {
     const { name } = req.body;
     try {
-        if(!name || name.trim().length === 0) {
+        if (!name || name.trim().length === 0) {
             return res.status(400).json({
                 status: false,
                 message: 'Search term is required'
@@ -62,13 +62,13 @@ const searchCommonfood = async(req, res) => {
 
         const searchTerm = name.trim().toLowerCase();
         const commonfood = mongoose.connection.db.collection('commonfoods');
-        
+
         // Split search term into individual words
         const searchWords = searchTerm.split(/\s+/);
-        
+
         // Create an array of regex patterns for each word
         const wordPatterns = searchWords.map(word => new RegExp(word, "i"));
-        
+
         // Construct a more flexible query that matches individual words
         const query = {
             $or: [
@@ -138,7 +138,7 @@ const searchCommonfood = async(req, res) => {
 
         return res.status(200).json({
             status: true,
-            commonfood:true,
+            commonfood: true,
             count: results.length,
             data: results
         });
@@ -173,12 +173,16 @@ const addConsumedCommonFood = async (req, res) => {
             return res.status(404).json({ error: 'Food item not found in common foods database' });
         }
 
+        // Fix for addConsumedCommonFood
         const today = new Date();
-        const date = today.toLocaleDateString('en-GB', {
+        const istTime = new Date(today.getTime() + (5.5 * 60 * 60 * 1000));
+        const date = istTime.toLocaleDateString('en-IN', {
             day: '2-digit',
             month: '2-digit',
-            year: 'numeric'
+            year: 'numeric',
+            timeZone: 'Asia/Kolkata'
         }).replace(/\//g, '/');
+        const timestamp = new Date(istTime.getTime()).toISOString().replace('Z', '+05:30');
 
         const validMealIds = {
             'breakfast': '6746a024a45e4d9e5d58ea12',
@@ -200,7 +204,7 @@ const addConsumedCommonFood = async (req, res) => {
             selectedMeal: new mongoose.Types.ObjectId(selectedMeal),
             dishId: new mongoose.Types.ObjectId(dishId),
             totalCalories: Number(totalCalories),
-            timestamp: today,
+            timestamp: timestamp,
             name: foodDetails.name,
             image: foodDetails.image,
             nutritionFacts: foodDetails.nutritionFacts,
@@ -388,4 +392,4 @@ const addCommonFoodToHistory = async (req, res) => {
     }
 };
 
-module.exports = { searchCommonfood,addConsumedCommonFood,addCommonFoodToHistory }
+module.exports = { searchCommonfood, addConsumedCommonFood, addCommonFoodToHistory }
