@@ -1043,6 +1043,7 @@ const reqrestaurant = async (req, res) => {
 
 const progressBar = async (req, res) => {
     const { userId } = req.body;
+    const userTimezone = 'Asia/Kolkata'; // Can be configured per user in the future
 
     try {
         // Find user by ID
@@ -1056,24 +1057,27 @@ const progressBar = async (req, res) => {
 
         const { dailyCalorieGoal, dailyConsumptionStats } = user;
 
-        // Get today's date in 'dd/mm/yyyy' format
-        const today = new Date().toLocaleDateString('en-GB', {
+        // Get current date and format it
+        const now = new Date();
+        const formattedDate = now.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
-            year: 'numeric'
+            year: 'numeric',
+            timeZone: userTimezone
         }).replace(/\//g, '/');
 
-        // Get today's consumed calories from dailyConsumptionStats Map
-        const totalCaloriesConsumed = Number(dailyConsumptionStats.get(today) || 0);
+        // Get today's consumed calories
+        const totalCaloriesConsumed = Number(dailyConsumptionStats.get(formattedDate) || 0);
 
-        // Return the results
         return res.status(200).json({
             status: true,
             data: {
                 dailyCalorieGoal,
-                totalCaloriesConsumed
+                totalCaloriesConsumed,
+                currentDate: formattedDate
             }
         });
+
     } catch (error) {
         console.error('Error fetching user progress:', error);
         return res.status(500).json({

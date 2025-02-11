@@ -299,7 +299,6 @@ const addCommonFoodToHistory = async (req, res) => {
             });
         }
 
-        // Find user
         const user = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         if (!user) {
             return res.status(404).json({

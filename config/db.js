@@ -1,4 +1,7 @@
 const mongoose = require('mongoose');
+const User = require('../models/userModel');
+
+
 
 let dbInstance;
 
@@ -13,6 +16,10 @@ const connectDB = async () => {
         
         dbInstance = connection.connection.db;
         console.log('Connected to MongoDB');
+
+        const userCount = await User.countDocuments();
+        console.log(`👥 Total Users: ${userCount}`);
+        
         return dbInstance;
     } catch (err) {
         console.error('MongoDB connection error:', err);
