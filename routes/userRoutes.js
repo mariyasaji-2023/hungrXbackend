@@ -10,15 +10,16 @@ const waterController = require('../controllers/waterController')
 const profileController = require('../controllers/profileController')
 const mapboxController = require('../controllers/mapBoxController')
 const menuController = require('../controllers/menuController')
-const cartController = require ('../controllers/cartController')
+const cartController = require('../controllers/cartController')
 const commonfoodController = require('../controllers/commonfoodController')
 const contactController = require('../controllers/contactController')
 const appleController = require('../controllers/appleController')
+const timeZoneController = require('../controllers/timezoneController')
 
 //============================ Authentication Screen Route ============================
 
 router.post('/signup/google', userController.loginWithGoogle)
-router.post('/loginWithApple',appleController.loginWithApple)
+router.post('/loginWithApple', appleController.loginWithApple)
 router.post('/signup/email', userController.signupWithEmail)
 router.post('/login/email', userController.loginWithEmail)
 router.post('/verifyOTP', userController.verifyOTP)
@@ -28,11 +29,11 @@ router.post('/sendOTP', userController.sendOTP)
 
 router.put('/createProfile', upload.single('profilePhoto'), userController.createProfile)
 router.post('/calculate-metrics', userController.calculateUserMetrics)
-router.post('/getCalorieMetrics',userController.getCalorieMetrics)
+router.post('/getCalorieMetrics', userController.getCalorieMetrics)
 router.post('/trackuser', userController.trackUser)
 router.post('/checkUser', userController.checkUser)
 router.post('/home', userController.home)
-router.post('/changecaloriesToReachGoal',userController.changecaloriesToReachGoal)
+router.post('/changecaloriesToReachGoal', userController.changecaloriesToReachGoal)
 
 //============================ Weight Screen Route ============================
 
@@ -51,7 +52,7 @@ router.post('/addConsumedFood', restaurantController.addConsumedFood)
 router.post('/addUnknown', restaurantController.addUnknownFood)
 router.post('/getConsumedFoodByDate', restaurantController.getConsumedFoodByDate)
 router.post('/deleteDishFromMeal', restaurantController.deleteDishFromMeal)
-router.post('/progressBar',restaurantController.progressBar)
+router.post('/progressBar', restaurantController.progressBar)
 
 //============================ Feedback Screen Route ============================
 
@@ -69,40 +70,41 @@ router.post('/bug', feedbackController.reportBug)
 
 //============================ Restaurant Screen Route ============================
 
-router.post('/searchRestaurant',restaurantController.searchRestaurant)
-router.post('/reqrestaurant',restaurantController.reqrestaurant)
-router.get('/suggestions',restaurantController.suggestions)
+router.post('/searchRestaurant', restaurantController.searchRestaurant)
+router.post('/reqrestaurant', restaurantController.reqrestaurant)
+router.get('/suggestions', restaurantController.suggestions)
 
 //============================ Mapbox integration Route ============================
 
-router.get('/nearby',mapboxController.getNearbyRestaurants)
+router.get('/nearby', mapboxController.getNearbyRestaurants)
 
 //============================ Menu Screen Route ============================
 
-router.post('/getMenu',menuController.getMenu)
+router.post('/getMenu', menuController.getMenu)
 
 //============================ Cart Screen Route ============================
 
-router.delete('/removeOneItem',cartController.removeOneItem)
-router.post('/removeCart',cartController.removeCart)
-router.post('/addToCart',cartController.addToCart)
-router.post('/getCart',cartController.getCart)
+router.delete('/removeOneItem', cartController.removeOneItem)
+router.post('/removeCart', cartController.removeCart)
+router.post('/addToCart', cartController.addToCart)
+router.post('/getCart', cartController.getCart)
 
 //============================ Common Food Route ============================
 
-router.post('/searchCommonfood',commonfoodController.searchCommonfood)
-router.post('/addConsumedCommonFood',commonfoodController.addConsumedCommonFood)
-router.post('/addCommonFoodToHistory',commonfoodController.addCommonFoodToHistory)
+router.post('/searchCommonfood', commonfoodController.searchCommonfood)
+router.post('/addConsumedCommonFood', commonfoodController.addConsumedCommonFood)
+router.post('/addCommonFoodToHistory', commonfoodController.addCommonFoodToHistory)
 
 //============================ Water screen Route ============================
 
-router.post('/getWaterIntakeData',waterController.getWaterIntakeData)
-router.delete('/removeWaterEntry',waterController.removeWaterEntry)
-router.post('/addWater',waterController.addWaterIntake)
+router.post('/getWaterIntakeData', waterController.getWaterIntakeData)
+router.delete('/removeWaterEntry', waterController.removeWaterEntry)
+router.post('/addWater', waterController.addWaterIntake)
 
 //============================ Help and support screen ============================
 
-router.post('/submitIssue',contactController.submitIssue)
+router.post('/submitIssue', contactController.submitIssue)
+router.post('/timezone', timeZoneController.timezone)
 
 
 module.exports = router;

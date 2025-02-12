@@ -152,7 +152,6 @@ const searchCommonfood = async (req, res) => {
     }
 };
 
-
 const addConsumedCommonFood = async (req, res) => {
     try {
         const db = client.db(process.env.DB_NAME);
@@ -173,16 +172,19 @@ const addConsumedCommonFood = async (req, res) => {
             return res.status(404).json({ error: 'Food item not found in common foods database' });
         }
 
-        // Fix for addConsumedCommonFood
-        const today = new Date();
-        const istTime = new Date(today.getTime() + (5.5 * 60 * 60 * 1000));
-        const date = istTime.toLocaleDateString('en-IN', {
+        // Use UTC time
+        const now = new Date();
+        
+        // Format date in UTC using en-GB locale for DD/MM/YYYY format
+        const date = now.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
-            timeZone: 'Asia/Kolkata'
-        }).replace(/\//g, '/');
-        const timestamp = new Date(istTime.getTime()).toISOString().replace('Z', '+05:30');
+            timeZone: 'UTC'
+        });
+
+        // Create ISO timestamp in UTC
+        const timestamp = now.toISOString(); // This will give UTC time with 'Z' suffix
 
         const validMealIds = {
             'breakfast': '6746a024a45e4d9e5d58ea12',
@@ -204,7 +206,7 @@ const addConsumedCommonFood = async (req, res) => {
             selectedMeal: new mongoose.Types.ObjectId(selectedMeal),
             dishId: new mongoose.Types.ObjectId(dishId),
             totalCalories: Number(totalCalories),
-            timestamp: timestamp,
+            timestamp: timestamp,  // Now storing in UTC with 'Z' suffix
             name: foodDetails.name,
             image: foodDetails.image,
             nutritionFacts: foodDetails.nutritionFacts,
@@ -299,7 +301,6 @@ const addCommonFoodToHistory = async (req, res) => {
             });
         }
 
-        // Find user
         const user = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
         if (!user) {
             return res.status(404).json({

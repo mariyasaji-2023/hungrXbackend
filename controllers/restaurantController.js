@@ -377,20 +377,19 @@ const addConsumedFood = async (req, res) => {
             return res.status(404).json({ error: 'Food item not found in grocery database' });
         }
 
-        // Create date in IST (UTC+5:30)
-        const today = new Date();
-        const istTime = new Date(today.getTime() + (5.5 * 60 * 60 * 1000));
-
-        // Format date in Indian format
-        const date = istTime.toLocaleDateString('en-IN', {
+        // Create date and timestamp in UTC
+        const now = new Date();
+        
+        // Format date in UTC using en-GB locale for DD/MM/YYYY format
+        const date = now.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
-            timeZone: 'Asia/Kolkata'
-        }).replace(/\//g, '/');
+            timeZone: 'UTC'
+        });
 
-        // Create ISO timestamp with IST offset
-        const timestamp = new Date(istTime.getTime()).toISOString().replace('Z', '+05:30');
+        // Create ISO timestamp in UTC
+        const timestamp = now.toISOString(); // This will give UTC time with 'Z' suffix
 
         const validMealIds = {
             'breakfast': '6746a024a45e4d9e5d58ea12',
@@ -412,7 +411,7 @@ const addConsumedFood = async (req, res) => {
             selectedMeal: new mongoose.Types.ObjectId(selectedMeal),
             dishId: new mongoose.Types.ObjectId(dishId),
             totalCalories: Number(totalCalories),
-            timestamp: timestamp,  // Store with IST offset
+            timestamp: timestamp,  // Now storing in UTC with 'Z' suffix
             name: foodDetails.name,
             brandName: foodDetails.brandName,
             image: foodDetails.image,
@@ -504,21 +503,16 @@ const addUnknownFood = async (req, res) => {
             calories
         } = req.body;
 
-        // Create timestamp in IST
+        // Create timestamp in UTC
         const now = new Date();
-        // Convert to IST (UTC+5:30)
-        const istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds
-        const istTime = new Date(now.getTime() + istOffset);
+        const timestamp = now.toISOString(); // This will give UTC time with 'Z' suffix
 
-        // Format the IST timestamp with the +05:30 offset
-        const timestamp = istTime.toISOString().replace('Z', '+05:30');
-
-        // Format date for the key (DD/MM/YYYY)
-        const date = istTime.toLocaleDateString('en-IN', {
+        // Format date for the key (DD/MM/YYYY) in UTC
+        const date = now.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
-            timeZone: 'Asia/Kolkata'
+            timeZone: 'UTC'
         });
 
         const unknownFoodId = new mongoose.Types.ObjectId();
@@ -558,7 +552,7 @@ const addUnknownFood = async (req, res) => {
             selectedMeal: new mongoose.Types.ObjectId(mealType),
             dishId: unknownFoodId,
             totalCalories: Number(calories),
-            timestamp: timestamp,  // Now using IST timestamp with +05:30 offset
+            timestamp: timestamp,  // Now using UTC timestamp with 'Z' suffix
             name: foodName,
             brandName: "Custom Food",
             nutritionFacts: {
@@ -768,7 +762,6 @@ const getUserHistory = async (req, res) => {
     }
 };
 
-
 const getConsumedFoodByDate = async (req, res) => {
     try {
         const db = getDBInstance();
@@ -777,13 +770,17 @@ const getConsumedFoodByDate = async (req, res) => {
         const user = await users.findOne({
             _id: new mongoose.Types.ObjectId(userId)
         });
+
         if (!user) {
             return res.status(404).json({
                 success: false,
                 message: 'User not found'
             });
         }
+
+        // Get the consumed food for the specified date from user data
         const consumedFoodForDate = user.consumedFood?.dates?.[date] || {};
+        
         if (Object.keys(consumedFoodForDate).length === 0) {
             return res.status(200).json({
                 success: true,
@@ -797,22 +794,71 @@ const getConsumedFoodByDate = async (req, res) => {
                 }
             });
         }
+
+        // When displaying, convert UTC to respective timezones
+        const istOptions = { 
+            timeZone: 'Asia/Kolkata',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        };
+
+        const nyOptions = { 
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        };
+
+        // Process each meal and convert timestamps
+        const processedConsumedFood = {};
         let totalDayCalories = 0;
-        Object.values(consumedFoodForDate).forEach(meal => {
-            if (meal.foods && Array.isArray(meal.foods)) {
-                meal.foods.forEach(food => {
+
+        for (const [mealType, mealData] of Object.entries(consumedFoodForDate)) {
+            if (mealData.foods && Array.isArray(mealData.foods)) {
+                const processedFoods = mealData.foods.map(food => {
+                    // Use the existing timestamp from the food entry
+                    const timestamp = food.timestamp;
+                    
+                    // When converting for display
+                    const istTime = new Date(timestamp).toLocaleString('en-US', istOptions);
+                    const nyTime = new Date(timestamp).toLocaleString('en-US', nyOptions);
+
                     totalDayCalories += Number(food.totalCalories) || 0;
+
+                    return {
+                        ...food,
+                        timestamp: timestamp,
+                        localTimes: {
+                            ist: istTime,
+                            ny: nyTime
+                        }
+                    };
                 });
+
+                processedConsumedFood[mealType] = {
+                    ...mealData,
+                    foods: processedFoods
+                };
             }
-        });
+        }
+
         const formattedTotalCalories = Number(totalDayCalories.toFixed(2));
         const dailyGoal = parseFloat(user.dailyCalorieGoal);
         const remaining = Number((dailyGoal - formattedTotalCalories).toFixed(2));
+
         return res.status(200).json({
             success: true,
             message: 'Food entries found',
             date: date,
-            consumedFood: consumedFoodForDate,
+            timezone: user.timezone,
+            consumedFood: processedConsumedFood,
             dailySummary: {
                 totalCalories: formattedTotalCalories,
                 dailyGoal: user.dailyCalorieGoal,
@@ -1045,8 +1091,9 @@ const progressBar = async (req, res) => {
     const { userId } = req.body;
 
     try {
-        // Find user by ID
-        const user = await userModel.findById({ _id: userId });
+        // Use lean() to get a plain JavaScript object instead of a Mongoose document
+        const user = await userModel.findById(userId).lean();
+        
         if (!user) {
             return res.status(404).json({
                 status: false,
@@ -1054,26 +1101,51 @@ const progressBar = async (req, res) => {
             });
         }
 
-        const { dailyCalorieGoal, dailyConsumptionStats } = user;
+        const { dailyCalorieGoal, dailyConsumptionStats, timezone } = user;
 
-        // Get today's date in 'dd/mm/yyyy' format
-        const today = new Date().toLocaleDateString('en-GB', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        }).replace(/\//g, '/');
+        // Get current date in user's timezone
+        const now = new Date();
+        const userDate = new Date(now.toLocaleString('en-US', {
+            timeZone: timezone || 'UTC'
+        }));
+        
+        // Format date as DD/MM/YYYY
+        const formattedDate = `${String(userDate.getDate()).padStart(2, '0')}/${String(userDate.getMonth() + 1).padStart(2, '0')}/${userDate.getFullYear()}`;
 
-        // Get today's consumed calories from dailyConsumptionStats Map
-        const totalCaloriesConsumed = Number(dailyConsumptionStats.get(today) || 0);
+        // Ensure dailyConsumptionStats is an object and get today's calories
+        const stats = dailyConsumptionStats || {};
+        const totalCaloriesConsumed = Number(stats[formattedDate]) || 0;
 
-        // Return the results
+        // For debugging
+        console.log('Looking for date:', formattedDate);
+        console.log('Available dates:', Object.keys(stats));
+        console.log('Found calories:', totalCaloriesConsumed);
+
+        const remainingCalories = dailyCalorieGoal - totalCaloriesConsumed;
+        const progressPercentage = Math.min((totalCaloriesConsumed / dailyCalorieGoal) * 100, 100);
+
+        // Get current time in user's timezone
+        const currentTime = userDate.toLocaleString('en-US', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+        });
+
         return res.status(200).json({
             status: true,
             data: {
                 dailyCalorieGoal,
-                totalCaloriesConsumed
+                totalCaloriesConsumed,
+                remainingCalories,
+                progressPercentage,
+                currentDate: formattedDate,
+                currentTime,
+                timezone: timezone || 'UTC',
+                isNewDay: false,
+                message: `Data shown in ${timezone || 'UTC'} timezone`
             }
         });
+
     } catch (error) {
         console.error('Error fetching user progress:', error);
         return res.status(500).json({
