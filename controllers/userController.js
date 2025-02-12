@@ -611,7 +611,8 @@ const home = async (req, res) => {
             weightInLbs,
             profilePhoto,
             dailyConsumptionStats,
-            calculationDate
+            calculationDate,
+            timezone
         } = user;
 
         if (!caloriesToReachGoal || !dailyCalorieGoal || (daysToReachGoal === undefined || daysToReachGoal === null)) {
@@ -623,9 +624,11 @@ const home = async (req, res) => {
             });
         }
 
-        // Get current date in IST
-        const userTimezone = 'Asia/Kolkata';
-        const istNow = new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
+        // Use user's timezone, fallback to UTC if not set
+        const userTimezone = timezone || 'UTC';
+        
+        // Get current date and time in user's timezone
+        const userDateTime = new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
         
         // Format date helper function
         const formatDate = (date) => {
@@ -635,8 +638,13 @@ const home = async (req, res) => {
             return `${day}/${month}/${year}`;
         };
 
-        // Use current date (no cutoff time check)
-        const dateToUse = formatDate(istNow);
+        // Get today's date in user's timezone
+        const dateToUse = formatDate(userDateTime);
+
+        // Get yesterday's date for comparison if needed
+        const yesterday = new Date(userDateTime);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayDate = formatDate(yesterday);
 
         // Handle the case where dailyConsumptionStats might be a Map or an Object
         let totalCaloriesConsumed = 0;
@@ -668,6 +676,16 @@ const home = async (req, res) => {
 
         const goalstatus = goal === 'maintain weight';
 
+        // Add debug information for timezone troubleshooting
+        const debugInfo = {
+            userTimezone,
+            currentTime: userDateTime.toISOString(),
+            localDate: dateToUse,
+            yesterdayDate,
+            hasDataForToday: Boolean(dailyConsumptionStats[dateToUse]),
+            hasDataForYesterday: Boolean(dailyConsumptionStats[yesterdayDate])
+        };
+
         return res.status(200).json({
             status: true,
             data: {
@@ -682,8 +700,9 @@ const home = async (req, res) => {
                 remaining: remainingCalories,
                 consumed: totalCaloriesConsumed,
                 calculationDate,
-                debugDate: dateToUse,
-                dateToUse
+                dateToUse,
+                timezone: userTimezone,
+                debug: process.env.NODE_ENV === 'development' ? debugInfo : undefined
             }
         });
 
@@ -692,7 +711,8 @@ const home = async (req, res) => {
         return res.status(500).json({
             status: false,
             data: {
-                message: 'Server error'
+                message: 'Server error',
+                error: process.env.NODE_ENV === 'development' ? error.message : undefined
             }
         });
     }
