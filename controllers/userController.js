@@ -894,7 +894,7 @@ const updateWeight = async (req, res) => {
         }
 
         // Update calculation date
-        user.calculationDate = new Date().toLocaleDateString('en-GB');
+        // user.calculationDate = new Date().toLocaleDateString('en-GB');
 
         // Save updated user
         await user.save();

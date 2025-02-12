@@ -131,9 +131,30 @@ const userSchema = new mongoose.Schema({
         type: Map,
         of: Number,
         default: new Map()
+    }, appleId: { 
+        type: String, 
+        unique: true 
     },
-    appleId: { type: String, unique: true },
-    appleEmail: { type: String, sparse: true },
+    appleEmail: { 
+        type: String, 
+        sparse: true 
+    },
+    timezone: {
+        type: String,
+        enum: [
+            "America/New_York",     // Eastern Time
+            "America/Chicago",      // Central Time
+            "America/Denver",       // Mountain Time
+            "America/Los_Angeles",  // Pacific Time
+            "America/Anchorage",    // Alaska Time
+            "Pacific/Honolulu",     // Hawaii Time
+            "America/Phoenix",      // Arizona Time (no DST)
+            "America/Puerto_Rico",  // Atlantic Time
+            "Pacific/Guam"       ,  // Guam Time
+            "Asia/Kolkata"         // Indian Standard Time (IST)
+        ],
+        default: "America/New_York" // Default timezone
+    }
     
 });
 

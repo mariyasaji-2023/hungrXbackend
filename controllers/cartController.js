@@ -211,7 +211,6 @@ const addToCart = async (req, res) => {
     }
 };
 
-
 const removeCart = async (req, res) => {
     const { userId, mealType, orderDetails } = req.body;
 
@@ -263,17 +262,19 @@ const removeCart = async (req, res) => {
             return res.status(400).json({ error: 'Invalid meal type' });
         }
 
-        // Get current date in required format
-        // Fix for removeCart
-        const today = new Date();
-        const istTime = new Date(today.getTime() + (5.5 * 60 * 60 * 1000));
-        const date = istTime.toLocaleDateString('en-IN', {
+        // Get current date and timestamp in UTC
+        const now = new Date();
+        
+        // Format date in UTC using en-GB locale for DD/MM/YYYY format
+        const date = now.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
-            timeZone: 'Asia/Kolkata'
-        }).replace(/\//g, '/');
-        const timestamp = new Date(istTime.getTime()).toISOString().replace('Z', '+05:30');
+            timeZone: 'UTC'
+        });
+
+        // Create ISO timestamp in UTC
+        const timestamp = now.toISOString(); // This will give UTC time with 'Z' suffix
 
         // Prepare update operations for user's consumed food
         const dateKey = `consumedFood.dates.${date}`;
@@ -314,12 +315,12 @@ const removeCart = async (req, res) => {
                 servingSize: dish.servingSize,
                 selectedMeal: validMealIds[mealType.toLowerCase()],
                 dishId: new ObjectId(dish.dishId),
-                totalCalories: totalCaloriesForDish, // Total calories for the dish
-                timestamp: timestamp,
+                totalCalories: totalCaloriesForDish,
+                timestamp: timestamp,  // Now using UTC timestamp
                 name: dish.dishName.trim(),
                 brandName: dish.restaurantName,
                 nutritionFacts: {
-                    calories: totalCaloriesForDish, // Total calories for the dish
+                    calories: totalCaloriesForDish,
                     protein: Number(dish.nutritionInfo.protein.value) * quantity,
                     carbs: Number(dish.nutritionInfo.carbs.value) * quantity,
                     fat: Number(dish.nutritionInfo.totalFat.value) * quantity
