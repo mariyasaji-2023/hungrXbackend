@@ -732,7 +732,7 @@ const trackUser = async (req, res) => {
 
         // Get dates from dailyConsumptionStats and convert Map to array
         const dailyConsumptionStats = user.dailyConsumptionStats || new Map();
-        console.log(dailyConsumptionStats, "//////////");
+        // console.log(dailyConsumptionStats, "//////////");
 
         // Convert Map entries to array and filter/sort
         const consumptionDates = Array.from(dailyConsumptionStats.entries())
@@ -745,8 +745,8 @@ const trackUser = async (req, res) => {
                 return new Date(aYear, aMonth - 1, aDay) - new Date(bYear, bMonth - 1, bDay);
             });
 
-        console.log(consumptionDates, user.daysToReachGoal, "]]]]]]]]]]]]]]]]]]]");
-        console.log(user.calculationDate, ".......");
+        // console.log(consumptionDates, user.daysToReachGoal, "]]]]]]]]]]]]]]]]]]]");
+        // console.log(user.calculationDate, ".......");
 
         if (consumptionDates.length === 0) {
             return res.status(200).json({

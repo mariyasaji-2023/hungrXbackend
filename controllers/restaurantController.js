@@ -491,6 +491,7 @@ const addConsumedFood = async (req, res) => {
     }
 };
 
+
 const addUnknownFood = async (req, res) => {
     try {
         const db = getDBInstance();
@@ -503,17 +504,27 @@ const addUnknownFood = async (req, res) => {
             calories
         } = req.body;
 
-        // Create timestamp in UTC
-        const now = new Date();
-        const timestamp = now.toISOString(); // This will give UTC time with 'Z' suffix
+        // Get user's timezone from the database
+        const currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
+        if (!currentUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        const userTimezone = currentUser.timezone || 'America/New_York'; // Default to New York if not set
 
-        // Format date for the key (DD/MM/YYYY) in UTC
-        const date = now.toLocaleDateString('en-GB', {
+        // Create timestamp in user's timezone
+        const now = new Date();
+        const userDate = new Date(now.toLocaleString('en-US', { timeZone: userTimezone }));
+        
+        // Format date for the key (DD/MM/YYYY) in user's timezone
+        const date = userDate.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
-            timeZone: 'UTC'
+            timeZone: userTimezone
         });
+
+        // Create UTC timestamp for storage
+        const timestamp = now.toISOString();
 
         const unknownFoodId = new mongoose.Types.ObjectId();
         const mealTypeMapping = {
@@ -552,7 +563,7 @@ const addUnknownFood = async (req, res) => {
             selectedMeal: new mongoose.Types.ObjectId(mealType),
             dishId: unknownFoodId,
             totalCalories: Number(calories),
-            timestamp: timestamp,  // Now using UTC timestamp with 'Z' suffix
+            timestamp: timestamp,
             name: foodName,
             brandName: "Custom Food",
             nutritionFacts: {
@@ -565,11 +576,6 @@ const addUnknownFood = async (req, res) => {
             isCustomFood: true,
             foodId: new mongoose.Types.ObjectId()
         };
-
-        const currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
-        if (!currentUser) {
-            return res.status(404).json({ error: 'User not found' });
-        }
 
         const currentDayData = currentUser.consumedFood?.dates?.[date];
         if (!currentDayData?.[mealTypeName]) {
