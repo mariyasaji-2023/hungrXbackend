@@ -241,6 +241,12 @@ const removeCart = async (req, res) => {
         const cartCollection = db.collection("cartDetails");
         const users = db.collection("users");
 
+        // Get current user for timezone and calorie calculations
+        const currentUser = await users.findOne({ _id: new ObjectId(userId) });
+        if (!currentUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
         // Get cart items before deletion
         const cart = await cartCollection.findOne({ userId });
         if (!cart || !cart.orders || !cart.dishDetails || cart.dishDetails.length === 0) {
@@ -262,29 +268,27 @@ const removeCart = async (req, res) => {
             return res.status(400).json({ error: 'Invalid meal type' });
         }
 
-        // Get current date and timestamp in UTC
+        // Get user's timezone
+        const userTimezone = currentUser.timezone || 'America/New_York'; // Default to New York if not set
+
+        // Create timestamp in user's timezone
         const now = new Date();
+        const userDate = new Date(now.toLocaleString('en-US', { timeZone: userTimezone }));
         
-        // Format date in UTC using en-GB locale for DD/MM/YYYY format
-        const date = now.toLocaleDateString('en-GB', {
+        // Format date for the key (DD/MM/YYYY) in user's timezone
+        const date = userDate.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
-            timeZone: 'UTC'
+            timeZone: userTimezone
         });
 
-        // Create ISO timestamp in UTC
-        const timestamp = now.toISOString(); // This will give UTC time with 'Z' suffix
+        // Create UTC timestamp for storage
+        const timestamp = now.toISOString();
 
         // Prepare update operations for user's consumed food
         const dateKey = `consumedFood.dates.${date}`;
         const statsDateKey = `dailyConsumptionStats.${date}`;
-
-        // Get current user for calorie calculations
-        const currentUser = await users.findOne({ _id: new ObjectId(userId) });
-        if (!currentUser) {
-            return res.status(404).json({ error: 'User not found' });
-        }
 
         const currentDayData = currentUser.consumedFood?.dates?.[date];
         if (!currentDayData?.[mealType.toLowerCase()]) {
@@ -316,7 +320,7 @@ const removeCart = async (req, res) => {
                 selectedMeal: validMealIds[mealType.toLowerCase()],
                 dishId: new ObjectId(dish.dishId),
                 totalCalories: totalCaloriesForDish,
-                timestamp: timestamp,  // Now using UTC timestamp
+                timestamp: timestamp,
                 name: dish.dishName.trim(),
                 brandName: dish.restaurantName,
                 nutritionFacts: {
@@ -384,7 +388,6 @@ const removeCart = async (req, res) => {
         await client.close();
     }
 };
-
 
 const getCart = async (req, res) => {
     const { userId } = req.body;
