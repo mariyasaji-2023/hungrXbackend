@@ -382,19 +382,19 @@ const addConsumedFood = async (req, res) => {
         if (!currentUser) {
             return res.status(404).json({ error: 'User not found' });
         }
-        const userTimezone = currentUser.timezone || 'America/New_York'; // Default to New York if not set
+        const userTimezone = currentUser.timezone || 'America/New_York';
 
-        // Create timestamp in user's timezone
+        // Create timestamp and format date in user's timezone
         const now = new Date();
-        const userDate = new Date(now.toLocaleString('en-US', { timeZone: userTimezone }));
-        
-        // Format date for the key (DD/MM/YYYY) in user's timezone
-        const date = userDate.toLocaleDateString('en-GB', {
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+            timeZone: userTimezone,
             day: '2-digit',
             month: '2-digit',
-            year: 'numeric',
-            timeZone: userTimezone
+            year: 'numeric'
         });
+
+        // Get the date in DD/MM/YYYY format
+        const date = formatter.format(now);
 
         // Create UTC timestamp for storage
         const timestamp = now.toISOString();
@@ -445,7 +445,6 @@ const addConsumedFood = async (req, res) => {
 
         const currentCalories = currentUser.dailyConsumptionStats?.[date] || 0;
         const newTotalCalories = currentCalories + Number(totalCalories);
-
         const dailyCalorieGoal = currentUser.dailyCalorieGoal || 0;
 
         const result = await users.updateOne(
@@ -494,7 +493,6 @@ const addConsumedFood = async (req, res) => {
     }
 };
 
-
 const addUnknownFood = async (req, res) => {
     try {
         const db = getDBInstance();
@@ -514,17 +512,17 @@ const addUnknownFood = async (req, res) => {
         }
         const userTimezone = currentUser.timezone || 'America/New_York'; // Default to New York if not set
 
-        // Create timestamp in user's timezone
+        // Create timestamp and format date using Intl.DateTimeFormat
         const now = new Date();
-        const userDate = new Date(now.toLocaleString('en-US', { timeZone: userTimezone }));
-        
-        // Format date for the key (DD/MM/YYYY) in user's timezone
-        const date = userDate.toLocaleDateString('en-GB', {
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+            timeZone: userTimezone,
             day: '2-digit',
             month: '2-digit',
-            year: 'numeric',
-            timeZone: userTimezone
+            year: 'numeric'
         });
+
+        // Get date in DD/MM/YYYY format for the user's timezone
+        const date = formatter.format(now);
 
         // Create UTC timestamp for storage
         const timestamp = now.toISOString();
@@ -638,6 +636,7 @@ const addUnknownFood = async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 };
+
 
 const addToHistory = async (req, res) => {
     const { userId, productId } = req.body;
