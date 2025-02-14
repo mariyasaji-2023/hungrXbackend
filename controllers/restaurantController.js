@@ -377,19 +377,27 @@ const addConsumedFood = async (req, res) => {
             return res.status(404).json({ error: 'Food item not found in grocery database' });
         }
 
-        // Create date and timestamp in UTC
+        // Get user's timezone from the database
+        const currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
+        if (!currentUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        const userTimezone = currentUser.timezone || 'America/New_York'; // Default to New York if not set
+
+        // Create timestamp in user's timezone
         const now = new Date();
+        const userDate = new Date(now.toLocaleString('en-US', { timeZone: userTimezone }));
         
-        // Format date in UTC using en-GB locale for DD/MM/YYYY format
-        const date = now.toLocaleDateString('en-GB', {
+        // Format date for the key (DD/MM/YYYY) in user's timezone
+        const date = userDate.toLocaleDateString('en-GB', {
             day: '2-digit',
             month: '2-digit',
             year: 'numeric',
-            timeZone: 'UTC'
+            timeZone: userTimezone
         });
 
-        // Create ISO timestamp in UTC
-        const timestamp = now.toISOString(); // This will give UTC time with 'Z' suffix
+        // Create UTC timestamp for storage
+        const timestamp = now.toISOString();
 
         const validMealIds = {
             'breakfast': '6746a024a45e4d9e5d58ea12',
@@ -411,7 +419,7 @@ const addConsumedFood = async (req, res) => {
             selectedMeal: new mongoose.Types.ObjectId(selectedMeal),
             dishId: new mongoose.Types.ObjectId(dishId),
             totalCalories: Number(totalCalories),
-            timestamp: timestamp,  // Now storing in UTC with 'Z' suffix
+            timestamp: timestamp,
             name: foodDetails.name,
             brandName: foodDetails.brandName,
             image: foodDetails.image,
@@ -419,11 +427,6 @@ const addConsumedFood = async (req, res) => {
             servingInfo: foodDetails.servingInfo,
             foodId: new mongoose.Types.ObjectId()
         };
-
-        const currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
-        if (!currentUser) {
-            return res.status(404).json({ error: 'User not found' });
-        }
 
         const currentDayData = currentUser.consumedFood?.dates?.[date];
         if (!currentDayData?.[mealType.toLowerCase()]) {
