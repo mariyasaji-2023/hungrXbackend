@@ -2,6 +2,7 @@ const User = require('../models/userModel')
 
 const addWaterIntake = async (req, res) => {
     const { userId, amountInMl } = req.body
+
     try {
         const user = await User.findById(userId)
         if (!user) {
@@ -13,7 +14,6 @@ const addWaterIntake = async (req, res) => {
 
         // Convert amount to number
         const amount = parseInt(amountInMl, 10);
-
         if (isNaN(amount) || amount <= 0) {
             return res.status(400).json({
                 status: false,
@@ -21,7 +21,8 @@ const addWaterIntake = async (req, res) => {
             });
         }
 
-        const today = new Date().toLocaleDateString('en-GB');
+        // Get today's date in UTC format
+        const today = new Date().toISOString().split('T')[0];
         const dailyGoalInMl = parseFloat(user.dailyWaterIntake) * 1000;
 
         let todayData = user.waterIntakeHistory.get(today) || {
@@ -33,9 +34,10 @@ const addWaterIntake = async (req, res) => {
         // Ensure totalIntake is a number
         const currentTotal = parseInt(todayData.totalIntake, 10) || 0;
 
+        // Add new entry with UTC timestamp
         todayData.entries.push({
             amount: amount,
-            timestamp: new Date()
+            timestamp: new Date().toISOString() // Store full UTC timestamp
         });
 
         // Add numbers, not strings
@@ -58,6 +60,7 @@ const addWaterIntake = async (req, res) => {
                 percentage: ((todayData.totalIntake / dailyGoalInMl) * 100).toFixed(1)
             }
         });
+
     } catch (error) {
         console.error('Error adding water intake', error)
         return res.status(500).json({
