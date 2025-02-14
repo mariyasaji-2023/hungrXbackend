@@ -269,19 +269,19 @@ const removeCart = async (req, res) => {
         }
 
         // Get user's timezone
-        const userTimezone = currentUser.timezone || 'America/New_York'; // Default to New York if not set
+        const userTimezone = currentUser.timezone || 'America/New_York';
 
-        // Create timestamp in user's timezone
+        // Create timestamp and format date in user's timezone
         const now = new Date();
-        const userDate = new Date(now.toLocaleString('en-US', { timeZone: userTimezone }));
-        
-        // Format date for the key (DD/MM/YYYY) in user's timezone
-        const date = userDate.toLocaleDateString('en-GB', {
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+            timeZone: userTimezone,
             day: '2-digit',
             month: '2-digit',
-            year: 'numeric',
-            timeZone: userTimezone
+            year: 'numeric'
         });
+
+        // Get the date in DD/MM/YYYY format
+        const date = formatter.format(now);
 
         // Create UTC timestamp for storage
         const timestamp = now.toISOString();
@@ -310,11 +310,10 @@ const removeCart = async (req, res) => {
 
         // Process each dish with its quantity from cart.dishDetails
         for (const dish of cart.dishDetails) {
-            const quantity = dish.quantity || 1; // Use the quantity from cart.dishDetails
+            const quantity = dish.quantity || 1;
             const caloriesPerServing = Number(dish.nutritionInfo.calories.value);
             const totalCaloriesForDish = caloriesPerServing * quantity;
 
-            // Create a single food entry for the dish with total calories
             const foodEntry = {
                 servingSize: dish.servingSize,
                 selectedMeal: validMealIds[mealType.toLowerCase()],
