@@ -1203,6 +1203,8 @@ const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
 //         });
 //     }
 // };
+
+
 const changecaloriesToReachGoal = async (req, res) => {
     const { userId, calorie, day, isShown, date } = req.body;
     
