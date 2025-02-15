@@ -21,8 +21,9 @@ const addWaterIntake = async (req, res) => {
             });
         }
 
-        // Get today's date in UTC format
-        const today = new Date().toISOString().split('T')[0];
+        // Get today's date in DD/MM/YYYY format
+        const date = new Date();
+        const today = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
         const dailyGoalInMl = parseFloat(user.dailyWaterIntake) * 1000;
 
         let todayData = user.waterIntakeHistory.get(today) || {
@@ -34,10 +35,10 @@ const addWaterIntake = async (req, res) => {
         // Ensure totalIntake is a number
         const currentTotal = parseInt(todayData.totalIntake, 10) || 0;
 
-        // Add new entry with UTC timestamp
+        // Add new entry with timestamp
         todayData.entries.push({
             amount: amount,
-            timestamp: new Date().toISOString() // Store full UTC timestamp
+            timestamp: new Date().toISOString() // Keep timestamp in ISO format for accuracy
         });
 
         // Add numbers, not strings
