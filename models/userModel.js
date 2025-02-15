@@ -154,7 +154,11 @@ const userSchema = new mongoose.Schema({
             "Asia/Kolkata"         // Indian Standard Time (IST)
         ],
         default: "America/New_York" // Default timezone
-    }
+    },
+    // isShown:{
+    //     type: Boolean,
+    //     default: false
+    // }
     
 });
 
