@@ -7,6 +7,10 @@ const Weight = require('../models/userWeightModel');
 require('dotenv').config();
 const twilio = require('twilio');
 
+const { MongoClient } = require("mongodb");
+const { ObjectId } = require('mongodb');
+// const client = new MongoClient(process.env.DB_URI);
+
 const hashPassword = async (password) => {
     const saltRounds = 10;
     return await bcrypt.hash(password, saltRounds);
@@ -626,10 +630,10 @@ const home = async (req, res) => {
 
         // Use user's timezone, fallback to UTC if not set
         const userTimezone = timezone || 'UTC';
-        
+
         // Get current date and time in user's timezone
         const userDateTime = new Date(new Date().toLocaleString('en-US', { timeZone: userTimezone }));
-        
+
         // Format date helper function
         const formatDate = (date) => {
             const day = String(date.getDate()).padStart(2, '0');
@@ -662,7 +666,7 @@ const home = async (req, res) => {
         const weight = isMetric ? `${weightInKg} kg` : `${weightInLbs} lbs`;
 
         let goalHeading = 'Calorie Goal';
-        switch(goal) {
+        switch (goal) {
             case 'lose weight':
                 goalHeading = 'Calorie to burn';
                 break;
@@ -845,7 +849,7 @@ const updateWeight = async (req, res) => {
             });
         }
 
-        
+
         // Store weight in user's preferred unit
         if (user.isMetric) {
             user.weightInKg = newWeight;
@@ -1065,7 +1069,6 @@ const checkUser = async (req, res) => {
 
 const getCalorieMetrics = async (req, res) => {
     const { userId } = req.body;
-
     try {
         const user = await User.findById({ _id: userId });
         if (!user) {
@@ -1085,7 +1088,7 @@ const getCalorieMetrics = async (req, res) => {
 
         // Initialize dailyConsumptionStats if it doesn't exist
         const stats = Object.fromEntries(user.dailyConsumptionStats || new Map());
-
+        
         // Use Object.keys() instead of stats.keys()
         const dates = Object.keys(stats);
         const mostRecentDate = dates.length > 0
@@ -1098,11 +1101,11 @@ const getCalorieMetrics = async (req, res) => {
             })
             : todayFormatted;
 
+        // Get isShown value with default false
+        const isShown = user.consumedFood?.dates?.[mostRecentDate]?.isShown ?? false;
+
         // Access stats directly as an object
         const consumedCalories = Number(stats[mostRecentDate] || 0);
-        console.log(consumedCalories);
-
-        // Rest of your code remains the same
         const remainingCalories = dailyCalorieGoal - consumedCalories;
         const weightrateInGrams = weightGainRate * 1000;
         const dailyWeightLoss = Math.round((weightrateInGrams * 7.7) / 7);
@@ -1120,14 +1123,14 @@ const getCalorieMetrics = async (req, res) => {
             message: generateStatusMessage(goal, remainingCalories, daysToReachGoal),
             dailyWeightLoss: dailyWeightLoss,
             ratio: ratio,
-            caloriesToReachGoal: caloriesToReachGoal
+            caloriesToReachGoal: caloriesToReachGoal,
+            isShown: isShown // Always include isShown with default false
         };
 
         res.status(200).json({
             status: true,
             data: responseData
         });
-
     } catch (error) {
         console.error('Error calculating calorie metrics:', error);
         res.status(500).json({
@@ -1138,8 +1141,6 @@ const getCalorieMetrics = async (req, res) => {
         });
     }
 };
-
-
 
 const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
     const absRemaining = Math.abs(remainingCalories);
@@ -1162,10 +1163,59 @@ const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
 };
 
 
+// const changecaloriesToReachGoal = async (req, res) => {
+//     const { userId, calorie, day, isShown } = req.body;
+//     try {
+//         const user = await User.findOne({ _id: userId });
+//         if (!user) {
+//             return res.status(404).json({
+//                 status: false,
+//                 message: 'User not found'
+//             });
+//         }
+        
+//         // Calculate new value
+//         const caloriesToReachGoal = user.caloriesToReachGoal - calorie;
+
+//         // Assign the new value to the user object
+//         user.caloriesToReachGoal = caloriesToReachGoal;
+//         user.isShown = isShown;
+//         const daysToReachGoal = user.daysToReachGoal - day
+//         console.log(user.daysToReachGoal, "////////");
+//         user.daysToReachGoal = daysToReachGoal
+//         // Save the updated user object
+//         await user.save();
+
+//         return res.status(200).json({
+//             status: true,
+//             data: {
+//                 userId,
+//                 caloriesToReachGoal,
+//                 daysToReachGoal,
+//                 isShown
+//             }
+//         });
+//     } catch (error) {
+//         console.error('Error updating calories to reach goal:', error);
+//         res.status(500).json({
+//             status: false,
+//             message: 'Internal server error'
+//         });
+//     }
+// };
 const changecaloriesToReachGoal = async (req, res) => {
-    const { userId, calorie, day } = req.body;
+    const { userId, calorie, day, isShown, date } = req.body;
+    
     try {
-        const user = await User.findOne({ _id: userId });
+        const client = new MongoClient(process.env.DB_URI);
+        const db = client.db(process.env.DB_NAME);
+        const users = db.collection("users");
+
+        // Keep the date in DD/MM/YYYY format as it's used in your data structure
+        const dateStr = date; // Using the date as is since it's already in DD/MM/YYYY format
+        
+        // First get the current values
+        const user = await users.findOne({ _id: new ObjectId(userId) });
         if (!user) {
             return res.status(404).json({
                 status: false,
@@ -1173,26 +1223,32 @@ const changecaloriesToReachGoal = async (req, res) => {
             });
         }
 
-        // Calculate new value
-        const caloriesToReachGoal = user.caloriesToReachGoal - calorie;
+        // Convert string values to numbers and perform calculations
+        const newCaloriesToReachGoal = Number(user.caloriesToReachGoal) - calorie;
+        const newDaysToReachGoal = Number(user.daysToReachGoal) - day;
 
-        // Assign the new value to the user object
-        user.caloriesToReachGoal = caloriesToReachGoal;
-
-        const daysToReachGoal = user.daysToReachGoal - day
-        console.log(user.daysToReachGoal, "////////");
-        user.daysToReachGoal = daysToReachGoal
-        // Save the updated user object
-        await user.save();
+        const result = await users.findOneAndUpdate(
+            { _id: new ObjectId(userId) },
+            {
+                $set: {
+                    caloriesToReachGoal: newCaloriesToReachGoal.toString(),
+                    daysToReachGoal: newDaysToReachGoal.toString(),
+                    [`consumedFood.dates.${dateStr}.isShown`]: isShown // Updated path to match your structure
+                }
+            },
+            { returnDocument: 'after' }
+        );
 
         return res.status(200).json({
             status: true,
             data: {
                 userId,
-                caloriesToReachGoal,
-                daysToReachGoal
+                caloriesToReachGoal: result.caloriesToReachGoal,
+                daysToReachGoal: result.daysToReachGoal,
+                isShown
             }
         });
+
     } catch (error) {
         console.error('Error updating calories to reach goal:', error);
         res.status(500).json({
