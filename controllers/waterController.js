@@ -1,15 +1,16 @@
 const User = require('../models/userModel')
 
+
 const addWaterIntake = async (req, res) => {
-    const { userId, amountInMl } = req.body
+    const { userId, amountInMl } = req.body;
 
     try {
-        const user = await User.findById(userId)
+        const user = await User.findById(userId);
         if (!user) {
             return res.status(400).json({
                 status: false,
                 message: 'User not found'
-            })
+            });
         }
 
         // Convert amount to number
@@ -21,12 +22,27 @@ const addWaterIntake = async (req, res) => {
             });
         }
 
-        // Get today's date in DD/MM/YYYY format
-        const date = new Date();
-        const today = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+        // Get user's timezone or default to 'America/New_York'
+        const userTimezone = user.timezone || 'America/New_York';
+
+        // Create timestamp and format date in user's timezone
+        const now = new Date();
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+            timeZone: userTimezone,
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+
+        // Get the date in DD/MM/YYYY format
+        const date = formatter.format(now);
+
+        // Create UTC timestamp for storage
+        const timestamp = now.toISOString();
+
         const dailyGoalInMl = parseFloat(user.dailyWaterIntake) * 1000;
 
-        let todayData = user.waterIntakeHistory.get(today) || {
+        let todayData = user.waterIntakeHistory.get(date) || {
             totalIntake: 0,
             entries: [],
             remaining: dailyGoalInMl
@@ -35,17 +51,17 @@ const addWaterIntake = async (req, res) => {
         // Ensure totalIntake is a number
         const currentTotal = parseInt(todayData.totalIntake, 10) || 0;
 
-        // Add new entry with timestamp
+        // Add new entry with UTC timestamp
         todayData.entries.push({
             amount: amount,
-            timestamp: new Date().toISOString() // Keep timestamp in ISO format for accuracy
+            timestamp: timestamp
         });
 
         // Add numbers, not strings
         todayData.totalIntake = currentTotal + amount;
         todayData.remaining = Math.max(0, dailyGoalInMl - todayData.totalIntake);
 
-        user.waterIntakeHistory.set(today, todayData);
+        user.waterIntakeHistory.set(date, todayData);
         user.markModified('waterIntakeHistory');
 
         await user.save();
@@ -53,7 +69,7 @@ const addWaterIntake = async (req, res) => {
         return res.status(200).json({
             success: true,
             data: {
-                date: today,
+                date: date,
                 totalIntake: todayData.totalIntake,
                 remaining: todayData.remaining,
                 dailyGoal: dailyGoalInMl,
@@ -63,13 +79,13 @@ const addWaterIntake = async (req, res) => {
         });
 
     } catch (error) {
-        console.error('Error adding water intake', error)
+        console.error('Error adding water intake', error);
         return res.status(500).json({
             status: false,
             message: 'Internal server error'
-        })
+        });
     }
-}
+};
 
 const getWaterIntakeData = async (req, res) => {
     try {
