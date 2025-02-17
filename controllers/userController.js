@@ -418,7 +418,6 @@ const createProfile = async (req, res) => {
     }
 };
 
-
 const calculateUserMetrics = async (req, res) => {
     const { userId } = req.body;
 
@@ -445,7 +444,8 @@ const calculateUserMetrics = async (req, res) => {
             activityLevel,
             targetWeight,
             weightGainRate = 0.25,
-            goal
+            goal,
+            timezone
         } = user;
 
         if (!age || !gender || (!weightInKg && !weightInLbs)) {
@@ -457,13 +457,20 @@ const calculateUserMetrics = async (req, res) => {
             });
         }
 
-        // Format current date as DD/MM/YYYY
-        const formatDate = (date) => {
-            const day = String(date.getDate()).padStart(2, '0');
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const year = date.getFullYear();
-            return `${day}/${month}/${year}`;
-        };
+        // Get user's timezone or default to 'America/New_York'
+        const userTimezone = timezone || 'America/New_York';
+
+        // Create timestamp and format date in user's timezone
+        const now = new Date();
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+            timeZone: userTimezone,
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+
+        // Get the date in DD/MM/YYYY format
+        const calculationDate = formatter.format(now);
 
         let weight = isMetric ? weightInKg : weightInLbs * 0.453592;
         let height = isMetric
@@ -555,7 +562,7 @@ const calculateUserMetrics = async (req, res) => {
         user.caloriesToReachGoal = caloriesToReachGoal.toFixed(2);
         user.daysToReachGoal = daysToReachGoal;
         user.dailyWaterIntake = waterIntake;
-        user.calculationDate = formatDate(new Date()); // Add calculation date
+        user.calculationDate = calculationDate; // Using timezone-aware date
 
         await user.save();
 
@@ -563,7 +570,7 @@ const calculateUserMetrics = async (req, res) => {
         res.status(200).json({
             status: true,
             data: {
-                calculationDate: formatDate(new Date()),
+                calculationDate,
                 goal,
                 activityLevel,
                 height: isMetric
@@ -590,6 +597,8 @@ const calculateUserMetrics = async (req, res) => {
         });
     }
 };
+
+
 const home = async (req, res) => {
     const { userId } = req.body;
 
