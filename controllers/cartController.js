@@ -399,16 +399,34 @@ const getCart = async (req, res) => {
         const carts = await cartCollection.find({ userId: userId }).toArray();
         const user = await User.findOne({ _id: userId });
 
-        const today = new Date().toLocaleDateString('en-GB');
+        // Get user's timezone or default to 'America/New_York'
+        const userTimezone = user?.timezone || 'America/New_York';
 
+        // Create timestamp and format date in user's timezone
+        const now = new Date();
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+            timeZone: userTimezone,
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+
+        // Get the date in DD/MM/YYYY format
+        const today = formatter.format(now);
+
+        // Get the consumption value for today - using Map.get() method
         const value = user?.dailyConsumptionStats?.get(today) || 0;
 
-        // console.log('Today\'s date:', today);
-        // console.log('Daily consumption stats:', user?.dailyConsumptionStats);
-
+        console.log('Today\'s date:', today);
+        console.log('Daily consumption stats:', user?.dailyConsumptionStats);
+        console.log('Type of dailyConsumptionStats:', typeof user?.dailyConsumptionStats);
+        
         const dailyCalorieGoal = user?.dailyCalorieGoal;
         const remaining = dailyCalorieGoal - value;
-        // console.log(value, dailyCalorieGoal, remaining);
+        
+        console.log('Value:', value);
+        console.log('Daily Calorie Goal:', dailyCalorieGoal);
+        console.log('Remaining:', remaining);
 
         if (!carts.length) {
             return res.status(404).json({
@@ -443,7 +461,6 @@ const getCart = async (req, res) => {
         await client.close();
     }
 };
-
 
 const removeOneItem = async (req, res) => {
     const { cartId, restaurantId, dishId, servingSize } = req.body; // Added servingSize
