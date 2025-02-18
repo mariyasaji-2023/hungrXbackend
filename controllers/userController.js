@@ -1097,9 +1097,15 @@ const getCalorieMetrics = async (req, res) => {
 
         // Initialize dailyConsumptionStats if it doesn't exist
         const stats = Object.fromEntries(user.dailyConsumptionStats || new Map());
-        
         // Use Object.keys() instead of stats.keys()
         const dates = Object.keys(stats);
+        if (dates.length == 0) {
+            return res.status(200).json({
+                status: true,
+                data: null
+            });
+        }
+
         const mostRecentDate = dates.length > 0
             ? dates.reduce((a, b) => {
                 const [dayA, monthA, yearA] = a.split('/').map(Number);
@@ -1109,7 +1115,6 @@ const getCalorieMetrics = async (req, res) => {
                 return dateA > dateB ? a : b;
             })
             : todayFormatted;
-
         // Get isShown value with default false
         const isShown = user.consumedFood?.dates?.[mostRecentDate]?.isShown ?? false;
 
@@ -1182,7 +1187,7 @@ const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
 //                 message: 'User not found'
 //             });
 //         }
-        
+
 //         // Calculate new value
 //         const caloriesToReachGoal = user.caloriesToReachGoal - calorie;
 
@@ -1216,7 +1221,7 @@ const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
 
 const changecaloriesToReachGoal = async (req, res) => {
     const { userId, calorie, day, isShown, date } = req.body;
-    
+
     try {
         const client = new MongoClient(process.env.DB_URI);
         const db = client.db(process.env.DB_NAME);
@@ -1224,7 +1229,7 @@ const changecaloriesToReachGoal = async (req, res) => {
 
         // Keep the date in DD/MM/YYYY format as it's used in your data structure
         const dateStr = date; // Using the date as is since it's already in DD/MM/YYYY format
-        
+
         // First get the current values
         const user = await users.findOne({ _id: new ObjectId(userId) });
         if (!user) {
