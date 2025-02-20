@@ -104,6 +104,7 @@ router.post('/addWater', waterController.addWaterIntake)
 //============================ Help and support screen ============================
 
 router.post('/submitIssue', contactController.submitIssue)
+router.post('/apple-server-notifications',appleController.appleServerNotifications)
 router.post('/timezone', timeZoneController.timezone)
 
 

@@ -1,6 +1,8 @@
 const jwt = require("jsonwebtoken");
 const AppleAuth = require("apple-signin-auth");
 const User = require('../models/userModel');
+const bodyParser = require('body-parser')
+
 
 // Generate Apple Client Secret
 const generateClientSecret = () => {
@@ -120,4 +122,28 @@ const loginWithApple = async (req, res) => {
     }
 };
 
-module.exports = { loginWithApple };
+
+const appleServerNotifications = async (req, res) => {
+    console.log("Received App Store Notification:", req.body);
+
+    // Process the notification
+    const eventType = req.body.notification_type;
+
+    switch (eventType) {
+        case "DID_RENEW":
+            console.log("Subscription renewed:", req.body);
+            break;
+        case "CANCEL":
+            console.log("Subscription canceled:", req.body);
+            break;
+        case "DID_FAIL_TO_RENEW":
+            console.log("Subscription renewal failed:", req.body);
+            break;
+        default:
+            console.log("Other event:", eventType);
+    }
+
+    res.status(200).send("OK");
+}
+
+module.exports = { loginWithApple ,appleServerNotifications };
