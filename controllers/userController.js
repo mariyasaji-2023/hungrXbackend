@@ -1075,11 +1075,14 @@ const checkUser = async (req, res) => {
         });
     }
 }
-
 const getCalorieMetrics = async (req, res) => {
     const { userId } = req.body;
     try {
-        const user = await User.findById({ _id: userId });
+        const client = new MongoClient(process.env.DB_URI);
+        const db = client.db(process.env.DB_NAME);
+        const users = db.collection("users");
+        const user = await users.findOne({ _id: new ObjectId(userId) });
+        
         if (!user) {
             return res.status(404).json({ status: false, data: { message: 'User not found' } });
         }
@@ -1095,11 +1098,11 @@ const getCalorieMetrics = async (req, res) => {
         const today = new Date();
         const todayFormatted = `${String(today.getDate()).padStart(2, '0')}/${String(today.getMonth() + 1).padStart(2, '0')}/${today.getFullYear()}`;
 
-        // Initialize dailyConsumptionStats if it doesn't exist
-        const stats = Object.fromEntries(user.dailyConsumptionStats || new Map());
-        // Use Object.keys() instead of stats.keys()
+        // Initialize stats directly as an object
+        const stats = user.dailyConsumptionStats || {};
         const dates = Object.keys(stats);
-        if (dates.length == 0) {
+        
+        if (dates.length === 0) {
             return res.status(200).json({
                 status: true,
                 data: null
@@ -1115,7 +1118,7 @@ const getCalorieMetrics = async (req, res) => {
                 return dateA > dateB ? a : b;
             })
             : todayFormatted;
-        // Get isShown value with default false
+
         const isShown = user.consumedFood?.dates?.[mostRecentDate]?.isShown ?? false;
 
         // Access stats directly as an object
@@ -1124,30 +1127,32 @@ const getCalorieMetrics = async (req, res) => {
         const weightrateInGrams = weightGainRate * 1000;
         const dailyWeightLoss = Math.round((weightrateInGrams * 7.7) / 7);
         const ratio = 0.38466918450132886;
-
+        
         const responseData = {
-            consumedCalories: consumedCalories,
+            consumedCalories,
             dailyTargetCalories: dailyCalorieGoal,
             remainingCalories: Math.max(0, remainingCalories),
             weightChangeRate: `${weightGainRate} kg per week`,
             daysLeft: daysToReachGoal,
-            goal: goal,
+            goal,
             date: mostRecentDate,
             calorieStatus: remainingCalories > 0 ? 'under target' : 'over target',
             message: generateStatusMessage(goal, remainingCalories, daysToReachGoal),
-            dailyWeightLoss: dailyWeightLoss,
-            ratio: ratio,
-            caloriesToReachGoal: caloriesToReachGoal,
-            isShown: isShown // Always include isShown with default false
+            dailyWeightLoss,
+            ratio,
+            caloriesToReachGoal,
+            isShown
         };
 
-        res.status(200).json({
+        await client.close();
+
+        return res.status(200).json({
             status: true,
             data: responseData
         });
     } catch (error) {
         console.error('Error calculating calorie metrics:', error);
-        res.status(500).json({
+        return res.status(500).json({
             status: false,
             data: {
                 message: 'Internal server error'
@@ -1155,7 +1160,6 @@ const getCalorieMetrics = async (req, res) => {
         });
     }
 };
-
 const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
     const absRemaining = Math.abs(remainingCalories);
     const roundedRemaining = Math.round(absRemaining);
