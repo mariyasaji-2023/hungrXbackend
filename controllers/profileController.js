@@ -615,6 +615,7 @@ const deleteUser = async (req, res) => {
             caloriesToReachGoal: user.caloriesToReachGoal,
             daysToReachGoal: user.daysToReachGoal,
             profilePhoto: user.profilePhoto,
+            createdAt: new Date() 
         });
 
         await deletedUser.save(); // Save to deleted_users collection

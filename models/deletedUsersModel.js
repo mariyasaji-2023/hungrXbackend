@@ -48,11 +48,14 @@ const deletedUserSchema = new mongoose.Schema({
     caloriesToReachGoal: String,
     daysToReachGoal: Number,
     profilePhoto: String,
-    deletedAt: {
+    createdAt: {
         type: Date,
-        default: Date.now,
-    },
+        default: Date.now
+    }
 });
+
+// Single TTL index definition
+deletedUserSchema.index({ "createdAt": 1 }, { expireAfterSeconds: 7776000 }); // 90 days in seconds
 
 const DeletedUser = mongoose.model('DeletedUser', deletedUserSchema);
 module.exports = DeletedUser;

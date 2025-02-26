@@ -15,6 +15,8 @@ const commonfoodController = require('../controllers/commonfoodController')
 const contactController = require('../controllers/contactController')
 const appleController = require('../controllers/appleController')
 const timeZoneController = require('../controllers/timezoneController')
+const webhookController = require('../controllers/Webhook Controller');
+const authMiddleware = require('../middileware/auth');
 
 //============================ Authentication Screen Route ============================
 
@@ -107,5 +109,12 @@ router.post('/submitIssue', contactController.submitIssue)
 router.post('/apple-server-notifications',appleController.appleServerNotifications)
 router.post('/timezone', timeZoneController.timezone)
 
+
+// Public routes
+router.post('/webhook/revenuecat', webhookController.handleRevenueCatWebhook);
+router.post('/register-user', webhookController.registerUser);
+
+// Protected routes
+router.post('/status', authMiddleware, webhookController.getUserSubscription);
 
 module.exports = router;
