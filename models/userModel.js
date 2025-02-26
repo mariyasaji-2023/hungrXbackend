@@ -155,6 +155,17 @@ const userSchema = new mongoose.Schema({
         ],
         default: "America/New_York" // Default timezone
     },
+    revenueCatId: {
+        type: String,
+        unique: true,
+        sparse: true
+      },
+      platform: {
+        type: String,
+        enum: ['ios', 'android'],
+        required: true
+      },
+      deviceId: String
     // isShown:{
     //     type: Boolean,
     //     default: false
