@@ -18,7 +18,10 @@ const DEFAULT_CATEGORIES = {
     "Dominos": "Dominos",
     "Pizza Hut": "Pizza Hut",
     "Panera Bread": "Panera Bread",
-    "Dunkin": "Dunkin"
+    "Dunkin": "Dunkin",
+    "Baskin-Robbins":"Baskin-Robbins",
+    "Health food restaurant":"Health food restaurant",
+    "sweetgreen":"sweetgreen"
 };
 
 // Use crypto for better UUID generation
@@ -151,7 +154,8 @@ const findRestaurantInDatabase = async (restaurantName, Restaurant) => {
         'pizza hut': 'Pizza Hut',
         'panera bread': 'Panera Bread',
         'dunkin': 'Dunkin',
-        'dunkin donuts': 'Dunkin'
+        'dunkin donuts': 'Dunkin',
+        "Baskin-Robbins":"Baskin-Robbins"
     };
 
     // Chain match
