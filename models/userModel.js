@@ -163,7 +163,7 @@ const userSchema = new mongoose.Schema({
       platform: {
         type: String,
         enum: ['ios', 'android'],
-        required: true
+        // required: true
       },
       deviceId: String
     // isShown:{
