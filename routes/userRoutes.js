@@ -111,10 +111,8 @@ router.post('/timezone', timeZoneController.timezone)
 
 
 // Public routes
-router.post('/webhook/revenuecat', webhookController.handleRevenueCatWebhook);
-router.post('/register-user', webhookController.registerUser);
-
-// Protected routes
-router.post('/status', authMiddleware, webhookController.getUserSubscription);
+router.post('/verify', authMiddleware , webhookController.verify);
+router.post('/store',authMiddleware, webhookController.store);
+router.post('/webhook',webhookController.webhook)
 
 module.exports = router;

@@ -1,225 +1,386 @@
-// services/subscriptionService.js
-const User = require('../models/userModel');
-const Subscription = require('../models/SubscriptionModel');
+const axios = require('axios');
+const User = require('../models/userModel'); // Path to your user model
+require('dotenv').config();
 
-class SubscriptionService {
-  constructor() {
-    this.productMappings = {
-      // iOS products
-      ios: {
-        'com.hungrx.premium.trial': 'trial',
-        'com.hungrx.premium.monthly': 'monthly',
-        'com.hungrx.premium.annual': 'annual'
-      },
-      // Android products
-      android: {
-        'com-hungrx-premium-trial': 'trial',
-        'com-hungrx-premium-monthly': 'monthly',
-        'com-hungrx-premium-annual': 'annual'
-      }
-    };
-  }
+// RevenueCat API configuration
+const REVENUECAT_API_KEY = process.env.REVENUECAT_API_KEY;
+const REVENUECAT_BASE_URL = 'https://api.revenuecat.com/v1';
 
-  // Process webhook from RevenueCat
-  async processWebhook(eventData) {
-    try {
-      // Extract properties directly from the eventData parameter
-      const {
-        event,
-        product_id,
-        app_user_id,
-        store,
-        expiration_at_ms,
-        purchase_date_ms,
-        original_transaction_id,
-        transaction_id
-      } = eventData;
-
-      // Find the user by RevenueCat ID
-      const user = await User.findOne({ revenueCatId: app_user_id });
-      if (!user) {
-        console.log(`User not found for RevenueCat ID: ${app_user_id}`);
-        return null;
-      }
-
-      // Get platform (ios or android) based on store
-      const platform = store === 'app_store' ? 'ios' : 'android';
-      
-      // Determine plan type from product_id
-      const planType = this._getPlanType(product_id, platform);
-      
-      // Process based on event type
-      switch (event) {
-        case 'INITIAL_PURCHASE':
-        case 'RENEWAL':
-          return await this._handlePurchaseOrRenewal(
-            user._id,
-            eventData,
-            platform,
-            planType
-          );
-          
-        case 'CANCELLATION':
-          return await this._handleCancellation(user._id, eventData);
-          
-        case 'EXPIRATION':
-          return await this._handleExpiration(user._id, eventData);
-          
-        default:
-          console.log(`Unhandled event type: ${event}`);
-          return null;
-      }
-    } catch (error) {
-      console.error('Error processing webhook:', error);
-      throw error;
-    }
-  }
-  
-  // Handle purchase or renewal events
-  async _handlePurchaseOrRenewal(userId, eventData, platform, planType) {
+/**
+ * Updates a user's subscription information
+ * @param {string} userId - The user's MongoDB ID
+ * @param {Object} subscriptionData - Subscription details to update
+ * @returns {Promise<Object>} - Updated user object
+ */
+const updateUserSubscription = async (userId, subscriptionData) => {
+  try {
     const {
-      product_id,
-      event,
-      expiration_at_ms,
-      purchase_date_ms,
-      store,
-      original_transaction_id,
-      transaction_id,
-    } = eventData;
+      rcAppUserId,
+      purchaseToken,
+      isSubscribed,
+      productId,
+      subscriptionLevel,
+      expirationDate,
+      transactionId,
+      offerType,
+      priceInLocalCurrency,
+      currencyCode
+    } = subscriptionData;
 
-    // Convert timestamps to Date objects
-    const startDate = new Date(parseInt(purchase_date_ms));
-    const expirationDate = new Date(parseInt(expiration_at_ms));
+    // Create a subscription history entry if applicable
+    const purchaseHistoryEntry = transactionId ? {
+      productId,
+      purchaseDate: new Date(),
+      transactionId,
+      offerType,
+      priceInLocalCurrency,
+      currencyCode
+    } : null;
+
+    // Update user subscription info
+    const updateData = {
+      'subscription.isSubscribed': isSubscribed,
+      'subscription.lastVerified': new Date()
+    };
+
+    // Only update fields that are provided
+    if (rcAppUserId) updateData['subscription.rcAppUserId'] = rcAppUserId;
+    if (purchaseToken) updateData['subscription.purchaseToken'] = purchaseToken;
+    if (productId) updateData['subscription.productId'] = productId;
+    if (subscriptionLevel) updateData['subscription.subscriptionLevel'] = subscriptionLevel;
+    if (expirationDate) updateData['subscription.expirationDate'] = new Date(expirationDate);
+
+    // Create the update operation
+    const updateOperation = {
+      $set: updateData
+    };
+
+    // Add to purchase history if we have transaction details
+    if (purchaseHistoryEntry) {
+      updateOperation.$push = {
+        'subscription.purchaseHistory': purchaseHistoryEntry
+      };
+    }
+
+    // Find and update the user
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      updateOperation,
+      { new: true } // Return the updated document
+    );
+
+    if (!updatedUser) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+
+    return updatedUser;
+  } catch (error) {
+    console.error('Error updating user subscription:', error);
+    throw error;
+  }
+};
+
+/**
+ * Verifies subscription status with RevenueCat API
+ * @param {string} rcAppUserId - RevenueCat App User ID
+ * @returns {Promise<Object>} - Subscription details
+ */
+const verifyWithRevenueCat = async (rcAppUserId) => {
+  try {
+    if (!rcAppUserId) {
+      throw new Error('Missing RevenueCat App User ID');
+    }
     
-    // Check if subscription exists
-    let subscription = await Subscription.findOne({ 
-      userId, 
-      originalTransactionId: original_transaction_id 
-    });
+    const response = await axios.get(
+      `${REVENUECAT_BASE_URL}/subscribers/${rcAppUserId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${REVENUECAT_API_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
+
+    const customerInfo = response.data.subscriber;
     
-    if (subscription) {
-      // Update existing subscription
-      subscription.status = planType === 'trial' ? 'in_trial' : 'active';
-      subscription.latestTransactionId = transaction_id;
-      subscription.expirationDate = expirationDate;
-      subscription.isAutoRenewing = true;
-      subscription.latestWebhookData = eventData;
-    } else {
-      // Create new subscription
-      subscription = new Subscription({
-        userId,
-        status: planType === 'trial' ? 'in_trial' : 'active',
-        productId: product_id,
-        planType,
-        store: store,
-        originalTransactionId: original_transaction_id,
-        latestTransactionId: transaction_id,
-        startDate,
+    // Check if the user has any active entitlements
+    const hasActiveEntitlement = 
+      customerInfo.entitlements && 
+      Object.keys(customerInfo.entitlements).length > 0 &&
+      Object.values(customerInfo.entitlements).some(entitlement => entitlement.active);
+    
+    // Get subscription details
+    let subscriptionDetails = {
+      isSubscribed: hasActiveEntitlement,
+      expirationDate: null,
+      productId: null,
+      subscriptionLevel: 'none'
+    };
+    
+    // If subscribed, extract more details
+    if (hasActiveEntitlement) {
+      // Get the first active entitlement
+      const activeEntitlement = Object.values(customerInfo.entitlements).find(e => e.active);
+      
+      // Extract product ID from active subscription
+      const productId = activeEntitlement?.product_identifier;
+      
+      // Determine subscription level from product ID
+      let subscriptionLevel = 'none';
+      if (productId) {
+        if (productId.includes('trial')) subscriptionLevel = 'trial';
+        else if (productId.includes('annual')) subscriptionLevel = 'annual';
+        else if (productId.includes('monthly')) subscriptionLevel = 'monthly';
+        else if (productId.includes('weekly')) subscriptionLevel = 'weekly';
+      }
+      
+      // Get expiration date
+      const expirationDate = activeEntitlement?.expires_date;
+      
+      subscriptionDetails = {
+        isSubscribed: true,
         expirationDate,
-        isAutoRenewing: true,
-        latestWebhookData: eventData
+        productId,
+        subscriptionLevel
+      };
+    }
+    
+    return subscriptionDetails;
+  } catch (error) {
+    console.error('Error verifying with RevenueCat:', error);
+    throw error;
+  }
+};
+
+/**
+ * Processes webhook events from RevenueCat
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const processRevenueCatWebhook = async (req, res) => {
+  const { event } = req.body;
+  
+  if (!event) {
+    return res.status(400).json({
+      success: false,
+      message: 'Missing webhook event data'
+    });
+  }
+
+  try {
+    // Extract the relevant information from the event
+    const {
+      event_type,
+      app_user_id,
+      product_id,
+      purchase_date,
+      expiration_date,
+      transaction_id,
+      price,
+      currency
+    } = event;
+
+    // Find the user with this RevenueCat App User ID
+    const user = await User.findOne({ 'subscription.rcAppUserId': app_user_id });
+
+    if (!user) {
+      console.warn(`No user found with RevenueCat App User ID: ${app_user_id}`);
+      return res.status(404).json({ 
+        success: false, 
+        message: 'User not found' 
       });
     }
-    
-    await subscription.save();
-    console.log(`Subscription ${event === 'INITIAL_PURCHASE' ? 'created' : 'renewed'} for user ${userId}`);
-    
-    return subscription;
-  }
-  
-  // Handle cancellation events
-  async _handleCancellation(userId, eventData) {
-    const { original_transaction_id, transaction_id } = eventData;
-    
-    const subscription = await Subscription.findOne({ 
-      userId, 
-      originalTransactionId: original_transaction_id 
-    });
-    
-    if (!subscription) {
-      console.log(`Subscription not found for cancellation: ${original_transaction_id}`);
-      return null;
-    }
-    
-    // Update subscription
-    subscription.status = 'canceled';
-    subscription.isAutoRenewing = false;
-    subscription.latestTransactionId = transaction_id || subscription.latestTransactionId;
-    subscription.latestWebhookData = eventData;
-    
-    await subscription.save();
-    console.log(`Subscription canceled for user ${userId}`);
-    
-    return subscription;
-  }
-  
-  // Handle expiration events
-  async _handleExpiration(userId, eventData) {
-    const { original_transaction_id, transaction_id } = eventData;
-    
-    const subscription = await Subscription.findOne({ 
-      userId, 
-      originalTransactionId: original_transaction_id 
-    });
-    
-    if (!subscription) {
-      console.log(`Subscription not found for expiration: ${original_transaction_id}`);
-      return null;
-    }
-    
-    // Update subscription
-    subscription.status = 'expired';
-    subscription.isAutoRenewing = false;
-    subscription.latestTransactionId = transaction_id || subscription.latestTransactionId;
-    subscription.latestWebhookData = eventData;
-    
-    await subscription.save();
-    console.log(`Subscription expired for user ${userId}`);
-    
-    return subscription;
-  }
-  
-  // Get plan type from product ID based on platform
-  _getPlanType(productId, platform) {
-    // Get the mapping for the platform
-    const mappings = this.productMappings[platform];
-    if (!mappings) return 'unknown';
-    
-    // Return the plan type from the mapping or unknown
-    return mappings[productId] || 'unknown';
-  }
-  
-  // Get user's subscription status
-  async getUserSubscriptionStatus(userId) {
-    try {
-      const subscription = await Subscription.findOne({ 
-        userId, 
-        status: { $in: ['active', 'in_trial'] },
-        expirationDate: { $gt: new Date() }
-      }).sort({ expirationDate: -1 });
-      
-      if (!subscription) {
-        return {
-          hasActiveSubscription: false,
-          subscription: null
-        };
-      }
-      
-      return {
-        hasActiveSubscription: true,
-        subscription: {
-          planType: subscription.planType,
-          status: subscription.status,
-          platform: subscription.store === 'app_store' ? 'ios' : 'android',
-          expirationDate: subscription.expirationDate,
-          isAutoRenewing: subscription.isAutoRenewing
-        }
-      };
-    } catch (error) {
-      console.error('Error fetching subscription status:', error);
-      throw error;
-    }
-  }
-}
 
-module.exports = new SubscriptionService();
+    // Determine the subscription status based on the event type
+    let isSubscribed = false;
+    let subscriptionLevel = 'none';
+
+    switch (event_type) {
+      case 'INITIAL_PURCHASE':
+      case 'RENEWAL':
+      case 'PRODUCT_CHANGE':
+      case 'TRIAL_STARTED':
+        isSubscribed = true;
+        // Determine subscription level from product ID
+        if (product_id.includes('trial')) subscriptionLevel = 'trial';
+        else if (product_id.includes('annual')) subscriptionLevel = 'annual';
+        else if (product_id.includes('monthly')) subscriptionLevel = 'monthly';
+        else if (product_id.includes('weekly')) subscriptionLevel = 'weekly';
+        break;
+      
+      case 'CANCELLATION':
+      case 'EXPIRATION':
+      case 'BILLING_ISSUE':
+        isSubscribed = false;
+        subscriptionLevel = 'none';
+        break;
+    }
+
+    // Update the user's subscription information
+    const subscriptionData = {
+      rcAppUserId: app_user_id,
+      isSubscribed,
+      productId: product_id,
+      subscriptionLevel,
+      expirationDate: expiration_date,
+      transactionId: transaction_id,
+      priceInLocalCurrency: price,
+      currencyCode: currency
+    };
+
+    const updatedUser = await updateUserSubscription(user._id, subscriptionData);
+
+    return res.status(200).json({
+      success: true,
+      userId: user._id,
+      isSubscribed,
+      subscriptionLevel
+    });
+  } catch (error) {
+    console.error('Error processing RevenueCat webhook:', error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Error processing RevenueCat webhook'
+    });
+  }
+};
+
+/**
+ * Verifies a user's subscription status
+ * @param {string} userId - The user's MongoDB ID
+ * @returns {Promise<Object>} - Subscription status details
+ */
+const verifyUserSubscription = async (userId) => {
+  try {
+    // Find the user
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      throw new Error(`User with ID ${userId} not found`);
+    }
+    
+    // Check if we have a RevenueCat App User ID
+    if (!user.subscription?.rcAppUserId) {
+      return {
+        isSubscribed: false,
+        subscriptionLevel: 'none',
+        fromCache: false
+      };
+    }
+    
+    // If the subscription was recently verified (within the last hour), use the cached value
+    const lastVerified = user.subscription?.lastVerified;
+    const isRecentlyVerified = lastVerified && 
+      (new Date() - new Date(lastVerified)) < (60 * 60 * 1000); // 1 hour in milliseconds
+    
+    if (isRecentlyVerified) {
+      return {
+        isSubscribed: user.subscription.isSubscribed,
+        subscriptionLevel: user.subscription.subscriptionLevel,
+        expirationDate: user.subscription.expirationDate,
+        fromCache: true
+      };
+    }
+    
+    // Otherwise, verify with RevenueCat
+    const subscriptionDetails = await verifyWithRevenueCat(user.subscription.rcAppUserId);
+    
+    // Update the user's subscription information
+    await updateUserSubscription(userId, {
+      ...subscriptionDetails,
+      rcAppUserId: user.subscription.rcAppUserId
+    });
+    
+    return { 
+      ...subscriptionDetails, 
+      fromCache: false 
+    };
+  } catch (error) {
+    console.error('Error verifying user subscription:', error);
+    throw error;
+  }
+};
+
+/**
+ * Stores initial subscription information during purchase
+ * @param {string} userId - The user's MongoDB ID
+ * @param {Object} subscriptionInfo - Initial subscription details
+ * @returns {Promise<Object>} - Updated user object
+ */
+const storeInitialSubscription = async (userId, subscriptionInfo) => {
+  try {
+    if (!userId || !subscriptionInfo) {
+      throw new Error('Missing required parameters: userId and subscriptionInfo are required');
+    }
+
+    const {
+      rcAppUserId,
+      purchaseToken,
+      productId,
+      transactionId,
+      offerType,
+      priceInLocalCurrency,
+      currencyCode
+    } = subscriptionInfo;
+    
+    // Validate required subscription info fields
+    if (!rcAppUserId || !productId) {
+      throw new Error('Missing required subscription information: rcAppUserId and productId are required');
+    }
+    
+    // Determine subscription level from product ID
+    let subscriptionLevel = 'none';
+    if (productId) {
+      if (productId.includes('trial')) subscriptionLevel = 'trial';
+      else if (productId.includes('annual')) subscriptionLevel = 'annual';
+      else if (productId.includes('monthly')) subscriptionLevel = 'monthly';
+      else if (productId.includes('weekly')) subscriptionLevel = 'weekly';
+    }
+    
+    // Prepare subscription data
+    const subscriptionData = {
+      rcAppUserId,
+      purchaseToken,
+      isSubscribed: true,
+      productId,
+      subscriptionLevel,
+      expirationDate: null, // Will be updated after verification
+      transactionId,
+      offerType,
+      priceInLocalCurrency,
+      currencyCode
+    };
+    
+    // Update the user with initial subscription data
+    const updatedUser = await updateUserSubscription(userId, subscriptionData);
+    
+    // Verify with RevenueCat to get complete details
+    try {
+      const verificationDetails = await verifyWithRevenueCat(rcAppUserId);
+      
+      // Update with verified details if successful
+      if (verificationDetails.isSubscribed) {
+        await updateUserSubscription(userId, {
+          ...verificationDetails,
+          rcAppUserId
+        });
+      }
+    } catch (verificationError) {
+      console.error('Error verifying with RevenueCat after initial storage:', verificationError);
+      // Continue with the initial subscription data even if verification fails
+    }
+    
+    return updatedUser;
+  } catch (error) {
+    console.error('Error storing initial subscription:', error);
+    throw error;
+  }
+};
+
+module.exports = {
+  updateUserSubscription,
+  verifyWithRevenueCat,
+  processRevenueCatWebhook,
+  verifyUserSubscription,
+  storeInitialSubscription
+};

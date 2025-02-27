@@ -106,12 +106,12 @@ const userSchema = new mongoose.Schema({
     mobile: {
         type: String
     },
-    calculationDate: { 
+    calculationDate: {
         type: String,
         match: /^(0[1-9]|[12][0-9]|3[01])\/(0[1-9]|1[012])\/\d{4}$/ // Validates DD/MM/YYYY format
     },
-    dailyWaterIntake:{
-        type:String
+    dailyWaterIntake: {
+        type: String
     },
     waterIntakeHistory: {
         type: Map,
@@ -131,13 +131,13 @@ const userSchema = new mongoose.Schema({
         type: Map,
         of: Number,
         default: new Map()
-    }, appleId: { 
-        type: String, 
-        unique: true 
+    }, appleId: {
+        type: String,
+        unique: true
     },
-    appleEmail: { 
-        type: String, 
-        sparse: true 
+    appleEmail: {
+        type: String,
+        sparse: true
     },
     timezone: {
         type: String,
@@ -150,27 +150,31 @@ const userSchema = new mongoose.Schema({
             "Pacific/Honolulu",     // Hawaii Time
             "America/Phoenix",      // Arizona Time (no DST)
             "America/Puerto_Rico",  // Atlantic Time
-            "Pacific/Guam"       ,  // Guam Time
+            "Pacific/Guam",  // Guam Time
             "Asia/Kolkata"         // Indian Standard Time (IST)
         ],
         default: "America/New_York" // Default timezone
     },
-    revenueCatId: {
-        type: String,
-        unique: true,
-        sparse: true
-      },
-      platform: {
-        type: String,
-        enum: ['ios', 'android'],
-        // required: true
-      },
-      deviceId: String
-    // isShown:{
-    //     type: Boolean,
-    //     default: false
-    // }
-    
+    subscription: {
+        isSubscribed: { type: Boolean, default: false },
+        rcAppUserId: { type: String },
+        purchaseToken: { type: String },
+        productId: { type: String },
+        subscriptionLevel: {
+            type: String,
+            enum: ['trial', 'monthly', 'annual', 'weekly', 'none']
+        },
+        expirationDate: { type: Date },
+        lastVerified: { type: Date },
+        purchaseHistory: [{
+            productId: { type: String },
+            purchaseDate: { type: Date },
+            transactionId: { type: String },
+            offerType: { type: String },
+            priceInLocalCurrency: { type: String },
+            currencyCode: { type: String }
+        }]
+    }
 });
 
 const User = mongoose.model('User', userSchema);

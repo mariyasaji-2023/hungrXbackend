@@ -2,86 +2,107 @@
 const subscriptionService = require('../services/subscriptionService');
 const User = require('../models/userModel');
 
-const handleRevenueCatWebhook = async (req, res) => {
+/**
+ * Verifies a user's subscription status
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const verify = async (req, res) => {
   try {
-    const eventData = req.body;
-    console.log('RevenueCat webhook received:', JSON.stringify(eventData, null, 2));
+    const userId = req.user.id; // From auth middleware
     
-    if (!eventData || !eventData.event || !eventData.app_user_id) {
-      return res.status(400).json({ message: 'Invalid webhook data' });
-    }
-
-    // Process the webhook event - pass the full eventData object
-    await subscriptionService.processWebhook(eventData);
+    const subscriptionStatus = await subscriptionService.verifyUserSubscription(userId);
     
-    return res.status(200).json({ message: 'Webhook processed successfully' });
-  } catch (error) {
-    console.error('Error processing webhook:', error);
-    return res.status(500).json({ message: 'Internal server error' });
-  }
-};
-
-const registerUser = async (req, res) => {
-  try {
-    const { email, name, revenueCatId, platform, deviceId } = req.body;
-    
-    if (!email || !revenueCatId || !platform) {
-      return res.status(400).json({ message: 'Missing required fields' });
-    }
-    
-    // Check if user already exists
-    let user = await User.findOne({ email });
-    
-    if (user) {
-      // Update existing user
-      user.revenueCatId = revenueCatId;
-      user.platform = platform;
-      if (deviceId) user.deviceId = deviceId;
-      await user.save();
-    } else {
-      // Create new user
-      user = new User({
-        email,
-        name: name || email.split('@')[0],
-        revenueCatId,
-        platform,
-        deviceId
-      });
-      await user.save();
-    }
-    
-    return res.status(200).json({ 
-      success: true, 
-      userId: user._id,
-      message: 'User registered successfully'
+    return res.json({
+      success: true,
+      isSubscribed: subscriptionStatus.isSubscribed,
+      subscriptionLevel: subscriptionStatus.subscriptionLevel,
+      expirationDate: subscriptionStatus.expirationDate,
+      fromCache: subscriptionStatus.fromCache
     });
   } catch (error) {
-    console.error('Error registering user:', error);
-    return res.status(500).json({ message: 'Internal server error' });
+    console.error('Error verifying subscription:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to verify subscription status',
+      error: error.message
+    });
   }
 };
 
-// Updated function to retrieve subscription status
-const getUserSubscription = async (req, res) => {
-    try {
-      // Get user ID from req.user set by auth middleware
-      const userId = req.user.id; // Changed to use req.user.id instead of req.body.userId
-      
-      // Get subscription status
-      const subscriptionStatus = await subscriptionService.getUserSubscriptionStatus(userId);
-      
-      return res.status(200).json(subscriptionStatus);
-    } catch (error) {
-      console.error('Error fetching subscription status:', error);
-      return res.status(500).json({ 
-        message: 'Internal server error',
-        hasActiveSubscription: false 
+/**
+ * Stores initial subscription information
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ */
+const store = async (req, res) => {
+  try {
+    const userId = req.user.id; // From auth middleware
+    const subscriptionInfo = req.body;
+    
+    // Validate required fields
+    if (!subscriptionInfo.rcAppUserId || !subscriptionInfo.productId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing required subscription information'
       });
     }
-  };
-  
+    
+    const updatedUser = await subscriptionService.storeInitialSubscription(
+      userId,
+      subscriptionInfo
+    );
+    
+    return res.json({
+      success: true,
+      message: 'Subscription information stored successfully',
+      isSubscribed: updatedUser.subscription.isSubscribed,
+      subscriptionLevel: updatedUser.subscription.subscriptionLevel
+    });
+  } catch (error) {
+    console.error('Error storing subscription:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to store subscription information',
+      error: error.message
+    });
+  }
+};
+/**
+ * @route   POST /api/subscription/webhook
+ * @desc    Handle RevenueCat webhook events
+ * @access  Public (but secured with webhook secret)
+ */
+const webhook = async (req, res) => {
+  try {
+    // Verify webhook signature if RevenueCat provides one
+    // const signature = req.headers['x-webhook-signature'];
+    // if (!verifyWebhookSignature(signature, req.body)) {
+    //   return res.status(401).json({ success: false, message: 'Invalid webhook signature' });
+    // }
+    
+    const event = req.body;
+    
+    // Process the webhook event
+    const result = await subscriptionService.processRevenueCatWebhook(event);
+    
+    return res.json({
+      success: true,
+      message: 'Webhook processed successfully',
+      result
+    });
+  } catch (error) {
+    console.error('Error processing webhook:', error);
+    // Return 200 status even on error to prevent RevenueCat from retrying
+    return res.status(200).json({
+      success: false,
+      message: 'Error processing webhook',
+      error: error.message
+    });
+  }
+}
 module.exports = {
-  handleRevenueCatWebhook,
-  registerUser,
-  getUserSubscription
+  verify,
+  store,
+  webhook
 };
