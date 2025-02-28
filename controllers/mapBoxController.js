@@ -71,7 +71,7 @@ const fetchRestaurants = async (longitude, latitude, radius) => {
                 access_token: process.env.MAPBOX_ACCESS_TOKEN,
                 proximity: `${longitude},${latitude}`,
                 types: 'poi',
-                limit: 50,
+                limit: 100,
                 language: 'en',
                 bbox: bbox,
                 session_token: sessionToken
