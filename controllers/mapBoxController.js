@@ -18,10 +18,7 @@ const DEFAULT_CATEGORIES = {
     "Dominos": "Dominos",
     "Pizza Hut": "Pizza Hut",
     "Panera Bread": "Panera Bread",
-    "Dunkin": "Dunkin",
-    "Baskin-Robbins":"Baskin-Robbins",
-    "Health food restaurant":"Health food restaurant",
-    "sweetgreen":"sweetgreen"
+    "Dunkin": "Dunkin"
 };
 
 // Use crypto for better UUID generation
@@ -56,7 +53,7 @@ const fetchRestaurants = async (longitude, latitude, radius) => {
         const bbox = getBoundingBox(latitude, longitude, radius);
         
         // Single search for restaurants/food places
-        const searchTerm = 'restaurant food OR Pizza restaurant OR Fast food restaurant OR Pizza restaurant OR Cafe'; // Generic search term to get food establishments
+        const searchTerm = 'restaurant food OR Pizza restaurant OR Fast food restaurant OR Pizza restaurant OR Cafe OR Coffee shop'; // Generic search term to get food establishments
         const searchUrl = `https://api.mapbox.com/search/v1/suggest/${encodeURIComponent(searchTerm)}`;
         
         // console.log('Making Mapbox API request with params:', {
@@ -154,8 +151,7 @@ const findRestaurantInDatabase = async (restaurantName, Restaurant) => {
         'pizza hut': 'Pizza Hut',
         'panera bread': 'Panera Bread',
         'dunkin': 'Dunkin',
-        'dunkin donuts': 'Dunkin',
-        "Baskin-Robbins":"Baskin-Robbins"
+        'dunkin donuts': 'Dunkin'
     };
 
     // Chain match

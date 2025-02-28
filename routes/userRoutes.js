@@ -15,7 +15,7 @@ const commonfoodController = require('../controllers/commonfoodController')
 const contactController = require('../controllers/contactController')
 const appleController = require('../controllers/appleController')
 const timeZoneController = require('../controllers/timezoneController')
-const webhookController = require('../controllers/Webhook Controller');
+const webhookController = require('../controllers/WebhookController');
 const authMiddleware = require('../middileware/auth');
 
 //============================ Authentication Screen Route ============================
