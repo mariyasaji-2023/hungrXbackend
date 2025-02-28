@@ -154,18 +154,15 @@ const verifyWithRevenueCat = async (rcAppUserId) => {
 
 /**
  * Processes webhook events from RevenueCat
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
+ * @param {Object} webhookData - RevenueCat webhook data
+ * @returns {Promise<Object>} - Processing result
  */
-const processRevenueCatWebhook = async (req, res) => {
-  const { event } = req.body;
-  
-  if (!event) {
-    return res.status(400).json({
-      success: false,
-      message: 'Missing webhook event data'
-    });
+const processRevenueCatWebhook = async (webhookData) => {
+  if (!webhookData || !webhookData.event) {
+    throw new Error('Missing webhook event data');
   }
+
+  const { event } = webhookData;
 
   try {
     // Extract the relevant information from the event
@@ -185,10 +182,10 @@ const processRevenueCatWebhook = async (req, res) => {
 
     if (!user) {
       console.warn(`No user found with RevenueCat App User ID: ${app_user_id}`);
-      return res.status(404).json({ 
+      return { 
         success: false, 
         message: 'User not found' 
-      });
+      };
     }
 
     // Determine the subscription status based on the event type
@@ -230,21 +227,17 @@ const processRevenueCatWebhook = async (req, res) => {
 
     const updatedUser = await updateUserSubscription(user._id, subscriptionData);
 
-    return res.status(200).json({
+    return {
       success: true,
       userId: user._id,
       isSubscribed,
       subscriptionLevel
-    });
+    };
   } catch (error) {
     console.error('Error processing RevenueCat webhook:', error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Error processing RevenueCat webhook'
-    });
+    throw error;
   }
 };
-
 /**
  * Verifies a user's subscription status
  * @param {string} userId - The user's MongoDB ID
