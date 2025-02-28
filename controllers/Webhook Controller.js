@@ -75,16 +75,17 @@ const store = async (req, res) => {
  */
 const webhook = async (req, res) => {
   try {
+    // Log received data for debugging
+    console.log('Webhook request body:', JSON.stringify(req.body, null, 2));
+    
     // Verify webhook signature if RevenueCat provides one
     // const signature = req.headers['x-webhook-signature'];
     // if (!verifyWebhookSignature(signature, req.body)) {
     //   return res.status(401).json({ success: false, message: 'Invalid webhook signature' });
     // }
     
-    const event = req.body;
-    
-    // Process the webhook event
-    const result = await subscriptionService.processRevenueCatWebhook(event);
+    // Pass req.body instead of the whole req object
+    const result = await subscriptionService.processRevenueCatWebhook(req.body);
     
     return res.json({
       success: true,
@@ -101,6 +102,7 @@ const webhook = async (req, res) => {
     });
   }
 }
+
 module.exports = {
   verify,
   store,
