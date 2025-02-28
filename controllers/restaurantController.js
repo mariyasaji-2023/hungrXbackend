@@ -1032,7 +1032,6 @@ const searchRestaurant = async (req, res) => {
         });
     }
 };
-
 const suggestions = async (req, res) => {
     try {
         await client.connect();
@@ -1046,7 +1045,15 @@ const suggestions = async (req, res) => {
             _id: 1,
             logo: 1
         }).toArray();
-        const formattedRestaurants = restaurants.map(restaurant => ({
+
+        // Filter restaurants to include only those with logo starting with http:// or https://
+        const filteredRestaurants = restaurants.filter(restaurant => {
+            return restaurant.logo && 
+                  (restaurant.logo.startsWith("http://") || 
+                   restaurant.logo.startsWith("https://"));
+        });
+
+        const formattedRestaurants = filteredRestaurants.map(restaurant => ({
             name: restaurant.restaurantName || null,
             address: restaurant.address || null,
             coordinates: restaurant.coordinates || null,
@@ -1054,6 +1061,7 @@ const suggestions = async (req, res) => {
             _id: restaurant._id || null,
             logo: restaurant.logo || null
         }));
+        
         return res.status(200).json({
             status: true,
             restaurants: formattedRestaurants
