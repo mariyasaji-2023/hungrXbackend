@@ -5,7 +5,6 @@ require('dotenv').config();
 // RevenueCat API configuration
 const REVENUECAT_API_KEY = process.env.REVENUECAT_API_KEY;
 const REVENUECAT_BASE_URL = 'https://api.revenuecat.com/v1';
-
 /**
  * Updates a user's subscription information
  * @param {string} userId - The user's MongoDB ID
@@ -16,6 +15,7 @@ const updateUserSubscription = async (userId, subscriptionData) => {
   try {
     const {
       rcAppUserId,
+      aliases = [], // Get aliases if provided
       purchaseToken,
       isSubscribed,
       productId,
@@ -45,6 +45,7 @@ const updateUserSubscription = async (userId, subscriptionData) => {
 
     // Only update fields that are provided
     if (rcAppUserId) updateData['subscription.rcAppUserId'] = rcAppUserId;
+    if (aliases && aliases.length > 0) updateData['subscription.rcAppUserAliases'] = aliases;
     if (purchaseToken) updateData['subscription.purchaseToken'] = purchaseToken;
     if (productId) updateData['subscription.productId'] = productId;
     if (subscriptionLevel) updateData['subscription.subscriptionLevel'] = subscriptionLevel;
@@ -57,9 +58,18 @@ const updateUserSubscription = async (userId, subscriptionData) => {
 
     // Add to purchase history if we have transaction details
     if (purchaseHistoryEntry) {
-      updateOperation.$push = {
-        'subscription.purchaseHistory': purchaseHistoryEntry
-      };
+      // Check if this transaction ID is already in purchase history
+      const user = await User.findById(userId);
+      const transactionExists = user?.subscription?.purchaseHistory?.some(
+        entry => entry.transactionId === transactionId
+      );
+      
+      // Only add to history if it's a new transaction
+      if (!transactionExists && transactionId) {
+        updateOperation.$push = {
+          'subscription.purchaseHistory': purchaseHistoryEntry
+        };
+      }
     }
 
     // Find and update the user
@@ -79,6 +89,7 @@ const updateUserSubscription = async (userId, subscriptionData) => {
     throw error;
   }
 };
+
 
 /**
  * Verifies subscription status with RevenueCat API
@@ -115,9 +126,10 @@ const verifyWithRevenueCat = async (rcAppUserId) => {
       expirationDate: null,
       productId: null,
       subscriptionLevel: 'none',
-      transactionId: null, // Added transaction ID field with default null
+      transactionId: null, 
       priceInLocalCurrency: null,
-      currencyCode: null
+      currencyCode: null,
+      aliases: customerInfo.aliases || [] // Store aliases from RevenueCat response
     };
     
     // If subscribed, extract more details
@@ -155,7 +167,8 @@ const verifyWithRevenueCat = async (rcAppUserId) => {
         subscriptionLevel,
         transactionId,
         priceInLocalCurrency,
-        currencyCode
+        currencyCode,
+        aliases: customerInfo.aliases || []
       };
     }
     
@@ -165,6 +178,7 @@ const verifyWithRevenueCat = async (rcAppUserId) => {
     throw error;
   }
 };
+
 
 /**
  * Processes webhook events from RevenueCat
@@ -183,6 +197,7 @@ const processRevenueCatWebhook = async (webhookData) => {
     const {
       event_type,
       app_user_id,
+      aliases = [], // Get the aliases array (default to empty if not provided)
       product_id,
       purchase_date,
       expiration_date,
@@ -191,11 +206,16 @@ const processRevenueCatWebhook = async (webhookData) => {
       currency
     } = event;
 
-    // Find the user with this RevenueCat App User ID
-    const user = await User.findOne({ 'subscription.rcAppUserId': app_user_id });
+    // Create an array of all possible IDs to check (main ID + all aliases)
+    const allPossibleIds = [app_user_id, ...aliases].filter(Boolean);
+
+    // Find the user with any of these RevenueCat App User IDs
+    const user = await User.findOne({ 
+      'subscription.rcAppUserId': { $in: allPossibleIds } 
+    });
 
     if (!user) {
-      console.warn(`No user found with RevenueCat App User ID: ${app_user_id}`);
+      console.warn(`No user found with RevenueCat App User ID: ${app_user_id} or any of its aliases`);
       return { 
         success: false, 
         message: 'User not found' 
@@ -252,6 +272,8 @@ const processRevenueCatWebhook = async (webhookData) => {
     throw error;
   }
 };
+
+
 /**
  * Verifies a user's subscription status
  * @param {string} userId - The user's MongoDB ID

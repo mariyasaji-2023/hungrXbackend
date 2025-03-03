@@ -68,6 +68,7 @@ const store = async (req, res) => {
     });
   }
 };
+
 /**
  * @route   POST /api/subscription/webhook
  * @desc    Handle RevenueCat webhook events
