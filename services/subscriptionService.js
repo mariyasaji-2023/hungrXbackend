@@ -114,7 +114,10 @@ const verifyWithRevenueCat = async (rcAppUserId) => {
       isSubscribed: hasActiveEntitlement,
       expirationDate: null,
       productId: null,
-      subscriptionLevel: 'none'
+      subscriptionLevel: 'none',
+      transactionId: null, // Added transaction ID field with default null
+      priceInLocalCurrency: null,
+      currencyCode: null
     };
     
     // If subscribed, extract more details
@@ -124,6 +127,14 @@ const verifyWithRevenueCat = async (rcAppUserId) => {
       
       // Extract product ID from active subscription
       const productId = activeEntitlement?.product_identifier;
+      
+      // Get the latest transaction for this product
+      const subscription = customerInfo.subscriptions?.[productId];
+      const transactionId = subscription?.purchase_id || subscription?.original_purchase_id;
+      
+      // Extract price information if available
+      const priceInLocalCurrency = subscription?.price || null;
+      const currencyCode = subscription?.currency || null;
       
       // Determine subscription level from product ID
       let subscriptionLevel = 'none';
@@ -141,7 +152,10 @@ const verifyWithRevenueCat = async (rcAppUserId) => {
         isSubscribed: true,
         expirationDate,
         productId,
-        subscriptionLevel
+        subscriptionLevel,
+        transactionId,
+        priceInLocalCurrency,
+        currencyCode
       };
     }
     
