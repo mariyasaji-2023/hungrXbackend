@@ -329,83 +329,52 @@ const verifyUserSubscription = async (userId) => {
     throw error;
   }
 };
-
 /**
- * Stores initial subscription information during purchase
- * @param {string} userId - The user's MongoDB ID
- * @param {Object} subscriptionInfo - Initial subscription details
+ * Store initial subscription information for a user
+ * @param {string} userId - The user ID
+ * @param {Object} subscriptionInfo - Subscription information from client
  * @returns {Promise<Object>} - Updated user object
  */
 const storeInitialSubscription = async (userId, subscriptionInfo) => {
   try {
-    if (!userId || !subscriptionInfo) {
-      throw new Error('Missing required parameters: userId and subscriptionInfo are required');
+    const { 
+      rcAppUserId, 
+      productId, 
+      subscriptionLevel, 
+      expirationDate,
+      revenuecatDetails // Extract RevenueCat details
+    } = subscriptionInfo;
+
+    // Find and update the user
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          'subscription.isSubscribed': true,
+          'subscription.rcAppUserId': rcAppUserId,
+          'subscription.productId': productId,
+          'subscription.subscriptionLevel': subscriptionLevel || 'monthly',
+          'subscription.expirationDate': expirationDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Default to 30 days
+          'subscription.lastVerified': new Date(),
+          'revenuecatDetails': revenuecatDetails // Add RevenueCat details to user document
+        },
+        $addToSet: {
+          'subscription.rcAppUserAliases': rcAppUserId
+        }
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      throw new Error('User not found');
     }
 
-    const {
-      rcAppUserId,
-      purchaseToken,
-      productId,
-      transactionId,
-      offerType,
-      priceInLocalCurrency,
-      currencyCode
-    } = subscriptionInfo;
-    
-    // Validate required subscription info fields
-    if (!rcAppUserId || !productId) {
-      throw new Error('Missing required subscription information: rcAppUserId and productId are required');
-    }
-    
-    // Determine subscription level from product ID
-    let subscriptionLevel = 'none';
-    if (productId) {
-      if (productId.includes('trial')) subscriptionLevel = 'trial';
-      else if (productId.includes('annual')) subscriptionLevel = 'annual';
-      else if (productId.includes('monthly')) subscriptionLevel = 'monthly';
-      else if (productId.includes('weekly')) subscriptionLevel = 'weekly';
-    }
-    
-    // Prepare subscription data
-    const subscriptionData = {
-      rcAppUserId,
-      purchaseToken,
-      isSubscribed: true,
-      productId,
-      subscriptionLevel,
-      expirationDate: null, // Will be updated after verification
-      transactionId,
-      offerType,
-      priceInLocalCurrency,
-      currencyCode
-    };
-    
-    // Update the user with initial subscription data
-    const updatedUser = await updateUserSubscription(userId, subscriptionData);
-    
-    // Verify with RevenueCat to get complete details
-    try {
-      const verificationDetails = await verifyWithRevenueCat(rcAppUserId);
-      
-      // Update with verified details if successful
-      if (verificationDetails.isSubscribed) {
-        await updateUserSubscription(userId, {
-          ...verificationDetails,
-          rcAppUserId
-        });
-      }
-    } catch (verificationError) {
-      console.error('Error verifying with RevenueCat after initial storage:', verificationError);
-      // Continue with the initial subscription data even if verification fails
-    }
-    
     return updatedUser;
   } catch (error) {
-    console.error('Error storing initial subscription:', error);
+    console.error('Error in storeInitialSubscription:', error);
     throw error;
   }
 };
-
 module.exports = {
   updateUserSubscription,
   verifyWithRevenueCat,
