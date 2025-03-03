@@ -29,7 +29,6 @@ const verify = async (req, res) => {
     });
   }
 };
-
 /**
  * Stores initial subscription information
  * @param {Object} req - Express request object
@@ -48,16 +47,24 @@ const store = async (req, res) => {
       });
     }
     
+    // Extract RevenueCat details if provided
+    const revenuecatDetails = subscriptionInfo.revenuecatDetails || {};
+    
+    // Update subscription info with RevenueCat details
     const updatedUser = await subscriptionService.storeInitialSubscription(
       userId,
-      subscriptionInfo
+      {
+        ...subscriptionInfo,
+        revenuecatDetails // Pass the RevenueCat details to the service
+      }
     );
     
     return res.json({
       success: true,
       message: 'Subscription information stored successfully',
       isSubscribed: updatedUser.subscription.isSubscribed,
-      subscriptionLevel: updatedUser.subscription.subscriptionLevel
+      subscriptionLevel: updatedUser.subscription.subscriptionLevel,
+      revenuecatDetails: updatedUser.revenuecatDetails // Include in response if needed
     });
   } catch (error) {
     console.error('Error storing subscription:', error);
@@ -68,7 +75,6 @@ const store = async (req, res) => {
     });
   }
 };
-
 /**
  * @route   POST /api/subscription/webhook
  * @desc    Handle RevenueCat webhook events
