@@ -155,16 +155,20 @@ const userSchema = new mongoose.Schema({
         ],
         default: "America/New_York" // Default timezone
     },
-    revenuecatDetails:{
-        isCanceled:{type:Boolean,default:false},
-        expirationDate:{type:String},
-        productIdentifier:{type:String},
-        periodType:{type:String},
-        latestPurchaseDate:{type:String},
-        originalPurchaseDate:{type:String},
-        store:{type:String},
-        isSandbox:{type:Boolean,default:false},
-        willRenew:{type:Boolean,default:false}
+    isValid: {
+        type: Boolean,
+        default: false
+    },
+    revenuecatDetails: {
+        isCanceled: { type: Boolean, default: false },
+        expirationDate: { type: String },
+        productIdentifier: { type: String },
+        periodType: { type: String },
+        latestPurchaseDate: { type: String },
+        originalPurchaseDate: { type: String },
+        store: { type: String },
+        isSandbox: { type: Boolean, default: false },
+        willRenew: { type: Boolean, default: false }
     },
     subscription: {
         isSubscribed: { type: Boolean, default: false },
