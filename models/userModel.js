@@ -158,6 +158,7 @@ const userSchema = new mongoose.Schema({
     subscription: {
         isSubscribed: { type: Boolean, default: false },
         rcAppUserId: { type: String },
+        rcAppUserAliases: { type: [String], default: [] }, // Add this line to store all aliases
         purchaseToken: { type: String },
         productId: { type: String },
         subscriptionLevel: {
