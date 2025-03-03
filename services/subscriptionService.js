@@ -8,75 +8,37 @@ const REVENUECAT_BASE_URL = 'https://api.revenuecat.com/v1';
 /**
  * Updates a user's subscription information
  * @param {string} userId - The user's MongoDB ID
- * @param {Object} subscriptionData - Subscription details to update
+ * @param {Object} subscriptionDetails - Details from RevenueCat
  * @returns {Promise<Object>} - Updated user object
  */
-const updateUserSubscription = async (userId, subscriptionData) => {
+const updateUserSubscription = async (userId, subscriptionDetails) => {
   try {
     const {
-      rcAppUserId,
-      aliases = [], // Get aliases if provided
-      purchaseToken,
       isSubscribed,
-      productId,
       subscriptionLevel,
       expirationDate,
-      transactionId,
-      offerType,
-      priceInLocalCurrency,
-      currencyCode
-    } = subscriptionData;
+      rcAppUserId,
+      isValid,
+      revenuecatDetails
+    } = subscriptionDetails;
 
-    // Create a subscription history entry if applicable
-    const purchaseHistoryEntry = transactionId ? {
-      productId,
-      purchaseDate: new Date(),
-      transactionId,
-      offerType,
-      priceInLocalCurrency,
-      currencyCode
-    } : null;
-
-    // Update user subscription info
-    const updateData = {
+    const updateFields = {
       'subscription.isSubscribed': isSubscribed,
-      'subscription.lastVerified': new Date()
+      'subscription.subscriptionLevel': subscriptionLevel,
+      'subscription.expirationDate': expirationDate,
+      'subscription.lastVerified': new Date(),
+      'isValid': isValid
     };
 
-    // Only update fields that are provided
-    if (rcAppUserId) updateData['subscription.rcAppUserId'] = rcAppUserId;
-    if (aliases && aliases.length > 0) updateData['subscription.rcAppUserAliases'] = aliases;
-    if (purchaseToken) updateData['subscription.purchaseToken'] = purchaseToken;
-    if (productId) updateData['subscription.productId'] = productId;
-    if (subscriptionLevel) updateData['subscription.subscriptionLevel'] = subscriptionLevel;
-    if (expirationDate) updateData['subscription.expirationDate'] = new Date(expirationDate);
-
-    // Create the update operation
-    const updateOperation = {
-      $set: updateData
-    };
-
-    // Add to purchase history if we have transaction details
-    if (purchaseHistoryEntry) {
-      // Check if this transaction ID is already in purchase history
-      const user = await User.findById(userId);
-      const transactionExists = user?.subscription?.purchaseHistory?.some(
-        entry => entry.transactionId === transactionId
-      );
-      
-      // Only add to history if it's a new transaction
-      if (!transactionExists && transactionId) {
-        updateOperation.$push = {
-          'subscription.purchaseHistory': purchaseHistoryEntry
-        };
-      }
+    // Only update revenuecatDetails if provided
+    if (revenuecatDetails) {
+      updateFields.revenuecatDetails = revenuecatDetails;
     }
 
-    // Find and update the user
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      updateOperation,
-      { new: true } // Return the updated document
+      { $set: updateFields },
+      { new: true }
     );
 
     if (!updatedUser) {
@@ -272,14 +234,13 @@ const processRevenueCatWebhook = async (webhookData) => {
     throw error;
   }
 };
-
-
 /**
  * Verifies a user's subscription status
  * @param {string} userId - The user's MongoDB ID
+ * @param {string} currentDate - Current date in ISO format
  * @returns {Promise<Object>} - Subscription status details
  */
-const verifyUserSubscription = async (userId) => {
+const verifyUserSubscription = async (userId, currentDate) => {
   try {
     // Find the user
     const user = await User.findById(userId);
@@ -291,11 +252,41 @@ const verifyUserSubscription = async (userId) => {
     // Check if we have a RevenueCat App User ID
     if (!user.subscription?.rcAppUserId) {
       return {
+        userId: userId,
+        rcAppUserId: null,
+        productId: null,
         isSubscribed: false,
         subscriptionLevel: 'none',
-        fromCache: false
+        expirationDate: null,
+        isValid: false,
+        fromCache: false,
+        revenuecatDetails: {
+          isCanceled: false,
+          expirationDate: null,
+          productIdentifier: null,
+          periodType: null,
+          latestPurchaseDate: null,
+          originalPurchaseDate: null,
+          store: null,
+          isSandbox: false,
+          willRenew: false
+        }
       };
     }
+    
+    const currentDateTime = new Date(currentDate);
+    let isValid = false;
+    
+    // Check if subscription is valid based on expiration date
+    if (user.subscription.expirationDate) {
+      const expirationDate = new Date(user.subscription.expirationDate);
+      isValid = currentDateTime < expirationDate;
+    }
+    
+    // Update the isValid field in the database
+    await User.findByIdAndUpdate(userId, { 
+      $set: { isValid: isValid }
+    });
     
     // If the subscription was recently verified (within the last hour), use the cached value
     const lastVerified = user.subscription?.lastVerified;
@@ -304,31 +295,69 @@ const verifyUserSubscription = async (userId) => {
     
     if (isRecentlyVerified) {
       return {
+        userId: userId,
+        rcAppUserId: user.subscription.rcAppUserId,
+        productId: user.subscription.productId,
         isSubscribed: user.subscription.isSubscribed,
         subscriptionLevel: user.subscription.subscriptionLevel,
         expirationDate: user.subscription.expirationDate,
-        fromCache: true
+        isValid: isValid,
+        fromCache: true,
+        revenuecatDetails: {
+          isCanceled: user.revenuecatDetails?.isCanceled || false,
+          expirationDate: user.revenuecatDetails?.expirationDate || null,
+          productIdentifier: user.revenuecatDetails?.productIdentifier || null,
+          periodType: user.revenuecatDetails?.periodType || null,
+          latestPurchaseDate: user.revenuecatDetails?.latestPurchaseDate || null,
+          originalPurchaseDate: user.revenuecatDetails?.originalPurchaseDate || null,
+          store: user.revenuecatDetails?.store || null,
+          isSandbox: user.revenuecatDetails?.isSandbox || false,
+          willRenew: user.revenuecatDetails?.willRenew || false
+        }
       };
     }
     
     // Otherwise, verify with RevenueCat
     const subscriptionDetails = await verifyWithRevenueCat(user.subscription.rcAppUserId);
     
+    // Update the isValid based on the latest data
+    if (subscriptionDetails.expirationDate) {
+      const expirationDate = new Date(subscriptionDetails.expirationDate);
+      isValid = currentDateTime < expirationDate;
+    }
+    
     // Update the user's subscription information
     await updateUserSubscription(userId, {
       ...subscriptionDetails,
-      rcAppUserId: user.subscription.rcAppUserId
+      rcAppUserId: user.subscription.rcAppUserId,
+      isValid: isValid
     });
     
     return { 
+      userId: userId,
+      rcAppUserId: user.subscription.rcAppUserId,
+      productId: user.subscription.productId,
       ...subscriptionDetails, 
-      fromCache: false 
+      isValid: isValid,
+      fromCache: false,
+      revenuecatDetails: {
+        isCanceled: user.revenuecatDetails?.isCanceled || false,
+        expirationDate: user.revenuecatDetails?.expirationDate || null,
+        productIdentifier: user.revenuecatDetails?.productIdentifier || null,
+        periodType: user.revenuecatDetails?.periodType || null,
+        latestPurchaseDate: user.revenuecatDetails?.latestPurchaseDate || null,
+        originalPurchaseDate: user.revenuecatDetails?.originalPurchaseDate || null,
+        store: user.revenuecatDetails?.store || null,
+        isSandbox: user.revenuecatDetails?.isSandbox || false,
+        willRenew: user.revenuecatDetails?.willRenew || false
+      }
     };
   } catch (error) {
     console.error('Error verifying user subscription:', error);
     throw error;
   }
 };
+
 /**
  * Store initial subscription information for a user
  * @param {string} userId - The user ID

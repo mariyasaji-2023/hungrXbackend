@@ -10,15 +10,31 @@ const User = require('../models/userModel');
 const verify = async (req, res) => {
   try {
     const userId = req.user.id; // From auth middleware
+    const currentDate = req.body.currentDate || new Date().toISOString(); // Get current date from request or use server date
     
-    const subscriptionStatus = await subscriptionService.verifyUserSubscription(userId);
+    const subscriptionStatus = await subscriptionService.verifyUserSubscription(userId, currentDate);
     
     return res.json({
       success: true,
+      userId: req.user.id,
+      rcAppUserId: subscriptionStatus.rcAppUserId,
+      productId: subscriptionStatus.productId,
       isSubscribed: subscriptionStatus.isSubscribed,
       subscriptionLevel: subscriptionStatus.subscriptionLevel,
       expirationDate: subscriptionStatus.expirationDate,
-      fromCache: subscriptionStatus.fromCache
+      isValid: subscriptionStatus.isValid,
+      fromCache: subscriptionStatus.fromCache,
+      revenuecatDetails: {
+        isCanceled: subscriptionStatus.revenuecatDetails?.isCanceled || false,
+        expirationDate: subscriptionStatus.revenuecatDetails?.expirationDate || null,
+        productIdentifier: subscriptionStatus.revenuecatDetails?.productIdentifier || null,
+        periodType: subscriptionStatus.revenuecatDetails?.periodType || null,
+        latestPurchaseDate: subscriptionStatus.revenuecatDetails?.latestPurchaseDate || null,
+        originalPurchaseDate: subscriptionStatus.revenuecatDetails?.originalPurchaseDate || null,
+        store: subscriptionStatus.revenuecatDetails?.store || null,
+        isSandbox: subscriptionStatus.revenuecatDetails?.isSandbox || false,
+        willRenew: subscriptionStatus.revenuecatDetails?.willRenew || false
+      }
     });
   } catch (error) {
     console.error('Error verifying subscription:', error);
@@ -29,6 +45,7 @@ const verify = async (req, res) => {
     });
   }
 };
+
 /**
  * Stores initial subscription information
  * @param {Object} req - Express request object
