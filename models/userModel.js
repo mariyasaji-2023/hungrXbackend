@@ -120,7 +120,7 @@ const userSchema = new mongoose.Schema({
             entries: [
                 {
                     amount: { type: Number },
-                    timestamp: { type: Date },
+                 timestamp: { type: Date },
                 },
             ],
             remaining: { type: Number },
@@ -178,7 +178,7 @@ const userSchema = new mongoose.Schema({
         productId: { type: String },
         subscriptionLevel: {
             type: String,
-            enum: ['trial', 'monthly', 'annual', 'weekly', 'none']
+            enum: ['trial', 'monthly', 'annual', 'weekly', 'none','$rc_weekly','$rc_monthly','$rc_annual']
         },
         expirationDate: { type: Date },
         lastVerified: { type: Date },
