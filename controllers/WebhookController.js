@@ -46,7 +46,6 @@ const verify = async (req, res) => {
   }
 };
 
-
 /**
  * Stores initial subscription information
  * @param {Object} req - Express request object
@@ -71,20 +70,29 @@ const store = async (req, res) => {
     // Extract RevenueCat details if provided
     const revenuecatDetails = subscriptionInfo.revenuecatDetails || {};
     
-    // Case 1: If userId is present and rcAppUserId is null
-    if (userId && rcAppUserId === null) {
+    // Find user first to check their RevenueCat status
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Case 1: If userId is present and user doesn't have RevenueCat ID in the collection
+    if (userId && !user.subscription?.rcAppUserId) {
       const updatedUser = await subscriptionService.storeInitialSubscription(
         userId, 
         { 
-          ...subscriptionInfo, 
-          rcAppUserId: null, // Explicitly set to null
+          ...subscriptionInfo,
           revenuecatDetails 
         }
       );
       
       return res.json({
         success: true,
-        message: 'Subscription information stored successfully for user ID',
+        message: 'Initial subscription information stored successfully for user',
         isSubscribed: updatedUser.subscription.isSubscribed,
         subscriptionLevel: updatedUser.subscription.subscriptionLevel,
         revenuecatDetails: updatedUser.revenuecatDetails
@@ -93,16 +101,6 @@ const store = async (req, res) => {
     
     // Case 2: If both userId and rcAppUserId are present
     if (userId && rcAppUserId) {
-      // Find the user to check if rcAppUserId matches or exists in aliases
-      const user = await User.findById(userId);
-      
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found'
-        });
-      }
-      
       // Check if the provided rcAppUserId matches the user's rcAppUserId or is in the aliases
       const userRcId = user.subscription?.rcAppUserId;
       const userAliases = user.subscription?.rcAppUserAliases || [];
@@ -148,7 +146,6 @@ const store = async (req, res) => {
     });
   }
 };
-
 
 /**
  * @route   POST /api/subscription/webhook
