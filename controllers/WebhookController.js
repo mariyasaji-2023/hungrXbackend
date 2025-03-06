@@ -46,21 +46,14 @@ const verify = async (req, res) => {
   }
 };
 
-/**
- * Stores initial subscription information
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- */
 const store = async (req, res) => {
   try {
-    const userId = req.user.id; // From auth middleware
+    const userId = req.user.id;
     const subscriptionInfo = req.body;
     
-    // Extract RevenueCat App User ID and isUpdate flag from request
     const rcAppUserId = subscriptionInfo.rcAppUserId;
     const isUpdate = subscriptionInfo.isUpdate || false;
     
-    // Check if productId is provided (still required)
     if (!subscriptionInfo.productId) {
       return res.status(400).json({ 
         success: false, 
@@ -68,10 +61,8 @@ const store = async (req, res) => {
       });
     }
     
-    // Extract RevenueCat details if provided
     const revenuecatDetails = subscriptionInfo.revenuecatDetails || {};
     
-    // Find user first to check their RevenueCat status
     const user = await User.findById(userId);
     
     if (!user) {
@@ -81,13 +72,11 @@ const store = async (req, res) => {
       });
     }
 
-    // If isUpdate is true, check if rcAppUserId exists in database
+    // Handle update case
     if (isUpdate === true) {
-      // Check if the provided rcAppUserId already exists in any user's records
-      const existingUserWithRcId = await User.findOne({ 'subscription.rcAppUserId': rcAppUserId });
-      
-      // If rcAppUserId is not found in the database and both userId and rcAppUserId are present, store the details
-      if (!existingUserWithRcId && userId && rcAppUserId) {
+      // Check if user has existing rcAppUserId in their subscription
+      if (user.subscription?.rcAppUserId) {
+        // Update subscription details for the existing user
         const updatedUser = await subscriptionService.storeInitialSubscription(
           userId, 
           { 
@@ -98,22 +87,22 @@ const store = async (req, res) => {
         
         return res.json({
           success: true,
-          message: 'Subscription information updated successfully with new RevenueCat ID',
+          message: 'Subscription information updated successfully for existing user',
           isSubscribed: updatedUser.subscription.isSubscribed,
           subscriptionLevel: updatedUser.subscription.subscriptionLevel,
           revenuecatDetails: updatedUser.revenuecatDetails
         });
       } else {
-        // If rcAppUserId exists in database or either userId or rcAppUserId is missing, do not store details
+        // Don't update if rcAppUserId doesn't exist in user's subscription
         return res.status(400).json({
           success: false,
-          message: 'Cannot update: RevenueCat App User ID already exists in database or missing required fields'
+          message: 'Cannot update: User does not have an existing RevenueCat App User ID'
         });
       }
     } 
-    // If isUpdate is false, store the details regardless (original logic)
+    // Handle non-update cases (original logic)
     else {
-      // Case 1: If userId is present and user doesn't have RevenueCat ID in the collection
+      // Case 1: If userId is present and user doesn't have RevenueCat ID
       if (userId && !user.subscription?.rcAppUserId) {
         const updatedUser = await subscriptionService.storeInitialSubscription(
           userId, 
@@ -134,12 +123,10 @@ const store = async (req, res) => {
       
       // Case 2: If both userId and rcAppUserId are present
       if (userId && rcAppUserId) {
-        // Check if the provided rcAppUserId matches the user's rcAppUserId or is in the aliases
         const userRcId = user.subscription?.rcAppUserId;
         const userAliases = user.subscription?.rcAppUserAliases || [];
         
         if (userRcId === rcAppUserId || userAliases.includes(rcAppUserId)) {
-          // If there's a match, store the subscription info
           const updatedUser = await subscriptionService.storeInitialSubscription(
             userId, 
             { 
@@ -156,7 +143,6 @@ const store = async (req, res) => {
             revenuecatDetails: updatedUser.revenuecatDetails
           });
         } else {
-          // If rcAppUserId doesn't match, return an error
           return res.status(400).json({
             success: false,
             message: 'The provided RevenueCat App User ID does not match the user\'s ID or aliases'
@@ -164,7 +150,6 @@ const store = async (req, res) => {
         }
       }
       
-      // If we reach here, there's a validation issue
       return res.status(400).json({
         success: false,
         message: 'Invalid combination of userId and rcAppUserId'
@@ -180,6 +165,7 @@ const store = async (req, res) => {
     });
   }
 };
+
 /**
  * @route   POST /api/subscription/webhook
  * @desc    Handle RevenueCat webhook events
