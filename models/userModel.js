@@ -159,6 +159,9 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    isUpdate:{
+      type:Boolean
+    },
     revenuecatDetails: {
         isCanceled: { type: Boolean, default: false },
         expirationDate: { type: String },
