@@ -45,6 +45,7 @@ const verify = async (req, res) => {
     });
   }
 };
+
 /**
  * Stores initial subscription information
  * @param {Object} req - Express request object
@@ -80,10 +81,13 @@ const store = async (req, res) => {
       });
     }
 
-    // If isUpdate is true, check if both userId and rcAppUserId are present
+    // If isUpdate is true, check if rcAppUserId exists in database
     if (isUpdate === true) {
-      // Only store details if both userId and rcAppUserId are present
-      if (userId && rcAppUserId) {
+      // Check if the provided rcAppUserId already exists in any user's records
+      const existingUserWithRcId = await User.findOne({ 'subscription.rcAppUserId': rcAppUserId });
+      
+      // If rcAppUserId is not found in the database and both userId and rcAppUserId are present, store the details
+      if (!existingUserWithRcId && userId && rcAppUserId) {
         const updatedUser = await subscriptionService.storeInitialSubscription(
           userId, 
           { 
@@ -94,20 +98,20 @@ const store = async (req, res) => {
         
         return res.json({
           success: true,
-          message: 'Subscription information updated successfully',
+          message: 'Subscription information updated successfully with new RevenueCat ID',
           isSubscribed: updatedUser.subscription.isSubscribed,
           subscriptionLevel: updatedUser.subscription.subscriptionLevel,
           revenuecatDetails: updatedUser.revenuecatDetails
         });
       } else {
-        // If either userId or rcAppUserId is missing, do not store details
+        // If rcAppUserId exists in database or either userId or rcAppUserId is missing, do not store details
         return res.status(400).json({
           success: false,
-          message: 'Both user ID and RevenueCat App User ID are required for updates'
+          message: 'Cannot update: RevenueCat App User ID already exists in database or missing required fields'
         });
       }
     } 
-    // If isUpdate is false, store the details regardless
+    // If isUpdate is false, store the details regardless (original logic)
     else {
       // Case 1: If userId is present and user doesn't have RevenueCat ID in the collection
       if (userId && !user.subscription?.rcAppUserId) {
