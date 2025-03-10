@@ -114,5 +114,6 @@ router.post('/timezone', timeZoneController.timezone)
 router.post('/verify', authMiddleware , webhookController.verify);
 router.post('/store',authMiddleware, webhookController.store);
 router.post('/webhook',webhookController.webhook)
+router.post('/storeRevenueCatDetails',webhookController.storeRevenueCatDetails)
 
 module.exports = router;

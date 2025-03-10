@@ -166,6 +166,91 @@ const store = async (req, res) => {
   }
 };
 
+
+/**
+ * Stores RevenueCat details directly for a user
+ * @param {Object} req - Express request object
+ * @param {Object} res - Express response object
+ * @returns {Object} - Response with updated user data
+ */
+const storeRevenueCatDetails = async (req, res) => {
+  try {
+    const { userId, revenueCatDetails } = req.body;
+    
+    // Validate required parameters
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing required user ID'
+      });
+    }
+    
+    if (!revenueCatDetails) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Missing RevenueCat details'
+      });
+    }
+    
+    // Find the user
+    const user = await User.findById(userId);
+    
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // Update the user with the RevenueCat details
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          'revenuecatDetails': revenueCatDetails,
+          'subscription.lastVerified': new Date()
+        }
+      },
+      { new: true }
+    );
+    
+    // Check if subscription information exists and update isValid
+    if (revenueCatDetails.expirationDate) {
+      const currentDateTime = new Date();
+      const expirationDate = new Date(revenueCatDetails.expirationDate);
+      const isValid = currentDateTime < expirationDate;
+      
+      // Update subscription status if expiration date is provided
+      await User.findByIdAndUpdate(
+        userId,
+        { 
+          $set: { 
+            isValid: isValid,
+            'subscription.isSubscribed': isValid,
+            'subscription.expirationDate': expirationDate
+          }
+        }
+      );
+    }
+    
+    return res.json({
+      success: true,
+      message: 'RevenueCat details stored successfully',
+      userId: updatedUser._id,
+      revenuecatDetails: updatedUser.revenuecatDetails
+    });
+    
+  } catch (error) {
+    console.error('Error storing RevenueCat details:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to store RevenueCat details',
+      error: error.message
+    });
+  }
+};
+
+
 /**
  * @route   POST /api/subscription/webhook
  * @desc    Handle RevenueCat webhook events
@@ -204,5 +289,6 @@ const webhook = async (req, res) => {
 module.exports = {
   verify,
   store,
-  webhook
+  webhook,
+  storeRevenueCatDetails
 };
