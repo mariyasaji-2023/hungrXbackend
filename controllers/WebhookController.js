@@ -167,15 +167,9 @@ const store = async (req, res) => {
 };
 
 
-/**
- * Stores RevenueCat details directly for a user
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
- * @returns {Object} - Response with updated user data
- */
 const storeRevenueCatDetails = async (req, res) => {
   try {
-    const { userId, revenueCatDetails } = req.body;
+    const { userId, rcAppUserId, revenueCatDetails } = req.body;
     
     // Validate required parameters
     if (!userId) {
@@ -202,15 +196,31 @@ const storeRevenueCatDetails = async (req, res) => {
       });
     }
     
+    const updateFields = {
+      'revenuecatDetails': revenueCatDetails,
+      'subscription.lastVerified': new Date()
+    };
+    
+    // Add rcAppUserId to the subscription if provided
+    if (rcAppUserId) {
+      updateFields['subscription.rcAppUserId'] = rcAppUserId;
+      
+      // Also add to aliases array if not already there
+      // Note: This uses the $addToSet operator to avoid duplicates
+      await User.findByIdAndUpdate(
+        userId,
+        { 
+          $addToSet: { 
+            'subscription.rcAppUserAliases': rcAppUserId 
+          } 
+        }
+      );
+    }
+    
     // Update the user with the RevenueCat details
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      {
-        $set: {
-          'revenuecatDetails': revenueCatDetails,
-          'subscription.lastVerified': new Date()
-        }
-      },
+      { $set: updateFields },
       { new: true }
     );
     
@@ -227,7 +237,9 @@ const storeRevenueCatDetails = async (req, res) => {
           $set: { 
             isValid: isValid,
             'subscription.isSubscribed': isValid,
-            'subscription.expirationDate': expirationDate
+            'subscription.expirationDate': expirationDate,
+            // Also update the product identifier if available
+            'subscription.productId': revenueCatDetails.productIdentifier || user.subscription?.productId
           }
         }
       );
@@ -237,6 +249,7 @@ const storeRevenueCatDetails = async (req, res) => {
       success: true,
       message: 'RevenueCat details stored successfully',
       userId: updatedUser._id,
+      rcAppUserId: updatedUser.subscription?.rcAppUserId,
       revenuecatDetails: updatedUser.revenuecatDetails
     });
     
@@ -249,7 +262,6 @@ const storeRevenueCatDetails = async (req, res) => {
     });
   }
 };
-
 
 /**
  * @route   POST /api/subscription/webhook

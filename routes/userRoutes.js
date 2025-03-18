@@ -87,15 +87,16 @@ router.post('/getMenu', menuController.getMenu)
 //============================ Cart Screen Route ============================
 
 router.delete('/removeOneItem', cartController.removeOneItem)
+// router.post('/updateQuantity',cartController.updateQuantity)
 router.post('/removeCart', cartController.removeCart)
 router.post('/addToCart', cartController.addToCart)
 router.post('/getCart', cartController.getCart)
 
 //============================ Common Food Route ============================
 
-router.post('/searchCommonfood', commonfoodController.searchCommonfood)
 router.post('/addConsumedCommonFood', commonfoodController.addConsumedCommonFood)
 router.post('/addCommonFoodToHistory', commonfoodController.addCommonFoodToHistory)
+router.post('/searchCommonfood', commonfoodController.searchCommonfood)
 
 //============================ Water screen Route ============================
 
@@ -105,15 +106,14 @@ router.post('/addWater', waterController.addWaterIntake)
 
 //============================ Help and support screen ============================
 
-router.post('/submitIssue', contactController.submitIssue)
 router.post('/apple-server-notifications',appleController.appleServerNotifications)
+router.post('/submitIssue', contactController.submitIssue)
 router.post('/timezone', timeZoneController.timezone)
 
-
 // Public routes
+router.post('/storeRevenueCatDetails',webhookController.storeRevenueCatDetails)
 router.post('/verify', authMiddleware , webhookController.verify);
 router.post('/store',authMiddleware, webhookController.store);
 router.post('/webhook',webhookController.webhook)
-router.post('/storeRevenueCatDetails',webhookController.storeRevenueCatDetails)
 
 module.exports = router;

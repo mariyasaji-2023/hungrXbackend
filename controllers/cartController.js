@@ -534,4 +534,134 @@ const removeOneItem = async (req, res) => {
     }
 };
 
-module.exports = { addToCart, removeCart, getCart, removeOneItem }
+
+// const updateQuantity = async (req, res) => {
+//     const { cartId, items } = req.body;
+
+//     // Validate inputs
+//     if (!cartId) {
+//         return res.status(400).json({
+//             status: false,
+//             message: 'cartId is required'
+//         });
+//     }
+
+//     if (!items || !Array.isArray(items) || items.length === 0) {
+//         return res.status(400).json({
+//             status: false,
+//             message: 'items array is required with at least one item'
+//         });
+//     }
+
+//     // Validate each item has the required fields
+//     const invalidItems = items.filter(item => 
+//         !item.dishId || 
+//         !item.servingSize || 
+//         !item.quantity || 
+//         item.quantity < 1
+//     );
+
+//     if (invalidItems.length > 0) {
+//         return res.status(400).json({
+//             status: false,
+//             message: 'Each item must have dishId, servingSize, and a valid quantity greater than 0'
+//         });
+//     }
+
+//     try {
+//         await client.connect();
+//         const db = client.db(process.env.DB_NAME);
+//         const cartCollection = db.collection("cartDetails");
+
+//         // Find the cart using cartId
+//         const cart = await cartCollection.findOne({ 
+//             _id: new ObjectId(cartId) 
+//         });
+
+//         if (!cart) {
+//             return res.status(404).json({
+//                 status: false,
+//                 message: 'Cart not found'
+//             });
+//         }
+
+//         // Create a map for quick lookup of items by dishId and servingSize
+//         const updateMap = new Map();
+//         items.forEach(item => {
+//             const key = `${item.dishId}_${item.servingSize}`;
+//             updateMap.set(key, item.quantity);
+//         });
+
+//         // Update quantities in orders array
+//         const updatedOrders = cart.orders.map(order => {
+//             // Make a copy of the order object
+//             const updatedOrder = { ...order };
+            
+//             // Update the items array where dishId and servingSize match
+//             updatedOrder.items = order.items.map(item => {
+//                 const key = `${item.dishId}_${item.servingSize}`;
+//                 if (updateMap.has(key)) {
+//                     return { ...item, quantity: updateMap.get(key) };
+//                 }
+//                 return item;
+//             });
+            
+//             return updatedOrder;
+//         });
+
+//         // Update quantities in dishDetails array
+//         const updatedDishDetails = cart.dishDetails.map(dish => {
+//             const key = `${dish.dishId}_${dish.servingSize}`;
+//             if (updateMap.has(key)) {
+//                 return { ...dish, quantity: updateMap.get(key) };
+//             }
+//             return dish;
+//         });
+
+//         // Update the cart
+//         const result = await cartCollection.updateOne(
+//             { _id: new ObjectId(cartId) },
+//             { 
+//                 $set: {
+//                     orders: updatedOrders,
+//                     dishDetails: updatedDishDetails,
+//                     updatedAt: new Date(),
+//                     message: 'Cart quantities updated successfully'
+//                 }
+//             }
+//         );
+
+//         if (result.modifiedCount === 0) {
+//             return res.status(400).json({
+//                 status: false,
+//                 message: 'Failed to update cart quantities'
+//             });
+//         }
+
+//         // Fetch the updated cart for response
+//         const updatedCart = await cartCollection.findOne({ 
+//             _id: new ObjectId(cartId) 
+//         });
+
+//         return res.status(200).json({
+//             status: true,
+//             message: 'Cart quantities updated successfully',
+//             data: {
+//                 orders: updatedCart.orders,
+//                 dishDetails: updatedCart.dishDetails
+//             }
+//         });
+
+//     } catch (error) {
+//         console.error('Error updating cart quantities:', error);
+//         return res.status(500).json({
+//             status: false,
+//             message: 'Internal server error',
+//             error: error.message
+//         });
+//     } finally {
+//         await client.close();
+//     }
+// };
+
+module.exports = { addToCart, removeCart, getCart, removeOneItem, }
