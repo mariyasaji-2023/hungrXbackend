@@ -251,6 +251,8 @@ const verifyUserSubscription = async (userId, currentDate) => {
     
     // Check if we have a RevenueCat App User ID
     if (!user.subscription?.rcAppUserId) {
+      console.log("/////////////////////////////////////");
+      
       return {
         userId: userId,
         rcAppUserId: null,
