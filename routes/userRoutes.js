@@ -87,7 +87,7 @@ router.post('/getMenu', menuController.getMenu)
 //============================ Cart Screen Route ============================
 
 router.delete('/removeOneItem', cartController.removeOneItem)
-// router.post('/updateQuantity',cartController.updateQuantity)
+router.post('/updateQuantity',cartController.updateQuantity)
 router.post('/removeCart', cartController.removeCart)
 router.post('/addToCart', cartController.addToCart)
 router.post('/getCart', cartController.getCart)
