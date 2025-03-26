@@ -12,12 +12,12 @@ function generateUniqueReferralCode() {
   const characters = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed ambiguous characters like O/0, 1/I
   const codeLength = 6;
   let code = '';
-  
+
   for (let i = 0; i < codeLength; i++) {
     const randomIndex = Math.floor(Math.random() * characters.length);
     code += characters[randomIndex];
   }
-  
+
   return code;
 }
 
@@ -31,23 +31,23 @@ function generateUniqueReferralCode() {
 const generateRef = async (req, res) => {
   try {
     const { userId } = req.body;
-    
+
     if (!userId) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Missing required parameter: userId'
       });
     }
-    
+
     let isNewCode = false;
-    
+
     // Check if user already has a referral code in database
     let userReferral = await ReferralCode.findOne({ userId });
-    
+
     if (!userReferral) {
       // Generate a new unique code for this user
       let newCode;
       let codeExists = true;
-      
+
       // Keep generating until we find a unique code that doesn't exist in DB
       while (codeExists) {
         newCode = generateUniqueReferralCode();
@@ -56,64 +56,65 @@ const generateRef = async (req, res) => {
           codeExists = false;
         }
       }
-      
+
       // Create and save the new referral code
       userReferral = new ReferralCode({
         userId,
         code: newCode
       });
-      
+
       await userReferral.save();
       isNewCode = true;
     }
-    
+
     // Return the user's referral code
     return res.status(200).json({
       userId,
       referralCode: userReferral.code,
       isNewCode
     });
-    
+
   } catch (error) {
     console.error('Error generating referral code:', error);
-    return res.status(500).json({ 
+    return res.status(500).json({
       error: 'Failed to process referral code request'
     });
   }
 };
 
-const verifyRef = async(req,res)=>{
+
+const verifyRef = async (req, res) => {
   try {
-    const {userId, referralCode} = req.body
-    if(!userId || !referralCode){
+    const { userId, referralCode, expirationDate } = req.body
+    if (!userId || !referralCode || !expirationDate) {
       return res.status(400).json({
-        status:false,
-        message:'Missing required parameters: userId and referralCode are required'
+        status: false,
+        message: 'Missing required parameters: userId, referralCode and expirationDate are required'
       })
     }
-    const referralRecord = await ReferralCode.findOne({code: referralCode})
+    const referralRecord = await ReferralCode.findOne({ code: referralCode })
 
     if (!referralRecord) {
       return res.status(404).json({
-        success: false,
+        status: false,
         message: 'Invalid referral code'
       });
     }
-  // Verify the user trying to use the code exists
-  const user = await User.findById(userId);
-    
-  if (!user) {
-    return res.status(404).json({
-      success: false,
-      message: 'User not found'
-    });
-  }
+    // Verify the user trying to use the code exists
+    const user = await User.findById(userId);
 
-  
+    if (!user) {
+      return res.status(404).json({
+        status: false,
+        message: 'User not found'
+      });
+    }
+
+
     // Check if user already used a referral code
     if (user.hasUsedReferralCode) {
       return res.status(400).json({
-        success: false,
+        status: false,
         message: 'User has already used a referral code'
       });
     }
@@ -121,36 +122,39 @@ const verifyRef = async(req,res)=>{
     // Check if user is trying to use their own referral code
     if (referralRecord.userId === userId) {
       return res.status(400).json({
-        success: false,
+        status: false,
         message: 'Users cannot use their own referral code'
       });
     }
 
     // Update the user's record to indicate they've used a referral code
-    await User.findByIdAndUpdate(userId, { 
+    // Also update the revenuecatDetails.expirationDate field
+    await User.findByIdAndUpdate(userId, {
       hasUsedReferralCode: true,
       referralCodeUsed: referralCode,
-      referralCodeOwner: referralRecord.userId
+      referralCodeOwner: referralRecord.userId,
+      'revenuecatDetails.expirationDate': expirationDate
     });
 
     // You might also want to track which users have used this code
     // and possibly update the referral code owner with rewards
-    
+
     return res.status(200).json({
-      success: true,
+      status: true,
       message: 'Referral code verified successfully',
+      userId,
       referralCode,
-      referralCodeOwner: referralRecord.userId
+      expirationDate
     });
 
   } catch (error) {
-       console.error('Error verifying referral code:', error);
+    console.error('Error verifying referral code:', error);
     return res.status(500).json({
-      success: false,
+      status: false,
       message: 'Failed to verify referral code',
       error: error.message
     });
   }
 }
 
-module.exports = { generateRef,verifyRef };
+module.exports = { generateRef, verifyRef };
