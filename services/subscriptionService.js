@@ -234,6 +234,7 @@ const processRevenueCatWebhook = async (webhookData) => {
     throw error;
   }
 };
+
 /**
  * Verifies a user's subscription status
  * @param {string} userId - The user's MongoDB ID
@@ -247,6 +248,34 @@ const verifyUserSubscription = async (userId, currentDate) => {
     
     if (!user) {
       throw new Error(`User with ID ${userId} not found`);
+    }
+    
+    // Check if we have an expiration date but no RevenueCat App User ID
+    if (!user.subscription?.rcAppUserId && user.revenuecatDetails?.expirationDate) {
+      console.log('workinggggggggggggggggggggg');
+      
+      // Return with isValid true and the existing expiration date
+      return {
+        userId: userId,
+        rcAppUserId: null,
+        productId: user.subscription?.productId || null,
+        isSubscribed: true,
+        subscriptionLevel: user.subscription?.subscriptionLevel || 'premium',
+        expirationDate: user.subscription.expirationDate,
+        isValid: true,
+        fromCache: false,
+        revenuecatDetails: {
+          isCanceled: user.revenuecatDetails?.isCanceled || false,
+          expirationDate: user.revenuecatDetails?.expirationDate || null,
+          productIdentifier: user.revenuecatDetails?.productIdentifier || null,
+          periodType: user.revenuecatDetails?.periodType || null,
+          latestPurchaseDate: user.revenuecatDetails?.latestPurchaseDate || null,
+          originalPurchaseDate: user.revenuecatDetails?.originalPurchaseDate || null,
+          store: user.revenuecatDetails?.store || null,
+          isSandbox: user.revenuecatDetails?.isSandbox || false,
+          willRenew: user.revenuecatDetails?.willRenew || false
+        }
+      };
     }
     
     // Check if we have a RevenueCat App User ID
