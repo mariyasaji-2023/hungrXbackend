@@ -119,6 +119,7 @@ router.post('/store',authMiddleware, webhookController.store);
 router.post('/webhook',webhookController.webhook)
 
 // ReferralCode 
-router.post('/generateRef',referralController.referral)
+router.post('/generateRef',referralController.generateRef)
+router.post('/verifyRef',referralController.verifyRef)
 
 module.exports = router;
