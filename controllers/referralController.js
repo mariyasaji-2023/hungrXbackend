@@ -115,7 +115,8 @@ const verifyRef = async (req, res) => {
     if (user.hasUsedReferralCode) {
       return res.status(400).json({
         status: false,
-        message: 'User has already used a referral code'
+        message: 'User has already used a referral code',
+        'revenuecatDetails.expirationDate': expirationDate
       });
     }
 
