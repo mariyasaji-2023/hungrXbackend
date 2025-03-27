@@ -253,16 +253,19 @@ const verifyUserSubscription = async (userId, currentDate) => {
     // Check if we have an expiration date but no RevenueCat App User ID
     if (!user.subscription?.rcAppUserId && user.revenuecatDetails?.expirationDate) {
       console.log('workinggggggggggggggggggggg');
-      
+
+      const currentDateTime = new Date(currentDate);
+      const expirationDate = new Date(user.revenuecatDetails.expirationDate);
+      const isValid = currentDateTime < expirationDate;
       // Return with isValid true and the existing expiration date
       return {
         userId: userId,
         rcAppUserId: null,
         productId: user.subscription?.productId || null,
-        isSubscribed: true,
+        isSubscribed: user.subscription?.isSubscribed || false, 
         subscriptionLevel: user.subscription?.subscriptionLevel || 'premium',
         expirationDate: user.subscription.expirationDate,
-        isValid: true,
+        isValid: isValid,
         fromCache: false,
         revenuecatDetails: {
           isCanceled: user.revenuecatDetails?.isCanceled || false,
