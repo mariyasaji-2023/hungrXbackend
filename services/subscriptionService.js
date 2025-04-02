@@ -234,6 +234,7 @@ const processRevenueCatWebhook = async (webhookData) => {
     throw error;
   }
 };
+
 /**
  * Verifies a user's subscription status
  * @param {string} userId - The user's MongoDB ID
@@ -249,10 +250,39 @@ const verifyUserSubscription = async (userId, currentDate) => {
       throw new Error(`User with ID ${userId} not found`);
     }
     
+    // Check if we have an expiration date but no RevenueCat App User ID
+    if (!user.subscription?.rcAppUserId && user.revenuecatDetails?.expirationDate) {
+      console.log('workinggggggggggggggggggggg');
+
+      const currentDateTime = new Date(currentDate);
+      const expirationDate = new Date(user.revenuecatDetails.expirationDate);
+      const isValid = currentDateTime < expirationDate;
+      // Return with isValid true and the existing expiration date
+      return {
+        userId: userId,
+        rcAppUserId: null,
+        productId: user.subscription?.productId || null,
+        isSubscribed: user.subscription?.isSubscribed || false, 
+        subscriptionLevel: user.subscription?.subscriptionLevel || 'premium',
+        expirationDate: user.subscription.expirationDate,
+        isValid: isValid,
+        fromCache: false,
+        revenuecatDetails: {
+          isCanceled: user.revenuecatDetails?.isCanceled || false,
+          expirationDate: user.revenuecatDetails?.expirationDate || null,
+          productIdentifier: user.revenuecatDetails?.productIdentifier || null,
+          periodType: user.revenuecatDetails?.periodType || null,
+          latestPurchaseDate: user.revenuecatDetails?.latestPurchaseDate || null,
+          originalPurchaseDate: user.revenuecatDetails?.originalPurchaseDate || null,
+          store: user.revenuecatDetails?.store || null,
+          isSandbox: user.revenuecatDetails?.isSandbox || false,
+          willRenew: user.revenuecatDetails?.willRenew || false
+        }
+      };
+    }
+    
     // Check if we have a RevenueCat App User ID
-    if (!user.subscription?.rcAppUserId) {
-      console.log("/////////////////////////////////////");
-      
+    if (!user.subscription?.rcAppUserId) {      
       return {
         userId: userId,
         rcAppUserId: null,

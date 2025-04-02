@@ -1075,8 +1075,9 @@ const checkUser = async (req, res) => {
         });
     }
 }
+
 const getCalorieMetrics = async (req, res) => {
-    const { userId } = req.body;
+    const { userId, date } = req.body;
     try {
         const client = new MongoClient(process.env.DB_URI);
         const db = client.db(process.env.DB_NAME);
@@ -1119,6 +1120,16 @@ const getCalorieMetrics = async (req, res) => {
             })
             : todayFormatted;
 
+        // Check if date from request matches the most recent date
+        if (date && date === mostRecentDate) {
+            return res.status(200).json({
+                status: true,
+                data: {
+                    message: 'Same date.'
+                }
+            });
+        }
+
         const isShown = user.consumedFood?.dates?.[mostRecentDate]?.isShown ?? false;
 
         // Access stats directly as an object
@@ -1160,6 +1171,7 @@ const getCalorieMetrics = async (req, res) => {
         });
     }
 };
+
 const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
     const absRemaining = Math.abs(remainingCalories);
     const roundedRemaining = Math.round(absRemaining);

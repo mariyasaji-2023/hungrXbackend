@@ -1,0 +1,115 @@
+📌 Plug-and-Play AI Prompt for Science-Backed Health Content
+💡 Prompt:
+"Generate an Instagram reel script for [FOOD ITEM] using the following structure. Identify the most unique, science-backed health problem and benefit based on its core nutrients. Avoid generic benefits like ‘boosts immunity’ or ‘good for digestion.’ Focus on a highly specific, little-known, or unique effect. Provide citations from credible sources such as PubMed, NIH, or peer-reviewed journals."
+
+🚀 Content Framework (Auto-Filled with Science-Backed Details)
+1️⃣ Choose a Food
+The food item is [FOOD ITEM].
+
+2️⃣ Identify a Highly Specific Problem & Benefit
+Problem: What is the most specific and unique issue [FOOD ITEM] helps with?
+(E.g., Instead of “aids digestion,” say “neutralizes stomach acid to prevent acid reflux.”)
+
+Benefit: What is the core, science-backed benefit of [FOOD ITEM]?
+(E.g., Instead of “good for skin,” say “stimulates collagen production to reduce wrinkles.”)
+
+📌 Cite at least one peer-reviewed study supporting this claim.
+
+3️⃣ Hook (Grab Attention in 5 Words)
+👉 Struggling with [SPECIFIC PROBLEM]? Try [FOOD ITEM]!
+
+👉 Did you know [FOOD ITEM] helps [SPECIFIC BENEFIT]?
+
+👉 Tired of [SPECIFIC PROBLEM]? Eat this!
+
+📌 Ensure the hook is compelling and aligned with a real, evidence-backed claim.
+
+4️⃣ Science-Backed Fact (Ultra-Specific, No Generalizations!)
+✅ High in [KEY NUTRIENT] – Directly helps [SPECIFIC BENEFIT]
+✅ Boosts [HEALTH EFFECT] – Supports [VERY SPECIFIC BODY FUNCTION]
+✅ [EXTRA UNIQUE FACT] – Why it works scientifically
+
+📌 Provide at least one study reference for each fact.
+
+5️⃣ Science Behind the Mechanism (How It Works in Your Body 🔬)
+What Happens in the Body?
+(Explain the exact biochemical process in simple terms.)
+
+Which Nutrients or Enzymes Are Involved?
+(Mention the specific compound and its effect.)
+
+How Does It Solve the Problem?
+(Connect the nutrient → body process → benefit.)
+
+📌 Cite studies or sources explaining the biochemical process.
+
+6️⃣ Call to Action (Engage!) 🚀
+💬 Tag a friend who needs this!👇
+❤ Save this for later!
+👀 Follow @HungerX for tomorrow’s unique health hack!
+
+🔥 Example (Auto-Filled for Pineapple 🍍 – Ultra-Specific, Science-Backed Details)
+💡 Prompt Input: Pineapple
+
+📌 Output:
+
+1️⃣ Food Item: Pineapple 🍍
+2️⃣ Highly Specific Problem & Benefit:
+Problem: Struggling with bloated stomach & slow digestion due to protein-heavy meals?
+
+Benefit: Pineapple breaks down proteins fast using bromelain, preventing bloating & discomfort!
+
+📌 Cited Study:
+
+Bromelain has been shown to aid protein digestion by hydrolyzing peptide bonds, reducing gastric distress (Taussig & Batkin, 1988, Planta Medica).
+
+3️⃣ Hook (Grab Attention)
+👉 Struggling with bloating? Eat pineapple!
+
+4️⃣ Science-Backed Fact
+✅ Rich in Bromelain – A natural enzyme that breaks down tough proteins, easing digestion (Taussig & Batkin, 1988)
+✅ Reduces Post-Meal Inflammation – Prevents gas & bloating after protein-heavy meals (Hale et al., 2005, Biotechnology Research International)
+✅ Enhances Nutrient Absorption – Helps your body fully absorb amino acids (Maurer, 2001, Cellular and Molecular Life Sciences)
+
+5️⃣ Science Behind the Mechanism (How It Works in Your Body 🔬)
+🧬 What Happens in the Body?
+
+Bromelain, a proteolytic enzyme, hydrolyzes protein molecules into smaller peptides, enhancing digestion (Maurer, 2001).
+
+This process prevents gas buildup and bloating, commonly caused by undigested proteins fermenting in the gut (Hale et al., 2005).
+
+⚡ Which Nutrients or Enzymes Are Involved?
+
+Bromelain → Breaks down dietary proteins, reducing gastric discomfort.
+
+Manganese → Supports enzymatic functions in metabolism.
+
+🔗 How Does It Solve the Problem?
+
+When you eat pineapple with or after a protein-rich meal (e.g., meat, eggs, beans), bromelain pre-digests the protein, reducing bloating and improving nutrient absorption (Maurer, 2001).
+
+6️⃣ Call to Action
+💬 Know someone who eats a lot of protein? Tag them!👇
+❤ Save this tip!
+👀 Follow @HungerX for tomorrow’s secret health hack!
+
+💡 How to Use:
+🔹 Just replace [FOOD ITEM], and it will auto-generate a unique, science-backed health fact with citations.
+🔹 Ensures only deep, core health effects—no generic claims!
+
+💡 Want this in a Google Sheet for tracking daily content? 🚀
+
+
+
+
+
+
+
+
+
+
+
+
+Search
+
+Reason

@@ -17,6 +17,8 @@ const appleController = require('../controllers/appleController')
 const timeZoneController = require('../controllers/timezoneController')
 const webhookController = require('../controllers/WebhookController');
 const authMiddleware = require('../middileware/auth');
+const referralController  = require('../controllers/referralController')
+
 
 //============================ Authentication Screen Route ============================
 
@@ -87,7 +89,7 @@ router.post('/getMenu', menuController.getMenu)
 //============================ Cart Screen Route ============================
 
 router.delete('/removeOneItem', cartController.removeOneItem)
-// router.post('/updateQuantity',cartController.updateQuantity)
+router.post('/updateQuantity',cartController.updateQuantity)
 router.post('/removeCart', cartController.removeCart)
 router.post('/addToCart', cartController.addToCart)
 router.post('/getCart', cartController.getCart)
@@ -115,5 +117,9 @@ router.post('/storeRevenueCatDetails',webhookController.storeRevenueCatDetails)
 router.post('/verify', authMiddleware , webhookController.verify);
 router.post('/store',authMiddleware, webhookController.store);
 router.post('/webhook',webhookController.webhook)
+
+// ReferralCode 
+router.post('/generateRef',referralController.generateRef)
+router.post('/verifyRef',referralController.verifyRef)
 
 module.exports = router;

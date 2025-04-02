@@ -193,7 +193,19 @@ const userSchema = new mongoose.Schema({
             priceInLocalCurrency: { type: String },
             currencyCode: { type: String }
         }]
-    }
+    },
+    hasUsedReferralCode: {
+        type: Boolean,
+        default: false
+    },
+    referralCodeUsed: {
+        type: String,
+        sparse: true
+    },
+    referralCodeOwner: {
+        type: String,
+        sparse: true
+    },
 });
 
 const User = mongoose.model('User', userSchema);
