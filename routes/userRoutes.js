@@ -1,7 +1,14 @@
+/**
+ * HungerxApp API Routes
+ * Main routing file for the application
+ * @module routes/userRoutes
+ */
+
 const express = require('express');
 const router = express.Router();
 const upload = require('../middileware/multer')
 
+// Controller imports
 const userController = require('../controllers/userController');
 const feedbackController = require('../controllers/feedbackController')
 const searchController = require('../controllers/searchController')
@@ -16,11 +23,12 @@ const contactController = require('../controllers/contactController')
 const appleController = require('../controllers/appleController')
 const timeZoneController = require('../controllers/timezoneController')
 const webhookController = require('../controllers/WebhookController');
-const authMiddleware = require('../middileware/auth');
 const referralController  = require('../controllers/referralController')
+const gptController = require('../controllers/gptController')
+// Middleware imports
+const authMiddleware = require('../middileware/auth');
 
-
-//============================ Authentication Screen Route ============================
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< AUTHENTICATION ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/signup/google', userController.loginWithGoogle)
 router.post('/loginWithApple', appleController.loginWithApple)
@@ -29,40 +37,49 @@ router.post('/login/email', userController.loginWithEmail)
 router.post('/verifyOTP', userController.verifyOTP)
 router.post('/sendOTP', userController.sendOTP)
 
-//============================ Create Profile Screen Route ============================
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< USER PROFILE MANAGEMENT ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.put('/createProfile', upload.single('profilePhoto'), userController.createProfile)
+router.post('/changecaloriesToReachGoal', userController.changecaloriesToReachGoal)
 router.post('/calculate-metrics', userController.calculateUserMetrics)
 router.post('/getCalorieMetrics', userController.getCalorieMetrics)
 router.post('/trackuser', userController.trackUser)
 router.post('/checkUser', userController.checkUser)
 router.post('/home', userController.home)
-router.post('/changecaloriesToReachGoal', userController.changecaloriesToReachGoal)
 
-//============================ Weight Screen Route ============================
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< WEIGHT TRACKING ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/getWeightHistory', userController.getWeightHistory)
 router.post('/updateWeight', userController.updateWeight)
 
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< EAT SCREEN ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+router.post('/eatScreenSearch', restaurantController.eatScreenSearchName)
+router.post('/eatPage', restaurantController.getEatPage)
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< DAILY INSIGHTS & HISTORY ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+router.get('/getConsumedFoodByDate', restaurantController.getConsumedFoodByDate)
+router.post('/deleteDishFromMeal', restaurantController.deleteDishFromMeal)
+router.post('/getUserhistory', restaurantController.getUserHistory)
+router.get('/getMeals', restaurantController.getMeal)
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< GROCERY & FOOD SEARCH ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/searchDishesForUser', searchController.searchDishesForUser)
-router.post('/eatPage', restaurantController.getEatPage)
-router.post('/eatScreenSearch', restaurantController.eatScreenSearchName)
-router.get('/getMeals', restaurantController.getMeal)
+router.post('/addConsumedFood', restaurantController.addConsumedFood)
 router.post('/searchGrocery', restaurantController.searchGroceries)
 router.post('/addHistory', restaurantController.addToHistory)
-router.post('/getUserhistory', restaurantController.getUserHistory)
-router.post('/addConsumedFood', restaurantController.addConsumedFood)
-router.post('/addUnknown', restaurantController.addUnknownFood)
-router.post('/getConsumedFoodByDate', restaurantController.getConsumedFoodByDate)
-router.post('/deleteDishFromMeal', restaurantController.deleteDishFromMeal)
-router.post('/progressBar', restaurantController.progressBar)
 
-//============================ Feedback Screen Route ============================
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< CUSTOM FOOD ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
+router.post('/addUnknown', restaurantController.addUnknownFood)
+
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< FEEDBACK ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/feedback', feedbackController.submitFeedback)
 
-//============================ Profile Screen Route ============================
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< PROFILE MANAGEMENT ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/updateGoalSetting', profileController.updateGoalSetting)
 router.post('/updateBasicInfo', profileController.updateBasicInfo)
@@ -72,21 +89,22 @@ router.delete('/deleteUser', profileController.deleteUser)
 router.post('/basicInfo', profileController.basicInfo)
 router.post('/bug', feedbackController.reportBug)
 
-//============================ Restaurant Screen Route ============================
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< RESTAURANT ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/searchRestaurant', restaurantController.searchRestaurant)
 router.post('/reqrestaurant', restaurantController.reqrestaurant)
+router.post('/progressBar', restaurantController.progressBar)
 router.get('/suggestions', restaurantController.suggestions)
 
-//============================ Mapbox integration Route ============================
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< LOCATION & MAPBOX INTEGRATION ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.get('/nearby', mapboxController.getNearbyRestaurants)
 
-//============================ Menu Screen Route ============================
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< MENU ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/getMenu', menuController.getMenu)
 
-//============================ Cart Screen Route ============================
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< CART MANAGEMENT ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.delete('/removeOneItem', cartController.removeOneItem)
 router.post('/updateQuantity',cartController.updateQuantity)
@@ -94,32 +112,36 @@ router.post('/removeCart', cartController.removeCart)
 router.post('/addToCart', cartController.addToCart)
 router.post('/getCart', cartController.getCart)
 
-//============================ Common Food Route ============================
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<  COMMON FOOD ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-router.post('/addConsumedCommonFood', commonfoodController.addConsumedCommonFood)
 router.post('/addCommonFoodToHistory', commonfoodController.addCommonFoodToHistory)
+router.post('/addConsumedCommonFood', commonfoodController.addConsumedCommonFood)
 router.post('/searchCommonfood', commonfoodController.searchCommonfood)
 
-//============================ Water screen Route ============================
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< WATER TRACKING ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/getWaterIntakeData', waterController.getWaterIntakeData)
 router.delete('/removeWaterEntry', waterController.removeWaterEntry)
 router.post('/addWater', waterController.addWaterIntake)
 
-//============================ Help and support screen ============================
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< HELP AND SUPPORT ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>> 
 
 router.post('/apple-server-notifications',appleController.appleServerNotifications)
 router.post('/submitIssue', contactController.submitIssue)
 router.post('/timezone', timeZoneController.timezone)
 
-// Public routes
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< WEBHOOK & PAYMENT INTEGRATION ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 router.post('/storeRevenueCatDetails',webhookController.storeRevenueCatDetails)
 router.post('/verify', authMiddleware , webhookController.verify);
 router.post('/store',authMiddleware, webhookController.store);
 router.post('/webhook',webhookController.webhook)
 
-// ReferralCode 
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< REFERRAL SYSTEM ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
 router.post('/generateRef',referralController.generateRef)
 router.post('/verifyRef',referralController.verifyRef)
+
+router.post('/chat',gptController.chat)
 
 module.exports = router;

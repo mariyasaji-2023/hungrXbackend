@@ -1,0 +1,130 @@
+🍽 Calorie-Specific Restaurant Meal Planner – Master Sheet
+(High-Protein, Within-Calorie, Allergen-Aware)
+
+🧾 Input Format
+
+Restaurant Name: [Restaurant Name]
+Total Daily Calories: [Total Calories]
+Menu Type: [Vegetarian | Non-Vegetarian]
+Other Comments: [Any additional comments]
+
+📋 Output Format
+
+Restaurant: [Restaurant Name]
+Menu Type: [Vegetarian | Non-Vegetarian]
+Other Comments: [User Provided Comments]
+
+Calorie Distribution:
+
+Breakfast: [Total Calories * 0.25] Calories
+
+Lunch: [Total Calories * 0.30] Calories
+
+Dinner: [Total Calories * 0.30] Calories
+
+Snack: [Total Calories * 0.15] Calories
+
+🔥 Include only high-protein, customer-favorite dishes within the allotted calorie budget.
+🥦 For "Vegetarian" menus, all dishes must be pure veg (no egg, gelatin, or animal-based rennet).
+⚠ Clearly list any major allergens for each dish (e.g., milk, egg, soy, wheat, nuts, shellfish, sesame).
+
+🥞 Breakfast — ($[Price])
+
+Calories: [Breakfast Calories]
+
+Foods:
+
+Main: [High-protein Pure Veg/Non-Veg Dish]
+
+Side: [Complementary Pure Veg/Non-Veg Side Dish]
+
+Condiment: [Appropriate Condiment]
+
+Drink: [Low-calorie, High-protein Drink Option]
+
+Nutritional Breakdown:
+
+Macros: Protein: __g, Carbs: __g, Fats: __g
+
+Micros: Vitamin A: __ IU, Vitamin C: __ mg, Calcium: __ mg, Iron: __ mg
+
+Allergens: [List all allergens present in this meal]
+
+🥗 Lunch — ($[Price])
+
+Calories: [Lunch Calories]
+
+Foods:
+
+Main: [High-protein Pure Veg/Non-Veg Dish]
+
+Side: [Complementary Pure Veg/Non-Veg Side Dish]
+
+Condiment: [Appropriate Condiment]
+
+Drink: [Low-calorie, High-protein Drink Option]
+
+Nutritional Breakdown:
+
+Macros: Protein: __g, Carbs: __g, Fats: __g
+
+Micros: Vitamin A: __ IU, Vitamin C: __ mg, Calcium: __ mg, Iron: __ mg
+
+Allergens: [List all allergens present in this meal]
+
+🍽 Dinner — ($[Price])
+
+Calories: [Dinner Calories]
+
+Foods:
+
+Main: [High-protein Pure Veg/Non-Veg Dish]
+
+Side: [Complementary Pure Veg/Non-Veg Side Dish]
+
+Condiment: [Appropriate Condiment]
+
+Drink: [Low-calorie, High-protein Drink Option]
+
+Nutritional Breakdown:
+
+Macros: Protein: __g, Carbs: __g, Fats: __g
+
+Micros: Vitamin A: __ IU, Vitamin C: __ mg, Calcium: __ mg, Iron: __ mg
+
+Allergens: [List all allergens present in this meal]
+
+🍩 Snack — ($[Price])
+
+Calories: [Snack Calories]
+
+Foods:
+
+Item: [High-protein Pure Veg/Non-Veg Dessert or Snack Item]
+
+Nutritional Breakdown:
+
+Macros: Protein: __g, Carbs: __g, Fats: __g
+
+Micros: Vitamin A: __ IU, Vitamin C: __ mg, Calcium: __ mg, Iron: __ mg
+
+Allergens: [List all allergens present in this item]
+
+💰 Total Estimated Cost: $[Sum of Meal Prices]
+📊 Total Macros (Approx): Protein: __g, Carbs: __g, Fats: __g
+
+📝 Notes
+
+Prioritize high-protein items only that fit the calorie split.
+
+Use best-selling, top-rated menu items.
+
+All vegetarian options must be 100% pure veg.
+
+Include allergen information clearly.
+
+Reflect standard U.S. restaurant menu and pricing.
+
+Snacks = one high-protein item only, no sides or mains.
+
+Condiments may substitute dessert in main meals.

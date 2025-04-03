@@ -771,116 +771,121 @@ const getUserHistory = async (req, res) => {
 };
 
 const getConsumedFoodByDate = async (req, res) => {
-    try {
-        const db = getDBInstance();
-        const users = db.collection("users");
-        const { userId, date } = req.body;
-        const user = await users.findOne({
-            _id: new mongoose.Types.ObjectId(userId)
-        });
+    console.log("API is working!");
+    res.send("Mandan FEBBIN!");
+}
 
-        if (!user) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
-            });
-        }
+// const getConsumedFoodByDate = async (req, res) => {
+//     try {
+//         const db = getDBInstance();
+//         const users = db.collection("users");
+//         const { userId, date } = req.body;
+//         const user = await users.findOne({
+//             _id: new mongoose.Types.ObjectId(userId)
+//         });
 
-        // Get the consumed food for the specified date from user data
-        const consumedFoodForDate = user.consumedFood?.dates?.[date] || {};
-        
-        if (Object.keys(consumedFoodForDate).length === 0) {
-            return res.status(200).json({
-                success: true,
-                message: 'No food entries found for this date',
-                date: date,
-                consumedFood: {},
-                dailySummary: {
-                    totalCalories: 0,
-                    dailyGoal: user.dailyCalorieGoal,
-                    remaining: parseFloat(user.dailyCalorieGoal)
-                }
-            });
-        }
+//         if (!user) {
+//             return res.status(404).json({
+//                 success: false,
+//                 message: 'User not found'
+//             });
+//         }
 
-        // When displaying, convert UTC to respective timezones
-        const istOptions = { 
-            timeZone: 'Asia/Kolkata',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        };
+//         // Get the consumed food for the specified date from user data
+//         const consumedFoodForDate = user.consumedFood?.dates?.[date] || {};
 
-        const nyOptions = { 
-            timeZone: 'America/New_York',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true
-        };
+//         if (Object.keys(consumedFoodForDate).length === 0) {
+//             return res.status(200).json({
+//                 success: true,
+//                 message: 'No food entries found for this date',
+//                 date: date,
+//                 consumedFood: {},
+//                 dailySummary: {
+//                     totalCalories: 0,
+//                     dailyGoal: user.dailyCalorieGoal,
+//                     remaining: parseFloat(user.dailyCalorieGoal)
+//                 }
+//             });
+//         }
 
-        // Process each meal and convert timestamps
-        const processedConsumedFood = {};
-        let totalDayCalories = 0;
+//         // When displaying, convert UTC to respective timezones
+//         const istOptions = { 
+//             timeZone: 'Asia/Kolkata',
+//             year: 'numeric',
+//             month: '2-digit',
+//             day: '2-digit',
+//             hour: '2-digit',
+//             minute: '2-digit',
+//             hour12: true
+//         };
 
-        for (const [mealType, mealData] of Object.entries(consumedFoodForDate)) {
-            if (mealData.foods && Array.isArray(mealData.foods)) {
-                const processedFoods = mealData.foods.map(food => {
-                    // Use the existing timestamp from the food entry
-                    const timestamp = food.timestamp;
-                    
-                    // When converting for display
-                    const istTime = new Date(timestamp).toLocaleString('en-US', istOptions);
-                    const nyTime = new Date(timestamp).toLocaleString('en-US', nyOptions);
+//         const nyOptions = { 
+//             timeZone: 'America/New_York',
+//             year: 'numeric',
+//             month: '2-digit',
+//             day: '2-digit',
+//             hour: '2-digit',
+//             minute: '2-digit',
+//             hour12: true
+//         };
 
-                    totalDayCalories += Number(food.totalCalories) || 0;
+//         // Process each meal and convert timestamps
+//         const processedConsumedFood = {};
+//         let totalDayCalories = 0;
 
-                    return {
-                        ...food,
-                        timestamp: timestamp,
-                        localTimes: {
-                            ist: istTime,
-                            ny: nyTime
-                        }
-                    };
-                });
+//         for (const [mealType, mealData] of Object.entries(consumedFoodForDate)) {
+//             if (mealData.foods && Array.isArray(mealData.foods)) {
+//                 const processedFoods = mealData.foods.map(food => {
+//                     // Use the existing timestamp from the food entry
+//                     const timestamp = food.timestamp;
 
-                processedConsumedFood[mealType] = {
-                    ...mealData,
-                    foods: processedFoods
-                };
-            }
-        }
+//                     // When converting for display
+//                     const istTime = new Date(timestamp).toLocaleString('en-US', istOptions);
+//                     const nyTime = new Date(timestamp).toLocaleString('en-US', nyOptions);
 
-        const formattedTotalCalories = Number(totalDayCalories.toFixed(2));
-        const dailyGoal = parseFloat(user.dailyCalorieGoal);
-        const remaining = Number((dailyGoal - formattedTotalCalories).toFixed(2));
+//                     totalDayCalories += Number(food.totalCalories) || 0;
 
-        return res.status(200).json({
-            success: true,
-            message: 'Food entries found',
-            date: date,
-            timezone: user.timezone,
-            consumedFood: processedConsumedFood,
-            dailySummary: {
-                totalCalories: formattedTotalCalories,
-                dailyGoal: user.dailyCalorieGoal,
-                remaining: remaining
-            }
-        });
-    } catch (error) {
-        console.error('Error fetching consumed food:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Internal server error'
-        });
-    }
-};
+//                     return {
+//                         ...food,
+//                         timestamp: timestamp,
+//                         localTimes: {
+//                             ist: istTime,
+//                             ny: nyTime
+//                         }
+//                     };
+//                 });
+
+//                 processedConsumedFood[mealType] = {
+//                     ...mealData,
+//                     foods: processedFoods
+//                 };
+//             }
+//         }
+
+//         const formattedTotalCalories = Number(totalDayCalories.toFixed(2));
+//         const dailyGoal = parseFloat(user.dailyCalorieGoal);
+//         const remaining = Number((dailyGoal - formattedTotalCalories).toFixed(2));
+
+//         return res.status(200).json({
+//             success: true,
+//             message: 'Food entries found',
+//             date: date,
+//             timezone: user.timezone,
+//             consumedFood: processedConsumedFood,
+//             dailySummary: {
+//                 totalCalories: formattedTotalCalories,
+//                 dailyGoal: user.dailyCalorieGoal,
+//                 remaining: remaining
+//             }
+//         });
+//     } catch (error) {
+//         console.error('Error fetching consumed food:', error);
+//         return res.status(500).json({
+//             success: false,
+//             message: 'Internal server error'
+//         });
+//     }
+// };
 
 
 const deleteDishFromMeal = async (req, res) => {
@@ -1032,6 +1037,7 @@ const searchRestaurant = async (req, res) => {
         });
     }
 };
+
 const suggestions = async (req, res) => {
     try {
         await client.connect();
@@ -1048,9 +1054,9 @@ const suggestions = async (req, res) => {
 
         // Filter restaurants to include only those with logo starting with http:// or https://
         const filteredRestaurants = restaurants.filter(restaurant => {
-            return restaurant.logo && 
-                  (restaurant.logo.startsWith("http://") || 
-                   restaurant.logo.startsWith("https://"));
+            return restaurant.logo &&
+                (restaurant.logo.startsWith("http://") ||
+                    restaurant.logo.startsWith("https://"));
         });
 
         const formattedRestaurants = filteredRestaurants.map(restaurant => ({
@@ -1061,7 +1067,7 @@ const suggestions = async (req, res) => {
             _id: restaurant._id || null,
             logo: restaurant.logo || null
         }));
-        
+
         return res.status(200).json({
             status: true,
             restaurants: formattedRestaurants
@@ -1109,7 +1115,7 @@ const progressBar = async (req, res) => {
     try {
         // Use lean() to get a plain JavaScript object instead of a Mongoose document
         const user = await userModel.findById(userId).lean();
-        
+
         if (!user) {
             return res.status(404).json({
                 status: false,
@@ -1124,7 +1130,7 @@ const progressBar = async (req, res) => {
         const userDate = new Date(now.toLocaleString('en-US', {
             timeZone: timezone || 'UTC'
         }));
-        
+
         // Format date as DD/MM/YYYY
         const formattedDate = `${String(userDate.getDate()).padStart(2, '0')}/${String(userDate.getMonth() + 1).padStart(2, '0')}/${userDate.getFullYear()}`;
 

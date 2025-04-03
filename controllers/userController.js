@@ -1193,47 +1193,6 @@ const generateStatusMessage = (goal, remainingCalories, daysLeft) => {
 };
 
 
-// const changecaloriesToReachGoal = async (req, res) => {
-//     const { userId, calorie, day, isShown } = req.body;
-//     try {
-//         const user = await User.findOne({ _id: userId });
-//         if (!user) {
-//             return res.status(404).json({
-//                 status: false,
-//                 message: 'User not found'
-//             });
-//         }
-
-//         // Calculate new value
-//         const caloriesToReachGoal = user.caloriesToReachGoal - calorie;
-
-//         // Assign the new value to the user object
-//         user.caloriesToReachGoal = caloriesToReachGoal;
-//         user.isShown = isShown;
-//         const daysToReachGoal = user.daysToReachGoal - day
-//         console.log(user.daysToReachGoal, "////////");
-//         user.daysToReachGoal = daysToReachGoal
-//         // Save the updated user object
-//         await user.save();
-
-//         return res.status(200).json({
-//             status: true,
-//             data: {
-//                 userId,
-//                 caloriesToReachGoal,
-//                 daysToReachGoal,
-//                 isShown
-//             }
-//         });
-//     } catch (error) {
-//         console.error('Error updating calories to reach goal:', error);
-//         res.status(500).json({
-//             status: false,
-//             message: 'Internal server error'
-//         });
-//     }
-// };
-
 
 const changecaloriesToReachGoal = async (req, res) => {
     const { userId, calorie, day, isShown, date } = req.body;
