@@ -206,6 +206,9 @@ const userSchema = new mongoose.Schema({
         type: String,
         sparse: true
     },
+    expirationDate :{
+       type:String 
+    }
 });
 
 const User = mongoose.model('User', userSchema);

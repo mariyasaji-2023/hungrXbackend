@@ -141,6 +141,7 @@ router.post('/webhook',webhookController.webhook)
 
 router.post('/generateRef',referralController.generateRef)
 router.post('/verifyRef',referralController.verifyRef)
+router.post('/verifyExpiry',referralController.verifyExpiry)
 
 router.post('/chat',gptController.chat)
 router.post('/recipeHistory',gptController.recipeHistory)
