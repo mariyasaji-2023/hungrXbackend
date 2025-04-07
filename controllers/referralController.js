@@ -116,7 +116,7 @@ const verifyRef = async (req, res) => {
           hasUsedReferralCode: true,
           referralCodeUsed: referralCode,
           referralCodeOwner: referralRecord.userId,
-          expirationDate : expirationDate,
+          expirationDate: expirationDate,
         },
       },
       { new: false }
@@ -140,42 +140,46 @@ const verifyRef = async (req, res) => {
   }
 };
 
-const verifyExpiry = async(req,res)=>{
+const verifyExpiry = async (req, res) => {
   try {
-    const {userId,currentDate} = req.body
+    const { userId, currentDate } = req.body
 
-    if(!userId || !currentDate){
+    if (!userId || !currentDate) {
       return res.status(400).json({
-        message :'User ID and current date are required'
+        message: 'User ID and current date are required'
       })
     }
     const user = await User.findById(userId)
-    if(!user){
+    if (!user) {
       return res.status(404).json({
-        message : 'User not found'
+        message: 'User not found'
       })
     }
-    if(!user.expirationDate){
+    if (!user.expirationDate) {
       return res.status(400).json({
-        message:'Expiration date not set ofr user'
+        message: 'Expiration date not set ofr user'
       })
     }
     const expiryDate = new Date(user.expirationDate);
     const inputDate = new Date(currentDate)
 
-    if(isNaN(expiryDate) || isNaN(inputDate)){
+    if (isNaN(expiryDate) || isNaN(inputDate)) {
       return res.status(400).json({
-        message:'Invalid date format'
+        message: 'Invalid date format'
       })
     }
-    const isExpired = inputDate >expiryDate;
-    return res.json({isExpired,message:isExpired ? 'Expired': 'Not expired'})
+    const isExpired = inputDate > expiryDate;
+    return res.json({
+      isExpired,
+      message: isExpired ? 'Expired' : 'Not expired',
+      expirationDate:user.expirationDate
+    })
   } catch (error) {
     return res.status(500).json({
-      message:'Internal server error',
-      error :error.message
+      message: 'Internal server error',
+      error: error.message
     })
   }
 }
 
-module.exports = { generateRef, verifyRef,verifyExpiry };
+module.exports = { generateRef, verifyRef, verifyExpiry };
