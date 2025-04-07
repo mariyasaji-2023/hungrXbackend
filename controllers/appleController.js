@@ -3,7 +3,6 @@ const AppleAuth = require("apple-signin-auth");
 const User = require('../models/userModel');
 const bodyParser = require('body-parser')
 
-
 // Generate Apple Client Secret
 const generateClientSecret = () => {
     // Format the private key properly

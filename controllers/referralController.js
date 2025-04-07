@@ -117,6 +117,7 @@ const verifyRef = async (req, res) => {
           referralCodeUsed: referralCode,
           referralCodeOwner: referralRecord.userId,
           expirationDate: expirationDate,
+          'revenuecatDetails.expirationDate': expirationDate,
         },
       },
       { new: false }
@@ -157,7 +158,7 @@ const verifyExpiry = async (req, res) => {
     }
     if (!user.expirationDate) {
       return res.status(400).json({
-        message: 'Expiration date not set ofr user'
+        message: 'Expiration date not set for user'
       })
     }
     const expiryDate = new Date(user.expirationDate);
@@ -169,7 +170,7 @@ const verifyExpiry = async (req, res) => {
       })
     }
     const isExpired = inputDate > expiryDate;
-    return res.json({
+    return res.status(200).json({
       isExpired,
       message: isExpired ? 'Expired' : 'Not expired',
       expirationDate:user.expirationDate
