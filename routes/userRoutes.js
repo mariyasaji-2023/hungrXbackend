@@ -137,7 +137,7 @@ router.post('/verify', authMiddleware , webhookController.verify);
 router.post('/store',authMiddleware, webhookController.store);
 router.post('/webhook',webhookController.webhook)
 
-// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< REFERRAL SYSTEM ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< REFERRAL SYSTEM ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.post('/generateRef',referralController.generateRef)
 router.post('/verifyRef',referralController.verifyRef)
