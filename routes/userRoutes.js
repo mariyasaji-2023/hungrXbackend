@@ -98,8 +98,6 @@ router.get('/suggestions', restaurantController.suggestions)
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<< LOCATION & MAPBOX INTEGRATION ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-//test
-
 router.get('/nearby', mapboxController.getNearbyRestaurants)
 
 // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< MENU ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
