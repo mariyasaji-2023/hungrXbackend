@@ -96,7 +96,7 @@ router.post('/reqrestaurant', restaurantController.reqrestaurant)
 router.post('/progressBar', restaurantController.progressBar)
 router.get('/suggestions', restaurantController.suggestions)
 
-// <<<<<<<<<<<<<<<<<<<<<<<<<<<<<< LOCATION & MAPBOX INTEGRATION ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+// <<<<<<<<<<<<<<<<<<<<<<<<<<<<< LOCATION & MAPBOX INTEGRATION ROUTES >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 router.get('/nearby', mapboxController.getNearbyRestaurants)
 
