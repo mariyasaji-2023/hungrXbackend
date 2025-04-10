@@ -154,7 +154,6 @@ const recipeHistoryDetails = async(req,res)=>{
     }
 }
 
-
 const recordRecipeConsumption = async (req, res) => {
     try {
         const db = client.db(process.env.DB_NAME); // Use your database name from env
@@ -276,19 +275,7 @@ const recordRecipeConsumption = async (req, res) => {
             message: 'Recipe consumption recorded successfully',
             date: date,
             mealId: selectedMeal,
-            recipeDetails: {
-                id: recipeId,
-                ...recipeDetails,
-                mealType: mealType.toLowerCase(),
-                mealId: validMealIds[mealType.toLowerCase()]
-            },
-            updatedMeal: updatedMeal,
-            dailyCalories: dailyCalories,
-            updatedCalories: {
-                remaining: dailyCalorieGoal - dailyCalories,
-                consumed: dailyCalories,
-                caloriesToReachGoal: updatedCaloriesToReachGoal
-            }
+           
         });
     } catch (error) {
         console.error('Error recording recipe consumption:', error);
