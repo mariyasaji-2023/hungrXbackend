@@ -1,6 +1,11 @@
 const { OpenAI } = require("openai");
 const Recipe = require("../models/recipeModel"); // Import the Recipe model
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const { MongoClient } = require("mongodb")
+const { ObjectId } = require("mongodb")
+const client = new MongoClient(process.env.DB_URI)
+const mongoose = require("mongoose")
+
 
 const chat = async (req, res) => {
     try {
@@ -149,4 +154,146 @@ const recipeHistoryDetails = async(req,res)=>{
     }
 }
 
-module.exports = { chat ,recipeHistory ,recipeHistoryDetails };
+
+const recordRecipeConsumption = async (req, res) => {
+    try {
+        const db = client.db(process.env.DB_NAME); // Use your database name from env
+        const users = db.collection("users");
+        const recipes = db.collection("recipes");
+
+        const {
+            userId,
+            mealType,
+            servingSize,
+            selectedMeal,
+            recipeId,
+        } = req.body;
+
+        const recipeDetails = await recipes.findOne({ _id: new mongoose.Types.ObjectId(recipeId) });
+        if (!recipeDetails) {
+            return res.status(404).json({ error: 'Recipe not found' });
+        }
+
+        // Get user's timezone from the database
+        const currentUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
+        if (!currentUser) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        const userTimezone = currentUser.timezone || 'America/New_York';
+
+        // Create timestamp and format date in user's timezone
+        const now = new Date();
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+            timeZone: userTimezone,
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric'
+        });
+
+        // Get the date in DD/MM/YYYY format
+        const date = formatter.format(now);
+
+        // Create UTC timestamp for storage
+        const timestamp = now.toISOString();
+
+        const validMealIds = {
+            'breakfast': '6746a024a45e4d9e5d58ea12',
+            'lunch': '6746a024a45e4d9e5d58ea13',
+            'dinner': '6746a024a45e4d9e5d58ea14',
+            'snacks': '6746a024a45e4d9e5d58ea15'
+        };
+
+        if (!validMealIds[mealType.toLowerCase()]) {
+            return res.status(400).json({ error: 'Invalid meal type' });
+        }
+
+        // Calculate total calories based on recipe nutrition info and serving size
+        const totalCalories = recipeDetails.nutrition && recipeDetails.nutrition.calories
+            ? Math.round(recipeDetails.nutrition.calories * Number(servingSize))
+            : 0;
+
+        const dateKey = `consumedFood.dates.${date}`;
+        const statsDateKey = `dailyConsumptionStats.${date}`;
+        const mealKey = `${dateKey}.${mealType.toLowerCase()}`;
+
+        const foodEntry = {
+            servingSize: Number(servingSize),
+            selectedMeal: new mongoose.Types.ObjectId(selectedMeal),
+            recipeId: new mongoose.Types.ObjectId(recipeId),
+            totalCalories: totalCalories,
+            timestamp: timestamp,
+            name: recipeDetails.recipe_name,
+            ingredients: recipeDetails.ingredients,
+            cuisine: recipeDetails.cuisine,
+            nutritionFacts: recipeDetails.nutrition,
+            total_time: recipeDetails.total_time,
+            isRecipe: true,
+            foodId: new mongoose.Types.ObjectId()
+        };
+
+        const currentDayData = currentUser.consumedFood?.dates?.[date];
+        if (!currentDayData?.[mealType.toLowerCase()]) {
+            await users.updateOne(
+                { _id: new mongoose.Types.ObjectId(userId) },
+                {
+                    $set: {
+                        [`${dateKey}.${mealType.toLowerCase()}`]: {
+                            mealId: validMealIds[mealType.toLowerCase()],
+                            foods: []
+                        }
+                    }
+                }
+            );
+        }
+
+        const currentCalories = currentUser.dailyConsumptionStats?.[date] || 0;
+        const newTotalCalories = currentCalories + totalCalories;
+        const dailyCalorieGoal = currentUser.dailyCalorieGoal || 0;
+
+        const result = await users.updateOne(
+            { _id: new mongoose.Types.ObjectId(userId) },
+            {
+                $push: {
+                    [`${dateKey}.${mealType.toLowerCase()}.foods`]: foodEntry
+                },
+                $set: {
+                    [statsDateKey]: newTotalCalories
+                }
+            }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        const updatedUser = await users.findOne({ _id: new mongoose.Types.ObjectId(userId) });
+        const updatedMeal = updatedUser.consumedFood.dates[date][mealType.toLowerCase()];
+        const dailyCalories = updatedUser.dailyConsumptionStats[date];
+        const updatedCaloriesToReachGoal = updatedUser.caloriesToReachGoal;
+
+        res.status(200).json({
+            success: true,
+            message: 'Recipe consumption recorded successfully',
+            date: date,
+            mealId: selectedMeal,
+            recipeDetails: {
+                id: recipeId,
+                ...recipeDetails,
+                mealType: mealType.toLowerCase(),
+                mealId: validMealIds[mealType.toLowerCase()]
+            },
+            updatedMeal: updatedMeal,
+            dailyCalories: dailyCalories,
+            updatedCalories: {
+                remaining: dailyCalorieGoal - dailyCalories,
+                consumed: dailyCalories,
+                caloriesToReachGoal: updatedCaloriesToReachGoal
+            }
+        });
+    } catch (error) {
+        console.error('Error recording recipe consumption:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+};
+
+module.exports = { chat ,recipeHistory ,recipeHistoryDetails ,recordRecipeConsumption };

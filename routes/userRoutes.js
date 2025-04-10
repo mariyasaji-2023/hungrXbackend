@@ -146,5 +146,6 @@ router.post('/verifyExpiry',referralController.verifyExpiry)
 router.post('/chat',gptController.chat)
 router.post('/recipeHistory',gptController.recipeHistory)
 router.post('/recipeHistoryDetails',gptController.recipeHistoryDetails)
+router.post('/recordRecipeConsumption',gptController.recordRecipeConsumption)
 
 module.exports = router;
