@@ -1,8 +1,6 @@
 const mongoose = require('mongoose');
 const User = require('../models/userModel');
 
-
-
 let dbInstance;
 
 const connectDB = async () => {
@@ -12,6 +10,12 @@ const connectDB = async () => {
         }
 
         const connection = await mongoose.connect(process.env.DB_URI, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+            tls: true,
+            tlsAllowInvalidCertificates: false,
+            tlsAllowInvalidHostnames: false,
+            retryWrites: true
         });
         
         dbInstance = connection.connection.db;
@@ -32,4 +36,18 @@ const getDBInstance = () => {
     return dbInstance;
 };
 
-module.exports = { connectDB, getDBInstance };
+const getMongoClient = () => {
+    // Just use the mongoose client
+    return mongoose.connection.getClient();
+};
+
+// Clean up connections on app shutdown
+process.on('SIGINT', async () => {
+    if (mongoose.connection) {
+        await mongoose.connection.close();
+    }
+    console.log('MongoDB connections closed.');
+    process.exit(0);
+});
+
+module.exports = { connectDB, getDBInstance, getMongoClient };

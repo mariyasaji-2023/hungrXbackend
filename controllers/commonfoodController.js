@@ -1,7 +1,6 @@
-const { MongoClient } = require("mongodb")
-const { ObjectId } = require("mongodb")
-const client = new MongoClient(process.env.DB_URI)
-const mongoose = require("mongoose")
+const mongoose = require("mongoose");
+const { getDBInstance, getMongoClient } = require('../config/db');
+const { ObjectId } = require('mongodb');
 
 // const get = async(req, res) => {
 //     try {
@@ -154,6 +153,7 @@ const searchCommonfood = async (req, res) => {
 
 const addConsumedCommonFood = async (req, res) => {
     try {
+        const client = getMongoClient();
         const db = client.db(process.env.DB_NAME);
         const users = db.collection("users");
         const commonFoods = db.collection("commonfoods");
@@ -290,6 +290,7 @@ const addConsumedCommonFood = async (req, res) => {
 
 const addCommonFoodToHistory = async (req, res) => {
     try {
+        const client = getMongoClient();
         const db = client.db(process.env.DB_NAME);
         const users = db.collection("users");
         const commonFoods = db.collection("commonfoods");

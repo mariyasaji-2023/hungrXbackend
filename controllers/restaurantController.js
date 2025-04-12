@@ -2,12 +2,9 @@ const userModel = require('../models/userModel')
 const mongoose = require('mongoose');
 const profileModel = require('../models/profileModel')
 const mealModel = require('../models/mealModel')
-const { getDBInstance } = require('../config/db');
 const reqrestaurantModel = require('../models/reqRestaurantModel')
-
-const { MongoClient } = require("mongodb");
+const { getDBInstance, getMongoClient } = require('../config/db');
 const { ObjectId } = require('mongodb');
-const client = new MongoClient(process.env.DB_URI);
 
 const getEatPage = async (req, res) => {
     const { userId } = req.body
@@ -58,7 +55,7 @@ const getEatPage = async (req, res) => {
 const eatScreenSearchName = async (req, res) => {
     const { name } = req.body;
     try {
-        await client.connect();
+        const client = getMongoClient(); // Get the shared client
         const grocery = client.db("hungerX").collection("products");
 
         const results = await grocery.aggregate([
@@ -90,7 +87,6 @@ const eatScreenSearchName = async (req, res) => {
                 message: 'No matching items found'
             });
         }
-
 
         const transformedResults = results.map(item => {
             const type = item.menus ? 'restaurant' : 'grocery';
@@ -140,10 +136,10 @@ const eatScreenSearchName = async (req, res) => {
             message: 'Internal server error',
             error: error.message
         });
-    } finally {
-        await client.close();
     }
+    // No client.close() as we're using the shared connection
 };
+
 
 const getMeal = async (req, res) => {
     try {
@@ -1040,7 +1036,7 @@ const searchRestaurant = async (req, res) => {
 
 const suggestions = async (req, res) => {
     try {
-        await client.connect();
+        const client = getMongoClient(); // Get the shared client
         const db = client.db(process.env.DB_NAME);
         const Restaurant = db.collection("restaurants");
         const restaurants = await Restaurant.find({}).project({
