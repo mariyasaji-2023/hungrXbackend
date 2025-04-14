@@ -9,14 +9,12 @@ const connectDB = async () => {
             throw new Error('MongoDB connection string (DB_URI) is not defined in environment variables');
         }
 
-        const connection = await mongoose.connect(process.env.DB_URI, {
-            useNewUrlParser: true,
-            useUnifiedTopology: true,
-            tls: true,
-            tlsAllowInvalidCertificates: false,
-            tlsAllowInvalidHostnames: false,
-            retryWrites: true
-        });
+        const connection = await mongoose.connect(process.env.DB_URI,{
+            tls:true,
+            tlsAllowInvalidCertificates : false,
+            tlsAllowInvalidHostnames :false,
+            retryWrites:true
+        })
         
         dbInstance = connection.connection.db;
         console.log('Connected to MongoDB');
