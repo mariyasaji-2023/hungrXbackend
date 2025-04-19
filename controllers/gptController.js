@@ -6,28 +6,50 @@ const { ObjectId } = require("mongodb")
 const client = new MongoClient(process.env.DB_URI)
 const mongoose = require("mongoose")
 
-
 const chat = async (req, res) => {
     try {
         const { ingredients, cuisine, calories, cookingTime, userId } = req.body;
 
         // Format the prompt
         let prompt = `Generate a ${cuisine} recipe using only ${ingredients.join(', ')}. 
-        Total cooking time must be exactly ${cookingTime || '5'} minutes. If the recipe cannot fit within this time, adjust the steps or ingredients accordingly. Format as timed stages:
-        Step: [step number] - Title: [step_name with emoji] - [description] - [duration]
-        Step: [step number] - Title: [step_name with emoji] - [description] - [duration]
-        [continue for all stages]
+        Total cooking time must be exactly ${cookingTime || '5'} minutes. The recipe is for one person.
+        
+        Each stage should be presented as a separate card with emojis, with each stage timed accordingly.
+        Format each stage as follows:
+        
+        Stage: [stage number] 
+        Title: [stage_name with emoji]
+        Time: [duration in minutes]
+        Steps:
+        • [step 1]
+        • [step 2]
+        • [continue for all steps in this stage]
+        
+        Stages should progress logically from preparation to final plating, card by card.
+        
+        For measurements:
+        - Use kitchen utensils for measurement (cups, tablespoons, teaspoons)
+        - Calculate ingredient measurements precisely to match the total calories of ${calories || '[value]'}
+        
         Nutritional info (per serving):
         - Calories: ${calories || '[value]'}
         - Protein: [value]g
         - Carbs: [value]g
         - Fat: [value]g
+        
         Return JSON format:
         {
           "recipe_name": "",
           "total_time": ${cookingTime || 5},
-          "stages": [{"Step": "", "Title": "", "description": "", "duration": 0}],
-          "nutrition": {"calories": 0, "protein": 0, "carbs": 0, "fat": 0}
+          "stages": [
+            {
+              "stage": 1,
+              "title": "", 
+              "time": 0,
+              "steps": ["", ""]
+            }
+          ],
+          "nutrition": {"calories": ${calories || 0}, "protein": 0, "carbs": 0, "fat": 0}
         }`;
         
 
@@ -46,7 +68,7 @@ const chat = async (req, res) => {
 
             // Always calculate total time from stages to ensure consistency
             const calculatedTotalTime = recipeData.stages.reduce(
-                (total, stage) => total + (stage.duration || 0),
+                (total, stage) => total + (stage.time || 0),
                 0
             );
 
@@ -60,6 +82,18 @@ const chat = async (req, res) => {
             if ('total_time_minutes' in recipeData) {
                 delete recipeData.total_time_minutes;
             }
+
+            // Transform stages to match MongoDB schema
+            const transformedStages = recipeData.stages.map((stage, index) => {
+                return {
+                    Step: (index + 1).toString(),
+                    Title: stage.title,
+                    description: stage.steps.join(". "),
+                    duration: stage.time
+                };
+            });
+            
+            recipeData.stages = transformedStages;
 
             // Save the recipe to the database
             const newRecipe = new Recipe({
@@ -89,7 +123,6 @@ const chat = async (req, res) => {
         res.status(500).json({ error: "Something went wrong!" });
     }
 };
-
 
 const recipeHistory = async (req, res) => {
     const { userId } = req.body;

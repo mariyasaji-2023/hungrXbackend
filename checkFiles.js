@@ -1,48 +1,19 @@
-const express = require('express');
+// test-db.js
 const mongoose = require('mongoose');
-const User = require('./models/User'); // Assuming User model is in models/User.js
+require('dotenv').config();
 
-const app = express();
-app.use(express.json());
+const uri = process.env.DB_URI;
+console.log("Connection string (hiding password):", 
+  uri.replace(/\/\/([^:]+):([^@]+)@/, "//\$1:****@"));
 
-// API to verify expiration date
-app.post('/verify-expiry', async (req, res) => {
-   try {
-    const {userId ,currentDate} = req.body
-    if(!userId || !currentDate){
-      return res.status(400).json({
-        status:false,
-        message:'User ID and current date are required'
-      })
-    }
-    const user =await User.findById(userId)
-    if(!user){
-      return res.status(404).json({
-        status:false,
-        message:'User not found'
-      })
-    }
-    if(!user.expirationDate){
-      return res.status(400).json({
-        status:false,
-        message:'Expiration date not set for user'
-      })
-    }
-    const expiryDate = new Date(user.expirationDate);
-    const inputDate = new Date (currentDate)
-
-    if(isNaN(expiryDate) || isNaN(inputDate)){
-      return res.status(400).json({
-        status:false,
-        message:'invalid date format'
-      })
-    }
-    const isExpired = inputDate > expiryDate;
-    // return res
-   } catch (error) {
-    
-   }
-});
-
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+mongoose.connect(uri, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000
+})
+.then(() => {
+  console.log("MongoDB connection successful!");
+  return mongoose.connection.close();
+})
+.then(() => console.log("Connection closed."))
+.catch(err => console.error("Connection error:", err));
