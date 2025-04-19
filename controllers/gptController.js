@@ -97,10 +97,10 @@ const chat = async (req, res) => {
           "fat": 0
         },
         "ingredients": [
-          "🥚 Egg (150 cal)(1 medium egg)",
-          "🍞 Bread (160 cal)(2 slices bread)",
-          "🌱 Mixed Spices (80 cal)(1 tablespoon mixed spices)",
-          "🥥 Cooking Oil (not counted directly in calories)(1 teaspoon oil)"
+          "🥚 Egg 150 cal-1 medium egg",
+          "🍞 Bread 160 cal-2 slices bread",
+          "🌱 Mixed Spices 80 cal-1 tablespoon mixed spices",
+          "🥥 Cooking Oil not counted directly in calories-1 teaspoon oil"
         ]
       }
       \\\`
