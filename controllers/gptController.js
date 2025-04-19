@@ -10,190 +10,166 @@ const chat = async (req, res) => {
     try {
         const { ingredients, cuisine, calories, cookingTime, userId } = req.body;
 
-        // Format the prompt
-        let prompt = `Generate a ${cuisine} recipe using only ${ingredients.join(', ')}. 
-        Total cooking time must be exactly ${cookingTime || '5'} minutes. The recipe is for one person.
-        Total calories: ${calories || '[value]'} calories
-        
-        Each stage should be presented as a separate card with emojis, with each stage timed accordingly.
-        Format each stage as follows:
-        
-        Stage: [stage number] 
-        Title: [stage_name with emoji]
-        Time: [duration in minutes]
-        Steps:
-        • [step 1]
-        • [step 2]
-        • [continue for all steps in this stage]
-        
-        Stages should progress logically from preparation to final plating, card by card.
-        
-        IMPORTANT: For each ingredient, place the emoji BEFORE the ingredient name, like this:
-        • 🥚 Egg (X calories)
-        • 🍚 Rice (X calories)
-        
-        For measurements:
-        - Use kitchen utensils for measurement (cups, tablespoons, teaspoons)
-        - Calculate ingredient measurements precisely to match the total calories of ${calories || '[value]'}
-        - Show the calorie count for each ingredient in parentheses
-        
-        Nutritional info (per serving):
-        - Calories: ${calories || '[value]'}
-        - Protein: [value]g
-        - Carbs: [value]g
-        - Fat: [value]g
-        
-        Your response should ONLY contain the JSON with no other text. Return in this format exactly:
-        {
-          "recipe_name": "Recipe Name",
-          "total_time": ${cookingTime || 5},
-          "stages": [
-            {
-              "Step": "1",
-              "Title": "Stage Title", 
-              "description": "Description of steps",
-              "duration": 1
-            }
-          ],
-          "nutrition": {"calories": ${calories || 0}, "protein": 0, "carbs": 0, "fat": 0},
-          "ingredients": ["🥚 Egg (75 calories)", "🍚 Rice (130 calories)"]
-        }`;
-        
+        // Build the GPT prompt with bullet points and measurements in ingredients
+        const prompt = `
+      Generate a ${cuisine} recipe using only ${ingredients.join(', ')}.
+      
+      * Total cooking time must be exactly ${cookingTime || '5'} minutes
+      * The recipe is for one person
+      * Total calories: ${calories || '[value]'} calories
+      
+      ### Format Requirements:
+      
+      * **Each stage should be presented as a separate card with emojis**
+      * **Each stage should be timed accordingly**
+      
+      ### Stage Format:
+      * **Stage:** [stage number]
+      * **Title:** [stage_name with emoji]
+      * **Time:** [duration in minutes]
+      * **description:** [an array of strings, where each item is a step with emoji, measurement, and calories]
+      
+    + ### Example Step Format (use multiple lines per stage):
+ "description": [
+   "🥚 Use 1 medium egg (150 calories)",
+   "🔄 Crack and whisk the egg."
+ ]
 
+ "description": [
+  "🍞 Use 2 slices bread (160 calories)",
+  "🔥 Toast until golden brown."
+]
+      
+      In JSON:
+      "description": [
+   "🥚 Use 1 medium egg (150 calories)",
+   "🔄 Crack and whisk the egg."
+ ]
+
+"description": [
+  "🍞 Use 2 slices bread (160 calories)",
+  "🔥 Toast until golden brown."
+ ]
+      
+      ### Important Formatting Rules:
+      * In the description array:
+  * Split each action into a separate string.
+  * First line: include the ingredient, emoji, measurement, and calories.
+  * Next line(s): describe what to do with that ingredient.
+      * Stages should progress logically from preparation to final plating, card by card
+      * For each ingredient, place the emoji BEFORE the ingredient name in the ingredients list
+      * In the ingredients list, include measurements within the description:
+        * 🥚 Egg (150 cal)(1 medium egg)
+        * 🍞 Bread (160 cal)(2 slices bread)
+      
+      ### Measurement Guidelines:
+      * Use kitchen utensils for measurement (cups, tablespoons, teaspoons)
+      * Calculate ingredient measurements precisely to match the total calories of ${calories || '[value]'}
+      * Show the calorie count for each ingredient in parentheses
+      
+      ### Required Nutritional Info (per serving):
+      * Calories: ${calories || '[value]'}
+      * Protein: [value]g
+      * Carbs: [value]g
+      * Fat: [value]g
+      
+      Return JSON format:
+      \\\`
+      {
+        "recipe_name": "",
+        "total_time": ${cookingTime || 5},
+        "stages": [
+          {
+            "Step": "1",
+            "Title": "",
+            "description": [
+              "🥚 Use 1 medium egg (150 calories): crack and whisk.",
+              "🍞 Use 2 slices bread (160 calories): toast slices."
+            ],
+            "duration": 0
+          }
+          // etc...
+        ],
+        "nutrition": {
+          "calories": ${calories || 0},
+          "protein": 0,
+          "carbs": 0,
+          "fat": 0
+        },
+        "ingredients": [
+          "🥚 Egg (150 cal)(1 medium egg)",
+          "🍞 Bread (160 cal)(2 slices bread)",
+          "🌱 Mixed Spices (80 cal)(1 tablespoon mixed spices)",
+          "🥥 Cooking Oil (not counted directly in calories)(1 teaspoon oil)"
+        ]
+      }
+      \\\`
+      `.trim();
+
+        // Call the OpenAI API
         const response = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [{ role: "user", content: prompt }],
-            response_format: { type: "json_object" }  // Request JSON format explicitly
         });
 
-        // Parse the response to extract the JSON
         const content = response.choices[0].message.content;
+
+        // Try to parse out JSON
+        let recipeData;
         try {
-            // Clean the content before parsing
-            let cleanedContent = content.trim();
-            
-            // Remove markdown code block markers if present
-            if (cleanedContent.startsWith("```json")) {
-                cleanedContent = cleanedContent.replace(/```json\n|```/g, "");
-            } else if (cleanedContent.startsWith("```")) {
-                cleanedContent = cleanedContent.replace(/```\n|```/g, "");
-            }
-            
-            // Try to extract JSON if it's not already pure JSON
-            if (!cleanedContent.startsWith("{")) {
-                const jsonMatch = cleanedContent.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    cleanedContent = jsonMatch[0];
-                }
-            }
-            
-            // Parse the cleaned JSON
-            const recipeData = JSON.parse(cleanedContent);
-
-            // Always calculate total time from stages to ensure consistency
-            const calculatedTotalTime = recipeData.stages.reduce(
-                (total, stage) => total + (Number(stage.duration) || 0),
-                0
-            );
-
-            // Check if total times match - if not, update to match the calculated value
-            if (recipeData.total_time !== calculatedTotalTime) {
-                console.log(`Updating total_time from ${recipeData.total_time} to ${calculatedTotalTime} to match stage durations`);
-                recipeData.total_time = calculatedTotalTime;
-            }
-
-            // Remove any total_time_minutes property if it exists
-            if ('total_time_minutes' in recipeData) {
-                delete recipeData.total_time_minutes;
-            }
-
-            // Ensure Step property is a string
-            recipeData.stages = recipeData.stages.map((stage, index) => ({
-                ...stage,
-                Step: typeof stage.Step === 'number' ? String(stage.Step) : stage.Step || String(index + 1)
-            }));
-
-            // Save the recipe to the database
-            const newRecipe = new Recipe({
-                userId: userId || null, // Add userId if available
-                recipe_name: recipeData.recipe_name,
-                total_time: recipeData.total_time,
-                stages: recipeData.stages,
-                nutrition: recipeData.nutrition,
-                ingredients: recipeData.ingredients || ingredients,
-                cuisine: cuisine,
+            const jsonMatch = content.match(/\{[\s\S]*\}/);
+            recipeData = JSON.parse(jsonMatch ? jsonMatch[0] : content);
+        } catch (parseErr) {
+            console.error("Failed to parse JSON:", parseErr);
+            return res.json({
+                reply: content,
+                requested_cooking_time: cookingTime || 5,
             });
-
-            await newRecipe.save(); // Save to MongoDB
-
-            // Return the saved recipe
-            res.json(newRecipe);
-        } catch (parseError) {
-            console.error("JSON parsing error:", parseError);
-            console.error("Raw content that failed to parse:", content);
-            
-            // Create a simplified fallback response
-            const fallbackRecipe = {
-                recipe_name: `${cuisine} ${ingredients.join(' and ')} Recipe`,
-                total_time: cookingTime || 5,
-                stages: [
-                    {
-                        Step: "1",
-                        Title: "Preparation 🧑‍🍳",
-                        description: `Prepare the ingredients: ${ingredients.join(', ')}`,
-                        duration: 1
-                    },
-                    {
-                        Step: "2",
-                        Title: "Cooking 🍳",
-                        description: "Cook the ingredients according to recipe instructions.",
-                        duration: 3
-                    },
-                    {
-                        Step: "3",
-                        Title: "Serving 🍽️",
-                        description: "Serve and enjoy your meal!",
-                        duration: 1
-                    }
-                ],
-                nutrition: { calories: calories || 350, protein: 15, carbs: 40, fat: 12 },
-                ingredients: ingredients.map(ing => `${ing} (${Math.round(calories/ingredients.length)} calories)`),
-                cuisine: cuisine,
-            };
-            
-            // Try to save the fallback recipe
-            try {
-                const newRecipe = new Recipe({
-                    userId: userId || null,
-                    ...fallbackRecipe
-                });
-                
-                await newRecipe.save();
-                res.json({
-                    ...newRecipe.toObject(),
-                    _note: "This is a fallback recipe due to parsing errors with the AI response."
-                });
-            } catch (dbError) {
-                console.error("Database error with fallback recipe:", dbError);
-                res.status(500).json({ 
-                    error: "Failed to generate recipe",
-                    requested_cooking_time: cookingTime || 5
-                });
-            }
         }
+
+        // Recalculate total_time from stages
+        const calculatedTotal = recipeData.stages.reduce(
+            (sum, stage) => sum + (stage.duration || 0),
+            0
+        );
+        if (recipeData.total_time !== calculatedTotal) {
+            console.log(
+                `Correcting total_time from ${recipeData.total_time} to ${calculatedTotal}`
+            );
+            recipeData.total_time = calculatedTotal;
+        }
+
+        // Ensure no stray total_time_minutes
+        delete recipeData.total_time_minutes;
+
+        // Persist to MongoDB
+        const newRecipe = new Recipe({
+            userId: userId || null,
+            recipe_name: recipeData.recipe_name,
+            total_time: recipeData.total_time,
+            stages: recipeData.stages,
+            nutrition: recipeData.nutrition,
+            ingredients: recipeData.ingredients,
+            cuisine,
+        });
+        await newRecipe.save();
+
+        // Return the saved object
+        res.json(newRecipe);
+
     } catch (error) {
-        console.error(error);
+        console.error("chat handler error:", error);
         res.status(500).json({ error: "Something went wrong!" });
     }
 };
 
 const recipeHistory = async (req, res) => {
     const { userId } = req.body;
-    
+
     try {
         // Use find instead of findOne to get all recipes with matching userId
         const recipes = await Recipe.find({ userId: userId });
-        
+
         if (!recipes || recipes.length === 0) {
             return res.status(404).json({
                 status: false,
@@ -210,14 +186,14 @@ const recipeHistory = async (req, res) => {
             cuisine: recipe.cuisine,
             createdAt: recipe.createdAt
         }));
-        
+
         return res.status(200).json({
             status: true,
             message: 'Recipe history retrieved successfully',
             count: recipes.length,
             recipes: recipeData
         });
-        
+
     } catch (error) {
         return res.status(500).json({
             status: false,
@@ -227,25 +203,25 @@ const recipeHistory = async (req, res) => {
     }
 };
 
-const recipeHistoryDetails = async(req,res)=>{
-    const {recipeId} = req.body
+const recipeHistoryDetails = async (req, res) => {
+    const { recipeId } = req.body
     try {
-        const recipe = await Recipe.findOne({_id:recipeId})
-        if(!recipe){
+        const recipe = await Recipe.findOne({ _id: recipeId })
+        if (!recipe) {
             return res.status(404).json({
-                status:false,
-                message :'Recipe not found'
+                status: false,
+                message: 'Recipe not found'
             })
         }
         return res.status(200).json({
-            status:false,
+            status: false,
             recipe
         })
     } catch (error) {
         return res.status(500).json({
-            status:false,
-            message:'Internal server error',
-            error:error.message
+            status: false,
+            message: 'Internal server error',
+            error: error.message
         })
     }
 }
@@ -371,7 +347,7 @@ const recordRecipeConsumption = async (req, res) => {
             message: 'Recipe consumption recorded successfully',
             date: date,
             mealId: selectedMeal,
-           
+
         });
     } catch (error) {
         console.error('Error recording recipe consumption:', error);
@@ -379,4 +355,4 @@ const recordRecipeConsumption = async (req, res) => {
     }
 };
 
-module.exports = { chat ,recipeHistory ,recipeHistoryDetails ,recordRecipeConsumption };
+module.exports = { chat, recipeHistory, recipeHistoryDetails, recordRecipeConsumption };

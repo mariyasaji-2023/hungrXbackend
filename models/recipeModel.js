@@ -23,7 +23,7 @@ const RecipeSchema = new mongoose.Schema({
             required: true
         },
         description: {
-            type: String,
+            type: [String],
             required: true
         },
         duration: {
